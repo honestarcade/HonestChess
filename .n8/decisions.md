@@ -110,3 +110,12 @@ Ad-hoc entries (decisions made outside a planning/execution command) use:
 - **Decision:** `.n8/memory/play-console.md` records the internal testers list as "Testers", not the plan's "Owner".
   **Why:** The owner created it under that name; the name is cosmetic, the content (the owner's account only) is what #21 requires.
   **Issue:** #21
+
+## /n8-release v0.1.0 — 2026-09-28
+
+- **Decision:** Released `v0.1.0` at `main` ba70d7f (M0 + M1) as a GitHub pre-release with generated notes, before `/n8-verify` closed M0 and M1.
+  **Why:** The release is itself M1's acceptance criterion (#22), so M1 cannot be verified before it exists; the owner approved the cut explicitly. `release.yml` run 36437205363 passed gate, mutations, the signed build (code 1011), the permission scan, the certificate check, the asset attach and the internal-track upload.
+  **Issue:** #22
+- **Decision:** The first `gh release create --target ba70d7f` was refused (HTTP 422: an abbreviated SHA is not a valid target); it was re-run with `--target main` after confirming `origin/main` was still ba70d7f.
+  **Why:** The API takes a branch or a full SHA only.
+  **Issue:** #22

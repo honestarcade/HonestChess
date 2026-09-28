@@ -63,3 +63,10 @@ what it produced for this app.
   five names. `honestchess-signing-credentials.txt` deleted after the owner
   confirmed the password and the keystore file are in their password manager.
   #21.
+- 2026-09-28: `v0.1.0` (code 1011) — GitHub pre-release
+  https://github.com/honestarcade/HonestChess/releases/tag/v0.1.0, tag at
+  `main` ba70d7f — uploaded to the internal track by release run 36437205363
+  (bundle attached to the release, its hash re-verified). This first upload
+  set the package name and enrolled Play App Signing with a Google-generated
+  app signing key (owner, /n8-plan M0 round two); from here the upload key can
+  only be reset through the Console. #22.
