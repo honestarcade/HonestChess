@@ -77,7 +77,7 @@ jobs:
 
       - id: guards
         name: Invariant guards
-        run: flutter test --no-pub --tags guard
+        run: flutter test --no-pub --tags guard --exclude-tags weekly
 
       - id: gate
         name: Quality gate

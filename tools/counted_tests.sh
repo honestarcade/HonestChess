@@ -33,11 +33,20 @@ done_lines() { grep '"type":"testDone"' "$events" || true; }
 passed="$(done_lines | grep '"result":"success"' | grep -c '"hidden":false' || true)"
 failed="$(done_lines | grep -cE '"result":"(failure|error)"' || true)"
 
-echo "$label tests: $passed passed, $failed failed (flutter test exit $status)"
+counts="$label tests: $passed passed, $failed failed (flutter test exit $status)"
+echo "$counts"
+# The job summary is where a scheduled run is read, so the counts and any
+# refusal go there too, not only into the step log (#45).
+summarise() {
+  [ -n "${GITHUB_STEP_SUMMARY:-}" ] && printf '%s\n\n' "$@" >> "$GITHUB_STEP_SUMMARY"
+  return 0
+}
 if [ "$passed" -eq 0 ] && [ "$failed" -eq 0 ]; then
   echo "$label: no test ran — refusing to pass empty" >&2
+  summarise "**$counts**" "$label: no test ran — refusing to pass empty"
   exit 3
 fi
+summarise "**$counts**"
 if [ "$failed" -ne 0 ] || [ "$status" -ne 0 ]; then
   exit 1
 fi

@@ -87,7 +87,6 @@ jobs:
           {
             echo "### Device tests: $OUTCOME"
             echo
-            echo "tools/device_tests.sh ran integration_test/ on an API 34 emulator"
-            echo "and fails when no test ran. Open the \`Device tests on an"
-            echo "emulator\` step for the counts."
+            echo "The counts, and any empty-run refusal, are above: tools/counted_tests.sh"
+            echo "writes them to this summary."
           } >> "$GITHUB_STEP_SUMMARY"
