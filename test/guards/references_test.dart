@@ -64,6 +64,7 @@ void main() {
       'tools/gate.sh',
       'test/guards/signing_guard_test.dart',
       'lib/main.dart',
+      'android/signing/upload_certificate.pem',
     };
 
     test('references to files that exist pass', () {
