@@ -56,3 +56,27 @@ Ad-hoc entries (decisions made outside a planning/execution command) use:
 - **Decision:** The Audit milestone has no epic of its own; findings attach to the epic they concern.
   **Why:** The n8SDLC convention (Solitaire had an audit epic; this app does not).
   **Issue:** M8
+
+## /n8-plan M0,M1 — 2026-09-27
+
+- **Decision:** M0 is six stories (#14 identity and placeholder, #15 upload key, #16 invariant 1–2 guards, #17 privacy/licence/security, #18 launcher icon, #19 gate and battery) and M1 three (#20 PR gate, #21 Play Console and secrets, #22 v0.1.0 to internal), following Honest Solitaire's M0/M1 shape on the template that absorbed Solitaire's fix passes.
+  **Why:** The template already carries the guards, gate, battery and workflows; these milestones apply and prove them for Honest Chess.
+  **Issue:** #1, #2
+- **Decision:** The dependency blocklist widens to network clients, attribution, crash reporting, push and remote config.
+  **Why:** Owner, round two ("Widen it"): invariant 1's "no network" read as a package policy, not only a permission policy.
+  **Issue:** #16
+- **Decision:** The launcher icon moves from M5 (epic #8) to M0 (epic #1, story #18).
+  **Why:** Owner, round two: "Real icon now", so v0.1.0 on the internal track looks like Honest Chess.
+  **Issue:** #18, #1, #8
+- **Decision:** Play App Signing uses a Google-generated app signing key; the owner backs the upload keystore up into the password manager.
+  **Why:** Owner, round two; the same choice as Honest Solitaire.
+  **Issue:** #15, #22
+- **Decision:** The release version code stays CI-computed (1000 + run×10 + attempt) and `release.yml` stays the template's; no tag-equals-pubspec check.
+  **Why:** Pass-1 simulation found the draft's "version code 1" contradicted `tools/ci_version.sh`; the template's formula lets a failed release re-run.
+  **Issue:** #22
+- **Decision:** Integration tests (`integration_test`) are deferred to M6 and epic #10 gains the criterion.
+  **Why:** The coverage check found them unowned; M0/M1 have no game to drive, and Solitaire's M6 carried the same scripted end-to-end game.
+  **Issue:** #10
+- **Decision:** The second executor-simulation pass ran as a background Workflow rather than individual subagent calls.
+  **Why:** An orchestration slip — the owner had not opted into workflows; the pass itself is the one the plan requires.
+  **Issue:** #14–#22
