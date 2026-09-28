@@ -6,8 +6,9 @@ library;
 // nothing behind and change nothing when it refuses. Each case copies the
 // tracked files to a scratch directory and renames the copy.
 // android_identity_test.dart checks the real repository; this checks the
-// script that keeps it true. template-smoke.yml runs the gate and the battery
-// on a renamed clone in CI.
+// script that keeps it true. In the template repository, a template-only
+// workflow runs the gate and the battery on a renamed clone; the rename
+// deleted it here (#34).
 
 import 'dart:io';
 
