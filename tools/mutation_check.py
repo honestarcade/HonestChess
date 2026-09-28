@@ -260,6 +260,14 @@ MUTATIONS: list[Mutation] = [
              "the owner would compare the Console against the wrong key",
              'signing-readme: README says'),
 
+    # workflow permissions -- workflow_permissions_test.dart (#20)
+    Mutation("ci", "the PR workflow grants write to its token",
+             ".github/workflows/ci.yml",
+             sub(r"^permissions:\n  contents: read$", "permissions:\n  contents: write",
+                 flags=re.M),
+             "a pull request's code would run with a token that can push",
+             'workflow-permissions: 1 offender'),
+
     # privacy policy -- privacy_policy_test.dart
     Mutation("docs", "the privacy policy names another package", "docs/privacy.md",
              sub(r"`com\.honestarcade\.chess`", "`com.honestarcade.solitaire`"),

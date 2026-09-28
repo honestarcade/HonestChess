@@ -98,3 +98,12 @@ Ad-hoc entries (decisions made outside a planning/execution command) use:
 - **Decision:** The epic amendments #18's last criterion names (#1 gains the icon, #8 loses it) were made at planning on 2026-09-27, with comments on both epics, not during execution.
   **Why:** The owner's "Real icon now" was a planning answer; the amendment belongs with it.
   **Issue:** #18, #1, #8
+
+## /n8-exec M1 — 2026-09-28
+
+- **Decision:** ShellCheck's run-time download in `ci.yml` is pinned to `v0.11.0` (the `version:` input of `ludeeus/action-shellcheck@2.0.0`, which defaults to `stable`); every other `uses:` was already at its latest major (checked with `gh api …/releases/latest` 2026-09-28: checkout v7, setup-java v6, upload-artifact v7, flutter-action v2, upload-google-play v1).
+  **Why:** A floating runtime download is an unpinned third party inside the merge gate; this is the one change to the template's workflows besides the package id.
+  **Issue:** #20
+- **Decision:** Least privilege is now an executed guard (`workflow_permissions_test.dart`): every workflow declares a top-level read-only `permissions:` mapping, and a write scope exists only where an allowlist names the job (`release.yml` → `ship` → `contents`).
+  **Why:** The plan's discretion; the template only checked ci.yml's top-level block.
+  **Issue:** #20
