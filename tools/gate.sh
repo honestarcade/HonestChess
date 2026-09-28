@@ -26,12 +26,17 @@ LABELS=(
   "scan the bundle for permissions"
 )
 
+# The build step runs WITHOUT --no-pub: `flutter pub get` writes a plugin
+# registrant that includes dev-only plugins (the device-test harness, #38), and only
+# the build's own resolution regenerates it for release, which excludes them.
+# With --no-pub the release build compiles a registrant naming a plugin it
+# does not link, and fails.
 COMMANDS=(
   "flutter pub get --enforce-lockfile"
   "dart analyze --fatal-infos"
   "dart format --output=none --set-exit-if-changed ."
   "flutter test --no-pub --exclude-tags weekly"
-  "flutter build appbundle --release --no-pub"
+  "flutter build appbundle --release"
   "tools/check_aab.sh"
 )
 

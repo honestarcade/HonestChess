@@ -98,6 +98,29 @@ void main() {
       );
     });
 
+    test('release builds regenerate the plugin registrant (no --no-pub)', () {
+      final builds = [
+        for (final line in readFile('tools/gate.sh').split('\n'))
+          if (line.contains('flutter build appbundle')) line,
+        for (final job in jobsOf(
+          readWorkflow('.github/workflows/release.yml'),
+        ).values)
+          for (final step in stepsOf(job))
+            if ('${step['run']}'.contains('flutter build appbundle'))
+              '${step['run']}',
+      ];
+      expect(
+        builds,
+        hasLength(2),
+        reason: 'release-build: the build commands were not found',
+      );
+      expect(
+        builds.where((b) => b.contains('--no-pub')),
+        isEmpty,
+        reason: 'release-build: a release build with --no-pub compiles the dev-only integration_test plugin into the registrant',
+      );
+    });
+
     test('weekly.yml runs the refusing script, on dispatch', () {
       const path = '.github/workflows/weekly.yml';
       final commands = _commands(path);
