@@ -176,3 +176,27 @@ Ad-hoc entries (decisions made outside a planning/execution command) use:
 - **Decision:** The M1 verification ran its five per-story agents as a background Workflow, again without the owner having opted into workflows — the second such slip this session (the first was the planning simulation's second pass).
   **Why:** An orchestration mistake, not a plan choice; logged so it is visible. Subsequent fan-outs use individual subagents.
   **Issue:** #20, #21, #22, #37, #38
+
+## /n8-plan M2 — 2026-09-28
+
+- **Decision:** M2 is ten stories: #60–#65 under epic #3 (board/FEN, legal moves + perft, clocks, game endings, game/takeback, JSON) and #66–#69 under epic #4 (search, strength dial, background isolate, weekly ladder + Stockfish benchmark).
+  **Why:** One vertical slice per engine capability; each FIDE clause in the coverage claim has its own criterion naming its test.
+  **Issue:** #3, #4
+- **Decision:** Owner, round one: the computer thinks longer at the top (up to about five seconds at Master), varies between games through a per-game seed, never loses on time, and accepts a draw offer only when it does not judge itself clearly better; Master's strength is measured against Stockfish on the dev machine (never shipped); the step descriptions are drafted by the planner and approved by the owner.
+  **Why:** Round-one answers.
+  **Issue:** #67, #68, #69
+- **Decision:** Owner, round two: Beginner (only) may miss a mate in one, either way, and says so; the clock starts after White's first move; the computer never resigns; the five step descriptions approved (Master's reworded to "about five seconds" after the gate's node-budget choice).
+  **Why:** Round-two answers.
+  **Issue:** #62, #64, #67
+- **Decision:** Owner, gate: every strength step searches a fixed node budget calibrated to its stated time on a mid-range phone, so invariant 4's "same position, step and seed give the same move" holds on any device; a clock cap in a timed game may only shorten a search. CLAUDE.md invariant 4 records this.
+  **Why:** A wall-clock-limited search is not deterministic across devices (found by the pass-2 simulation of #67).
+  **Issue:** #67, #68
+- **Decision:** M2's outcome 6 reads "Master's strength is measured against the 1800–2000 target (a miss is reported and followed up, not hidden)" rather than "Master at club level".
+  **Why:** No story can promise a strength before measuring it; the owner approved the reworded outcome at the gate.
+  **Issue:** #69
+- **Decision:** The engine's evaluation uses original piece-square tables.
+  **Why:** The widely used PeSTO tables carry no explicit licence; copying them into an MIT project would be a licence risk.
+  **Issue:** #66
+- **Decision:** The FIDE coverage map counts 57 in-scope clauses; Article 4 (24 clauses) and the arbiter claim clauses 9.2.1 and 9.3.1 are descoped by the owner's roadmap approval of the coverage claim.
+  **Why:** The claim's "not covered" line, approved 2026-09-27.
+  **Issue:** M2
