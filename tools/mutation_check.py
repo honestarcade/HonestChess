@@ -53,6 +53,8 @@ class Mutation:
     also: tuple = ()
     slow: bool = False
     creates: tuple = ()
+    deletes: str = ""
+    replaces_with: tuple = ()
     """`expect` is a substring of the reason the RIGHT assertion prints when it
     fires. Without it the battery measures "the suite went red", which is not
     "this guard caught it": an unrelated test reading the same file could go
@@ -64,6 +66,14 @@ class Mutation:
 
     `also` carries further `(path, apply)` edits, for a defect that cannot be
     written truthfully in one file.
+
+    `deletes` names one file removed for the run and `replaces_with` holds
+    `(target, fixture)` pairs whose fixture bytes overwrite the target: the
+    defects a text substitution cannot express -- a missing raster, the
+    template's icon back in place. Both are byte snapshots restored in the
+    same try/finally as the text edits, and `--self-test` proves that round
+    trip byte-identical. A mutation of these kinds may leave `path` empty.
+    (Ported from Honest Solitaire's battery, #18.)
     """
 
 
@@ -255,6 +265,34 @@ MUTATIONS: list[Mutation] = [
              sub(r"`com\.honestarcade\.chess`", "`com.honestarcade.solitaire`"),
              "the Play listing would link a policy for a different app",
              'privacy-policy: 1 offender'),
+
+    # launcher icon and start screen -- launcher_icon_test.dart (#18)
+    Mutation("icon", "the template's default icon is back at one density",
+             "", None,
+             "the store build would ship Flutter's placeholder icon again",
+             'launcher-template: 1 offender',
+             replaces_with=(("android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+                             "test/fixtures/template_ic_launcher_xxxhdpi.png"),)),
+    Mutation("icon", "the adaptive icon loses its themed layer",
+             "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml",
+             sub(r"\n    <monochrome [^\n]*/>", ""),
+             "Android 13 themed icons would show a generic tile",
+             'launcher-adaptive: 1 offender'),
+    Mutation("icon", "one source's rook drifts from the others",
+             "assets/brand/android-foreground.svg",
+             sub(r'd="M 22\.6 15 H', 'd="M 22.6 16 H'),
+             "the icon's layers would stop agreeing on the mark",
+             'launcher-sources: the inline mark copies differ'),
+    Mutation("icon", "the Android 12 splash loses the mark",
+             "android/app/src/main/res/values-v31/styles.xml",
+             sub(r'\n\s*<item name="android:windowSplashScreenAnimatedIcon">[^\n]*', ''),
+             "the system splash would show the icon Android forces, not the mark",
+             'launcher-splash: 1 offender'),
+    Mutation("icon", "a start-screen mark raster goes missing",
+             "", None,
+             "the pre-12 start screen would fail to inflate its drawable",
+             'launcher-rasters: 1 offender',
+             deletes="android/app/src/main/res/drawable-xhdpi/launch_mark.png"),
 
     # gate -- gate_failure_test.dart
     Mutation("gate", "the gate exits 0 after a failing step", "tools/gate.sh",
@@ -490,20 +528,58 @@ def compiles_as_dart(paths: list[pathlib.Path]) -> bool:
     return probe.returncode == 0
 
 
+def snapshot_bytes(paths: list) -> dict:
+    """The current bytes of every path, so a binary mutation can be undone."""
+    return {p: p.read_bytes() for p in paths}
+
+
+def restore_bytes(snapshot: dict) -> None:
+    """Puts every snapshotted file back, byte for byte, recreating a deleted
+    one (and its directory)."""
+    for p, data in snapshot.items():
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(data)
+
+
+def self_test() -> int:
+    """The binary round trip: a file deleted and a file overwritten both come
+    back byte-identical from their snapshot."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        a, b = pathlib.Path(d) / "sub" / "a.bin", pathlib.Path(d) / "b.bin"
+        a.parent.mkdir()
+        a.write_bytes(bytes(range(256)))
+        b.write_bytes(b"\x89PNG original")
+        snap = snapshot_bytes([a, b])
+        a.unlink()
+        a.parent.rmdir()
+        b.write_bytes(b"fixture bytes")
+        restore_bytes(snap)
+        ok = a.read_bytes() == bytes(range(256)) and b.read_bytes() == b"\x89PNG original"
+    print("self-test: binary snapshot round trip " + ("ok" if ok else "FAILED"))
+    return 0 if ok else 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--audit", action="store_true",
                     help="run the marker preflight alone and exit")
     ap.add_argument("--only", default="")
+    ap.add_argument("--self-test", action="store_true",
+                    help="prove the binary snapshot round trip and exit")
     args = ap.parse_args()
+    if args.self_test:
+        return self_test()
 
     selected = [m for m in MUTATIONS if args.only.lower() in
-                f"{m.issue} {m.name} {m.path}".lower()]
+                f"{m.issue} {m.name} {m.path or m.deletes} "
+                f"{' '.join(t for t, _ in m.replaces_with)}".lower()]
 
     if args.list:
         for m in selected:
-            print(f"{m.issue:<7} {m.path:<42} {m.name}")
+            where = m.path or m.deletes or m.replaces_with[0][0]
+            print(f"{m.issue:<7} {where:<42} {m.name}")
         print(f"\n{len(selected)} mutations")
         return 0
 
@@ -683,9 +759,11 @@ def main() -> int:
     broken: list[tuple[Mutation, str]] = []
 
     for i, m in enumerate(selected, 1):
-        edits = [(m.path, m.apply), *m.also]
+        edits = [*([(m.path, m.apply)] if m.path else []), *m.also]
         targets = [ROOT / path for path, _ in edits]
         originals = [target.read_text() for target in targets]
+        binary = [ROOT / m.deletes] if m.deletes else []
+        binary += [ROOT / target for target, _ in m.replaces_with]
         label = f"[{i}/{len(selected)}] {m.issue} {m.name}"
         try:
             mutated = [apply(text) for (_, apply), text in zip(edits, originals)]
@@ -693,7 +771,15 @@ def main() -> int:
             broken.append((m, str(exc)))
             print(f"  BROKEN  {label}\n          {exc}")
             continue
-        if mutated == originals:
+        missing = [p for p in binary if not p.exists()]
+        if missing:
+            broken.append((m, f"binary target missing: {missing[0]}"))
+            print(f"  BROKEN  {label}\n          {missing[0]} does not exist")
+            continue
+        fixtures = {ROOT / target: (ROOT / fixture).read_bytes()
+                    for target, fixture in m.replaces_with}
+        same = [p for p, data in fixtures.items() if p.read_bytes() == data]
+        if (mutated == originals and not binary) or same:
             broken.append((m, "changed nothing"))
             print(f"  BROKEN  {label}\n          changed nothing")
             continue
@@ -720,9 +806,15 @@ def main() -> int:
         IN_FLIGHT.write_text(
             f"{m.issue} {m.name}\n"
             + "".join(f"  {path}\n" for path, _ in edits)
+            + "".join(f"  {p.relative_to(ROOT)}\n" for p in binary)
         )
+        snapshot = snapshot_bytes(binary)
         for target, text in zip(targets, mutated):
             target.write_text(text)
+        if m.deletes:
+            (ROOT / m.deletes).unlink()
+        for target, data in fixtures.items():
+            target.write_bytes(data)
         try:
             unparseable = [t for t in targets
                            if not (parses_as_yaml(t) and parses_as_shell(t))]
@@ -772,6 +864,7 @@ def main() -> int:
         finally:
             for target, text in zip(targets, originals):
                 target.write_text(text)
+            restore_bytes(snapshot)
             for made in m.creates:
                 (ROOT / made).unlink(missing_ok=True)
             IN_FLIGHT.unlink(missing_ok=True)

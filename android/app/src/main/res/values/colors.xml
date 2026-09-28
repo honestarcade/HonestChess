@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- The design's phone background; lib/main.dart's placeholder uses the same navy. -->
+    <!-- The design's phone background; lib/main.dart's placeholder uses the
+         same navy, so the window never flashes white before Flutter draws. -->
     <color name="launch_navy">#05285F</color>
+    <!-- The brand sheet's icon tile, behind the adaptive icon's foreground (#18). -->
+    <color name="ic_launcher_background">#04213F</color>
 </resources>
