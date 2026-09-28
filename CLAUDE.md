@@ -3,11 +3,14 @@
 Flutter app (Dart) for Android, built on
 `honestarcade/android-studio-app-template`. Build with `flutter pub get && flutter run`.
 
-The quality gate is **`tools/gate.sh`** — one command running the six steps CI
-runs, in order: dependencies against the lockfile, `dart analyze --fatal-infos`,
-format check, `flutter test` (which includes the invariant guards below), the
-release bundle build, and `tools/check_aab.sh` over that bundle. It must print
-`GATE PASSED` before anything is considered done.
+The quality gate is **`tools/gate.sh`** — one command running six steps, in
+order: dependencies against the lockfile, `dart analyze --fatal-infos`, format
+check, `flutter test` (which includes the invariant guards below), the release
+bundle build, and `tools/check_aab.sh` over that bundle. It must print
+`GATE PASSED` before anything is considered done. CI's `gate` job runs exactly
+this script, plus two CI-only steps before it: shellcheck over `tools/`, and
+the guards alone (`flutter test --tags guard`) so a guard failure is named
+first in the log.
 
 CI runs one more thing the gate does not: **`tools/mutation_check.py`**, its own
 job, which reintroduces every known defect one at a time and requires the guard

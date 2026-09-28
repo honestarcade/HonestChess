@@ -12,10 +12,14 @@ Requires the Flutter version in `.fvmrc`, the Android SDK and a JDK.
 
 ```
 flutter pub get
-flutter run            # on a device or emulator
-tools/gate.sh          # everything CI runs on a pull request; must print GATE PASSED
-tools/mutation_check.py  # proves the guard suite can fail (needs a clean tree)
+flutter run              # on a device or emulator
+tools/gate.sh            # the PR gate: deps, analyze, format, tests, release build, bundle scan
+tools/mutation_check.py  # the other PR check: every known defect, reintroduced, is caught
 ```
+
+`tools/gate.sh` must print `GATE PASSED`; it is what CI's `gate` job runs.
+`tools/mutation_check.py` proves the guards can fail — a green suite alone
+does not — and needs a clean tree (`--list` shows the defects it tries).
 
 Release builds are signed only in CI, from a version tag; see
 `.n8/memory/play-console-runbook.md`.

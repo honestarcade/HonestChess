@@ -14,7 +14,7 @@ Two rules:
     analyzable. One that breaks the syntax makes the suite fail for the wrong
     reason, so it is reported as BROKEN rather than caught.
 
-Usage:  tools/mutation_check.py [--list] [--only SUBSTRING]
+Usage:  tools/mutation_check.py [--list] [--only SUBSTRING] [--self-test]
 Exit:   0 every mutation was caught
         1 at least one survived (the suite stayed green)
         2 the battery could not run (dirty tree, bad pattern, unparseable)
@@ -122,7 +122,7 @@ def flip_orientation(manifest: str) -> str:
 
 
 MUTATIONS: list[Mutation] = [
-    # Each entry is a defect the template's own guards must catch. The first
+    # Each entry is a defect this repository's guards must catch. The first
     # field names the area; an app adds its own entries the same way, named
     # after the issue that found the defect.
     Mutation("ci", "the gate step becomes advisory", ".github/workflows/ci.yml",
