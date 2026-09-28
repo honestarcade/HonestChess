@@ -169,6 +169,20 @@ void main() {
       );
     });
 
+    test(
+      'the rook\'s reach follows its scale; an oversized rook is outside',
+      () {
+        final fg = readFile('assets/brand/android-foreground.svg');
+        final reach = glyphReachDp(fg);
+        expect(reach, closeTo(18.63, 0.05));
+        expect(
+          glyphReachDp(fg.replaceFirst('scale(1.32)', 'scale(2.4)')),
+          greaterThan(33),
+        );
+        expect(glyphReachDp('<svg/>'), isNull);
+      },
+    );
+
     test('the safe-zone reach follows the geometry', () {
       final fg = readFile('assets/brand/android-foreground.svg');
       expect(safeZoneReachDp(fg), closeTo(29.5, 0.2));
@@ -316,6 +330,20 @@ void main() {
         lessThan(33),
         reason:
             'launcher-safe-zone: the mark reaches $reach dp, outside the 33-dp safe radius',
+      );
+      final glyph = glyphReachDp(
+        readFile('assets/brand/android-foreground.svg'),
+      );
+      expect(
+        glyph,
+        isNotNull,
+        reason: 'launcher-safe-zone: the rook path could not be read',
+      );
+      expect(
+        glyph,
+        lessThan(33),
+        reason:
+            'launcher-safe-zone: the rook reaches $glyph dp, outside the 33-dp safe radius',
       );
     });
 

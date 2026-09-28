@@ -145,8 +145,9 @@ List<String> normalThemeOffenders(String xml) {
   ).firstMatch(xml)?.group(0);
   final normal = style('NormalTheme');
   final launch = style('LaunchTheme');
-  if (normal == null || launch == null)
+  if (normal == null || launch == null) {
     return ['no NormalTheme or LaunchTheme'];
+  }
   bool darkParent(String s) =>
       RegExp(r'parent="[^"]*(Black|Dark|DeviceDefault\.NoActionBar)[^"]*"')
           .hasMatch(s);
@@ -262,4 +263,60 @@ double? safeZoneReachDp(String foregroundSvg) {
     return null;
   }
   return px / (layer / 108);
+}
+
+/// How far, in dp, the glyph inside the mark (the rook) reaches from the centre
+/// of a 108-dp adaptive-icon layer (#31): every vertex of its path, through
+/// its own `translate(c) scale(k) translate(-c)` about the box centre and the
+/// layer's `translate(t) scale(s)` box transform. Straight segments only
+/// (M, L, H, V, Z), which is what the brand sheet's rook is drawn with; null
+/// when the file cannot be read that way.
+double? glyphReachDp(String foregroundSvg) {
+  final box = RegExp(
+    r'transform="translate\(([\d.]+),\s*([\d.]+)\)\s+scale\(([\d.]+)\)"',
+  ).firstMatch(foregroundSvg);
+  final view = RegExp(r'viewBox="0 0 (\d+) \d+"').firstMatch(foregroundSvg);
+  final glyph = RegExp(
+    r'<path fill="[^"]*"\s+transform="translate\(32,32\) scale\(([\d.]+)\) '
+    r'translate\(-32,-32\)"\s+d="([^"]*)"',
+  ).firstMatch(foregroundSvg);
+  if (box == null || view == null || glyph == null) return null;
+  final k = double.parse(glyph[1]!);
+  final tokens = RegExp(r'[MLHVZ]|-?[\d.]+')
+      .allMatches(glyph[2]!)
+      .map((m) => m[0]!);
+  var x = 0.0, y = 0.0, far = 0.0;
+  String? cmd;
+  final nums = <double>[];
+  void visit() => far = math.max(
+    far,
+    math.sqrt(math.pow((x - 32) * k, 2) + math.pow((y - 32) * k, 2)),
+  );
+  for (final t in tokens) {
+    if (RegExp('[MLHVZ]').hasMatch(t)) {
+      cmd = t;
+      nums.clear();
+      continue;
+    }
+    nums.add(double.parse(t));
+    switch (cmd) {
+      case 'M' || 'L' when nums.length == 2:
+        x = nums[0];
+        y = nums[1];
+        nums.clear();
+        visit();
+      case 'H':
+        x = nums.removeLast();
+        visit();
+      case 'V':
+        y = nums.removeLast();
+        visit();
+      default:
+        if (cmd != 'M' && cmd != 'L') return null;
+    }
+  }
+  if (far == 0) return null;
+  final scale = double.parse(box[3]!);
+  final layer = double.parse(view[1]!);
+  return far * scale / (layer / 108);
 }
