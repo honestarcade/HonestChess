@@ -226,6 +226,13 @@ MUTATIONS: list[Mutation] = [
              "a keystore dropped in the tree could be committed",
              'key-material-not-ignored:'),
 
+    # signing -- signing_readme_test.dart
+    Mutation("signing", "the README's fingerprint drifts from the certificate",
+             "android/signing/README.md",
+             sub(r"^(\| SHA-256 \| `)[0-9A-F]{2}", r"\g<1>00", flags=re.M),
+             "the owner would compare the Console against the wrong key",
+             'signing-readme: README says'),
+
     # gate -- gate_failure_test.dart
     Mutation("gate", "the gate exits 0 after a failing step", "tools/gate.sh",
              sub(r'(echo "GATE FAILED at \$label \(exit \$status\)" >&2\n)    exit "\$status"',

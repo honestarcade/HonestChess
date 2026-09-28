@@ -14,7 +14,6 @@ import 'repo_files.dart';
 
 /// Paths a fresh clone legitimately lacks, and what creates each one.
 const createdLater = {
-  'android/signing/upload_certificate.pem': 'tools/make_upload_key.sh',
   '.n8/memory/play-console.md': 'the Play Console runbook',
   '.github/workflows/template-smoke.yml':
       'nothing in an app: tools/rename_app.py deletes it',
