@@ -24,6 +24,7 @@ ci:
   provider: github-actions
   on_pr: [gate (tools/gate.sh), mutations (tools/mutation_check.py)]
   release: "tag v* -> gate -> signed, scanned, certificate-checked AAB -> Google Play internal track and the GitHub release"
+  scheduled: [weekly.yml — slow `weekly`-tagged tests, Sunday 03:00 UTC (#37), device.yml — integration_test on an Android emulator, nightly + manual (#38)]
   secrets_needed: [HS_KEYSTORE_B64, HS_KEYSTORE_PASS, HS_KEY_ALIAS, HS_KEY_PASS, PLAY_SERVICE_ACCOUNT_JSON]
 fonts: bundled in the app (Outfit, IBM Plex Mono); never fetched at runtime
 chess:

@@ -119,3 +119,9 @@ Ad-hoc entries (decisions made outside a planning/execution command) use:
 - **Decision:** The first `gh release create --target ba70d7f` was refused (HTTP 422: an abbreviated SHA is not a valid target); it was re-run with `--target main` after confirming `origin/main` was still ba70d7f.
   **Why:** The API takes a branch or a full SHA only.
   **Issue:** #22
+
+## Ad-hoc — 2026-09-28
+
+- **Change:** Two infrastructure items move into M1: a scheduled `weekly` workflow for slow tests that refuses to pass having run none (#37, was part of epic #4 in M2), and an `integration_test` harness with a smoke test run on an Android emulator in CI nightly and on demand (#38, was part of epic #10 in M6). Epics #2, #4 and #10 were amended with comments.
+  **Why:** Owner, reviewing M0's coverage deferrals: "M2 should be fully app/feature development, anything infra/CI needs to be done before that"; emulator runs nightly + manual, outside the PR gate (owner's choice).
+  **Affects:** M1 (two new stories; M1's PR #26 already merged, so they land on a new M1 branch before M1 is verified), M2 (#4 keeps only the ladder test and enables the schedule), M6 (#10 keeps only the scripted game). The remaining M0/M1 deferrals — invariant 3 and 4 guard tests (M2 feature tests, run by the existing gate) and production (M7) — are unchanged. — reconciled at the source 2026-09-28 (issues and epics amended in the same session)
