@@ -63,6 +63,14 @@ void main() {
       expect(policyGaps(policy, id), ['does not say "no permissions"']);
     });
 
+    test('a policy without the /privacy permalink is refused', () {
+      final policy =
+          '---\ntitle: Privacy\n---\n# ${id.label}\n'
+          'Package `${id.packageId}` collects no data and requests no '
+          'permissions.\n';
+      expect(policyGaps(policy, id), ['no "permalink: /privacy" front matter']);
+    });
+
     test('a promise wrapped across lines still counts', () {
       final policy =
           '---\npermalink: /privacy\n---\n# ${id.label}\n'
