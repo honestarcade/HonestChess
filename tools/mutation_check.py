@@ -328,6 +328,13 @@ MUTATIONS: list[Mutation] = [
              'launcher-rasters: 1 offender',
              deletes="android/app/src/main/res/drawable-xhdpi/launch_mark.png"),
 
+    # key generation -- setup_scripts_test.dart (#36)
+    Mutation("setup", "the upload key accepts a short password",
+             "tools/make_upload_key.sh",
+             sub(r'-lt 32 \]', '-lt 12 ]'),
+             "the key that signs every release could be generated with a weak password",
+             'character password was not refused'),
+
     # gate -- gate_failure_test.dart
     Mutation("gate", "the gate exits 0 after a failing step", "tools/gate.sh",
              sub(r'(echo "GATE FAILED at \$label \(exit \$status\)" >&2\n)    exit "\$status"',
