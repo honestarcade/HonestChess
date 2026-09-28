@@ -56,3 +56,10 @@ what it produced for this app.
   Cloud project and service account, enabled the Android Publisher API, and set
   `PLAY_SERVICE_ACCOUNT_JSON` from key `6efd070a…`, deleted from disk after
   upload (runbook step 3). #21.
+- 2026-09-28: owner invited the service account with the two app permissions
+  and saved (runbook step 4); `tools/set_ci_secrets.sh` set the four keystore
+  secrets (step 5); `play-api-check` run 36435474908 on `main` passed both
+  Play access and keystore steps (step 6). `gh secret list` shows exactly the
+  five names. `honestchess-signing-credentials.txt` deleted after the owner
+  confirmed the password and the keystore file are in their password manager.
+  #21.

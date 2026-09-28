@@ -14,8 +14,11 @@ metadata:
   SHA256withRSA, 10,000 days, dname `O=Honest Arcade, CN=Honest Chess`.
   Created 2026-09-27 by `tools/make_upload_key.sh` (#15) with a password from
   `openssl rand -base64 33`, passed in the environment and never printed.
-- **Password:** in the owner's password manager, and (after M1's secrets
-  step, #21) in the `HS_KEYSTORE_PASS` / `HS_KEY_PASS` repository secrets.
+- **Password:** in the owner's password manager (with the keystore file as an
+  attachment, owner-confirmed 2026-09-28), and in the `HS_KEYSTORE_PASS` /
+  `HS_KEY_PASS` repository secrets (set 2026-09-28, #21). The credentials file
+  was deleted the same day; to run `tools/set_ci_secrets.sh` again, recreate it
+  from the password manager.
   PKCS12 has one password, so `HS_KEY_PASS` equals `HS_KEYSTORE_PASS`.
 - **Owner follow-ups** (owner's round-two answer at /n8-plan M0, 2026-09-27):
   1. Store the password **and the `.keystore` file itself** (as an attachment)
