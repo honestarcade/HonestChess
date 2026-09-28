@@ -1,0 +1,16 @@
+# The app's identity, in one place.
+#
+# Written by tools/rename_app.py, which also rewrites every file that repeats
+# these values. test/guards/android_identity_test.dart asserts that each of
+# those files agrees with this one, so edit this file by running the script
+# rather than by hand.
+#
+# package_id is permanent once the first bundle reaches Play.
+
+package_id: com.honestarcade.chess
+label: Honest Chess
+dart_package: honest_chess
+slug: honestchess  # keystore file names and the Cloud project <slug>-ci
+min_sdk: 24
+orientation: portrait  # portrait | landscape | any
+platforms: [android]

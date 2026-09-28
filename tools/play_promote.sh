@@ -1,0 +1,293 @@
+#!/usr/bin/env bash
+# Move the newest completed build from one testing track to another.
+#
+# It never builds anything and it never touches production: production is a
+# human act in the Play Console. The service account's Console permission set
+# is the real barrier, but a human can change that set, so this is the barrier
+# that lives in the repository, where a change to it shows up in a diff.
+#
+# Argument checks come BEFORE the token check, so every refusal is provable
+# with no Play access at all; test/guards/play_scripts_test.dart does so.
+#
+# Usage:  tools/play_promote.sh <package> <from_track> <to_track>
+#         PLAY_TOKEN must hold an OAuth access token for the Play Developer API.
+# Exit:   0  promoted, and read back from the target track
+#         2  a refused argument, or no token (stdout empty)
+#         5  the Play API refused or the track held nothing to promote
+set -euo pipefail
+export LC_ALL=C
+
+# Closed testing is `alpha` and open testing is `beta` in the API's vocabulary.
+# `production` is absent on purpose, and its absence is the point of this list.
+ALLOWED_TRACKS="internal alpha beta"
+# Overridable so the promotion path can be exercised against a mock API.
+API="${HS_PLAY_API:-https://androidpublisher.googleapis.com/androidpublisher/v3/applications}"
+
+die_args() {
+  echo "play_promote: $1" >&2
+  exit 2
+}
+
+die_api() {
+  echo "play_promote: $1" >&2
+  exit 5
+}
+
+is_allowed() {
+  # Matched whole, not as a substring of the list, so "alpha beta" is not one
+  # track.
+  case "$1" in
+  internal | alpha | beta) return 0 ;;
+  *) return 1 ;;
+  esac
+}
+
+# ---- arguments, before anything else ----------------------------------------
+
+[ "$#" -eq 3 ] || die_args "expected 3 arguments (package from_track to_track), got $#"
+
+PACKAGE="$1"
+FROM="$2"
+TO="$3"
+
+[ -n "$PACKAGE" ] || die_args "package name is empty"
+
+for track in "$FROM" "$TO"; do
+  if [ "$track" = "production" ]; then
+    die_args "production is a human act in the Play Console; this script refuses it"
+  fi
+  if ! is_allowed "$track"; then
+    die_args "'$track' is not one of: $ALLOWED_TRACKS"
+  fi
+done
+
+[ "$FROM" != "$TO" ] || die_args "source and target are the same track ('$FROM')"
+
+# ---- credential --------------------------------------------------------------
+
+[ -n "${PLAY_TOKEN:-}" ] || die_args "PLAY_TOKEN is not set"
+
+# ---- the edits flow ----------------------------------------------------------
+
+auth=(-H "Authorization: Bearer $PLAY_TOKEN")
+json=(-H "Content-Type: application/json")
+
+api() {
+  # method, path, optional body. Prints the response body; a non-2xx status is
+  # a hard failure naming the path, because a silently-ignored error here
+  # leaves a half-finished edit on the account.
+  # The response body goes to one file the CALLER owns, created before the
+  # trap: most call sites are command substitutions, and state set inside a
+  # subshell never reaches the parent or its EXIT trap.
+  local method="$1" path="$2" body="${3:-}"
+  local out status
+  out="$API_BODY_FILE"
+  : > "$out"
+  # `|| true` because curl's own failure — refused connection, DNS, timeout —
+  # is an API failure to report, not a reason for `set -e` to kill the script
+  # mid-edit with curl's own exit code.
+  if [ -n "$body" ]; then
+    status="$(curl -sS --connect-timeout 10 --max-time 60 -o "$out" -w '%{http_code}' -X "$method" "${auth[@]}" "${json[@]}" -d "$body" "$path" || true)"
+  else
+    status="$(curl -sS --connect-timeout 10 --max-time 60 -o "$out" -w '%{http_code}' -X "$method" "${auth[@]}" "$path" || true)"
+  fi
+  if [ -z "$status" ] || [ "$status" = "000" ]; then
+    echo "play_promote: $method $path could not be reached" >&2
+    return 1
+  fi
+  if [ "${status:0:1}" != "2" ]; then
+    # The caller matches on the body AND on this: a 4xx that happens to
+    # mention a draft app is not the draft-app rule.
+    API_STATUS="$status"
+    echo "play_promote: $method $path returned $status" >&2
+    sed -n '1,20p' "$out" >&2
+    # The body stays in $API_BODY_FILE for the caller to match on.
+    return 1
+  fi
+  cat "$out"
+}
+
+EDIT_ID=""
+API_BODY_FILE="$(mktemp)"
+# Delete an edit and say so if it did not work. `--fail` because curl without
+# it exits 0 for an HTTP error, and a DELETE answered 500 would leave an edit
+# pending with no warning.
+delete_edit() {
+  # $1 = the edit id, $2 = what to call it in the warning.
+  [ -n "$1" ] || return 0
+  if ! curl -sS --fail --connect-timeout 10 --max-time 30 -o /dev/null \
+    -X DELETE "${auth[@]}" "$API/$PACKAGE/edits/$1" 2> /dev/null; then
+    echo "play_promote: warning: could not delete the $2 edit $1;" >&2
+    echo "  it is still pending on the Play account and must be" >&2
+    echo "  discarded in the Console before the next promotion." >&2
+  fi
+}
+
+cleanup() {
+  rm -f "$API_BODY_FILE"
+  # Any edit that was not committed is deleted, so a failed run leaves no
+  # pending change on the account.
+  if [ -n "$EDIT_ID" ]; then
+    # delete_edit warns rather than fails, so cleanup never changes the exit
+    # code, but a pending edit is still reported.
+    delete_edit "$EDIT_ID" "in-flight"
+  fi
+}
+trap cleanup EXIT
+
+EDIT_ID="$(api POST "$API/$PACKAGE/edits" '{}' |
+  sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)" ||
+  die_api "could not open an edit (is PLAY_TOKEN valid for $PACKAGE?)"
+[ -n "$EDIT_ID" ] || die_api "the edits endpoint returned no id"
+
+SOURCE="$(api GET "$API/$PACKAGE/edits/$EDIT_ID/tracks/$FROM")" ||
+  die_api "could not read the '$FROM' track"
+
+# The newest completed release's version codes, chosen by a real JSON parse:
+# a regex over flattened JSON cannot see past nested objects such as release
+# notes, nor tell the newest release from the last listed.
+CODES_HELPER="$(dirname "$0")/play_release_codes.py"
+[ -x "$CODES_HELPER" ] || die_api "missing $CODES_HELPER"
+command -v python3 > /dev/null 2>&1 || die_api "python3 is not on PATH"
+
+set +e
+CODES="$(printf '%s' "$SOURCE" | python3 "$CODES_HELPER")"
+CODES_RC=$?
+set -e
+case "$CODES_RC" in
+0) ;;
+1) die_api "no completed release on $FROM" ;;
+*) die_api "could not read the '$FROM' track's releases" ;;
+esac
+[ -n "$CODES" ] || die_api "no completed release on $FROM"
+
+# The helper prints them space separated and numeric; the API wants strings.
+CODES_JSON="[$(printf '%s' "$CODES" | tr ' ' '\n' | sed 's/^/"/; s/$/"/' | paste -sd, -)]"
+
+# The read-only edit has served its purpose. Delete it now rather than leaving
+# it for the trap: each attempt below opens its own edit and overwrites
+# EDIT_ID, so the trap would only ever see the last one and this one would be
+# left pending on the account.
+delete_edit "$EDIT_ID" "read-only"
+EDIT_ID=""
+
+# One attempt is open-edit -> PUT -> commit, because the draft-app rule can be
+# refused at EITHER step. A refused commit also spends the edit, so the retry
+# needs a fresh one rather than reusing the one that just failed.
+REFUSAL=""
+API_STATUS=""
+last_refusal() {
+  REFUSAL=""
+  if [ -n "$API_BODY_FILE" ] && [ -r "$API_BODY_FILE" ]; then
+    REFUSAL="$(tr '[:upper:]' '[:lower:]' < "$API_BODY_FILE" | tr -d '\n')"
+  fi
+}
+
+is_draft_app_rule() {
+  # The PHRASE, not a bare "draft app" substring, and a 4xx with it. A looser
+  # match would let a 403 that merely mentions a draft app retry as a draft
+  # and exit 0 — a permission denial reported as a success. If Play rewords
+  # the refusal, the retry stops firing and the run fails loudly instead.
+  #
+  # The refusal this matches:
+  #   400 "Only releases with status draft may be created on draft app."
+  case "$API_STATUS" in
+  4*) ;;
+  *) return 1 ;;
+  esac
+  case "$REFUSAL" in
+  *"only releases with status draft"*) return 0 ;;
+  *) return 1 ;;
+  esac
+}
+
+attempt_promotion() {
+  # $1 = release status. Returns 0 on a committed promotion, 1 otherwise,
+  # leaving REFUSAL set to the lowercased body of whatever refused it.
+  local release_status="$1"
+
+  # Delete the edit a previous attempt left open before opening another:
+  # cleanup() only ever sees the last EDIT_ID, the same hazard the read-only
+  # edit above is deleted to avoid.
+  if [ -n "$EDIT_ID" ]; then
+    delete_edit "$EDIT_ID" "previous attempt's"
+    EDIT_ID=""
+  fi
+
+  EDIT_ID="$(api POST "$API/$PACKAGE/edits" '{}' |
+    sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)" || {
+    last_refusal
+    return 1
+  }
+  [ -n "$EDIT_ID" ] || die_api "the edits endpoint returned no id"
+
+  api PUT "$API/$PACKAGE/edits/$EDIT_ID/tracks/$TO" \
+    "{\"track\":\"$TO\",\"releases\":[{\"versionCodes\":$CODES_JSON,\"status\":\"$release_status\"}]}" \
+    > /dev/null || {
+    last_refusal
+    return 1
+  }
+
+  api POST "$API/$PACKAGE/edits/$EDIT_ID:commit" '{}' > /dev/null || {
+    last_refusal
+    return 1
+  }
+
+  EDIT_ID="" # committed: cleanup must not delete it
+  return 0
+}
+
+STATUS_USED="completed"
+if ! attempt_promotion completed; then
+  # Only the draft-app rule earns a retry; retrying on any failure would
+  # downgrade a permission denial to a draft release and exit 0.
+  if is_draft_app_rule; then
+    echo "play_promote: the app is not yet published, so a completed release is" >&2
+    echo "  refused; retrying the same version codes as a draft release." >&2
+    attempt_promotion draft || die_api "the '$TO' track refused the draft retry too"
+    STATUS_USED="draft"
+  else
+    die_api "the '$TO' track refused the promotion, and not for the draft-app rule"
+  fi
+fi
+
+
+READBACK_EDIT="$(api POST "$API/$PACKAGE/edits" '{}' |
+  sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)" ||
+  die_api "promoted, but could not open an edit to read the result back"
+# Guarded like the other two open sites: an id-less 2xx would otherwise send
+# the read-back to `.../edits//tracks/...` and leave nothing for cleanup().
+[ -n "$READBACK_EDIT" ] ||
+  die_api "promoted, but the edits endpoint returned no id for the read-back"
+EDIT_ID="$READBACK_EDIT"
+TARGET="$(api GET "$API/$PACKAGE/edits/$EDIT_ID/tracks/$TO")" ||
+  die_api "promoted, but could not read the '$TO' track back"
+# Compared, not merely present: a target track that already held a release
+# must not make a promotion that did nothing read back as a success.
+set +e
+TARGET_CODES="$(printf '%s' "$TARGET" | python3 "$CODES_HELPER")"
+TARGET_RC=$?
+set -e
+if [ "$TARGET_RC" != 0 ] && [ "$STATUS_USED" = "completed" ]; then
+  die_api "the '$TO' track reads back with no completed release"
+fi
+if [ "$STATUS_USED" = "completed" ] && [ "$TARGET_CODES" != "$CODES" ]; then
+  die_api "the '$TO' track reads back as [$TARGET_CODES], not the promoted [$CODES]"
+fi
+if [ "$STATUS_USED" = "draft" ]; then
+  # Compared exactly, like the completed path, so a pre-existing release, or
+  # one whose name is the version code, cannot pass for the promoted one.
+  set +e
+  TARGET_DRAFT="$(printf '%s' "$TARGET" | python3 "$CODES_HELPER" draft)"
+  DRAFT_RC=$?
+  set -e
+  [ "$DRAFT_RC" = 0 ] ||
+    die_api "the '$TO' track reads back with no draft release"
+  [ "$TARGET_DRAFT" = "$CODES" ] ||
+    die_api "the '$TO' track reads back as [$TARGET_DRAFT], not the promoted [$CODES]"
+fi
+
+echo "promoted=$CODES"
+echo "from=$FROM"
+echo "to=$TO"
+echo "status=$STATUS_USED"

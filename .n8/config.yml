@@ -1,0 +1,13 @@
+version: 1
+stack: flutter
+initialized: 2026-09-27
+wiki: enabled
+repo: honestarcade/HonestChess
+visibility: public
+context7: installed
+security_findings: issues
+areas: [app, platform, ci, docs]
+template: "honestarcade/android-studio-app-template @ 13a6608 — gate, guards, mutation battery, CI/CD and Play runbook"
+studio_reference: "/Users/npond/StudioProjects/honest_solitaire — the most recent app built from the template; /Users/npond/StudioProjects/honest_sudoku — the first"
+platforms:
+  v1: android            # portrait-only
