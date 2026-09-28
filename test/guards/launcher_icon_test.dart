@@ -73,7 +73,10 @@ void main() {
           reason: 'the wrong density: not that file',
         );
         expect(templateIconOffenders({'xxxhdpi': _png(192, 192)}), isEmpty);
-        expect(fnv1a64('a'.codeUnits), 0xaf63dc4c8601ec8c);
+        expect(
+          sha256Hex(template),
+          '3c34e1f298d0c9ea3455d46db6b7759c8211a49e9ec6e44b635fc5c87dfb4180',
+        );
       },
     );
 

@@ -5,6 +5,8 @@ library;
 
 import 'dart:math' as math;
 
+import 'sha256.dart';
+
 /// A PNG's width, height and colour type, read from its signature and IHDR
 /// by hand; null when [bytes] is not a PNG.
 ({int width, int height, int colorType})? pngHeader(List<int> bytes) {
@@ -67,37 +69,28 @@ List<String> pngOffenders(Map<String, List<int>?> files) => [
     }(),
 ];
 
-/// FNV-1a over [bytes], 64-bit: enough to recognise a known file.
-int fnv1a64(List<int> bytes) {
-  var h = 0xcbf29ce484222325;
-  for (final b in bytes) {
-    h ^= b;
-    h = (h * 0x100000001b3).toUnsigned(64);
-  }
-  return h;
-}
-
-/// The template's default Flutter launcher icons by density: length and
-/// FNV-1a 64 of each `ic_launcher.png` in android-studio-app-template at
-/// 4f43e95 (2026-09-23), computed 2026-09-26 with python3 for Honest
-/// Solitaire's #97, and matched byte-for-byte by this repository's icons
-/// from the template at 13a6608 before #18 replaced them (python3,
-/// 2026-09-27). A wrong but non-default image is not recognised — this
-/// catches the template surviving, nothing else.
-const Map<String, (int, int)> kTemplateIcons = {
-  'mdpi': (442, 0xcc80822407dd8469),
-  'hdpi': (544, 0x8c1ddfe1f8e95521),
-  'xhdpi': (721, 0xb50bf20408c675bb),
-  'xxhdpi': (1031, 0x54e861a18f6f9c34),
-  'xxxhdpi': (1443, 0x25b98cf0ac669cff),
+/// The template's default Flutter launcher icons by density: the SHA-256 of
+/// each `ic_launcher.png` this repository had from the app template before
+/// #18 replaced them: `git show 89b1c6d:<res>/mipmap-<density>/ic_launcher.png
+/// | shasum -a 256`, run 2026-09-28 for #33. A wrong but non-default image is not
+/// recognised — this catches the template surviving, nothing else.
+const Map<String, String> kTemplateIcons = {
+  'mdpi': 'c7c0c0189145e4e32a401c61c9bdc615754b0264e7afae24e834bb81049eaf81',
+  'hdpi': '6a7c8f0d703e3682108f9662f813302236240d3f8f638bb391e32bfb96055fef',
+  'xhdpi': 'e14aa40904929bf313fded22cf7e7ffcbf1d1aac4263b5ef1be8bfce650397aa',
+  'xxhdpi': '4d470bf22d5c17d84edc5f82516d1ba8a1c09559cd761cefb792f86d9f52b540',
+  'xxxhdpi': '3c34e1f298d0c9ea3455d46db6b7759c8211a49e9ec6e44b635fc5c87dfb4180',
 };
+
+/// [bytes]' SHA-256 as lower-case hex.
+String sha256Hex(List<int> bytes) =>
+    sha256(bytes).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 
 /// The densities whose `ic_launcher.png` in [files] (density → bytes) is the
 /// template's default icon.
 List<String> templateIconOffenders(Map<String, List<int>> files) => [
   for (final e in files.entries)
-    if (kTemplateIcons[e.key] case final t?
-        when t.$1 == e.value.length && t.$2 == fnv1a64(e.value))
+    if (kTemplateIcons[e.key] == sha256Hex(e.value))
       '${e.key}: ic_launcher.png is the template\'s default Flutter icon',
 ];
 
