@@ -80,3 +80,15 @@ Ad-hoc entries (decisions made outside a planning/execution command) use:
 - **Decision:** The second executor-simulation pass ran as a background Workflow rather than individual subagent calls.
   **Why:** An orchestration slip — the owner had not opted into workflows; the pass itself is the one the plan requires.
   **Issue:** #14–#22
+
+## /n8-exec M0 — 2026-09-27
+
+- **Decision:** The Honest Chess upload keystore was generated with `tools/make_upload_key.sh` (dname `O=Honest Arcade, CN=Honest Chess`, SHA-256 `41:84:0F:…:AB:4C` — full value in `android/signing/README.md`), password from `openssl rand -base64 33`, never printed.
+  **Why:** Owner's answer at /n8-init: generate it now; before enrolment regeneration is harmless, after it the key is the app's identity.
+  **Issue:** #15
+- **Decision:** The fingerprint guard hashes the certificate with a SHA-256 written in `test/guards/sha256.dart` (checked against FIPS 180-4 vectors), not a package or a `keytool` subprocess.
+  **Why:** Invariant 2 (no new package for a test helper), and a JVM start-up per run would push the guard into the `slow` set.
+  **Issue:** #15
+- **Decision:** Removing the PEM from `references_test.dart`'s `createdLater` broke that guard's own "files that exist pass" fixture; the fixture's existing-set now names the PEM instead of restoring the exemption (Rule 3).
+  **Why:** The exemption was for fresh clones of the template; this repository has the file.
+  **Issue:** #15
