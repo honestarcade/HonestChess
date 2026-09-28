@@ -250,6 +250,12 @@ MUTATIONS: list[Mutation] = [
              "the owner would compare the Console against the wrong key",
              'signing-readme: README says'),
 
+    # privacy policy -- privacy_policy_test.dart
+    Mutation("docs", "the privacy policy names another package", "docs/privacy.md",
+             sub(r"`com\.honestarcade\.chess`", "`com.honestarcade.solitaire`"),
+             "the Play listing would link a policy for a different app",
+             'privacy-policy: 1 offender'),
+
     # gate -- gate_failure_test.dart
     Mutation("gate", "the gate exits 0 after a failing step", "tools/gate.sh",
              sub(r'(echo "GATE FAILED at \$label \(exit \$status\)" >&2\n)    exit "\$status"',
