@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 
 // A placeholder until the design's screens land; the navy, the wordmark and
 // the byline are the design's splash typography without its mark or bar.
-const _navy = Color(0xFF05285F);
+const _navy  =  Color(0xFF05285F);
 const _teal = Color(0xFF00D6B4);
 const _byline = Color(0xFF7FA6D8);
 
