@@ -47,6 +47,10 @@ jobs:
         with:
           scandir: ./tools
           severity: warning
+          # The action downloads ShellCheck at run time and defaults to
+          # "stable"; an exact release keeps a third party's next release out
+          # of the merge gate until Dependabot or a person moves it.
+          version: v0.11.0
 
       - id: java
         name: Set up Java
