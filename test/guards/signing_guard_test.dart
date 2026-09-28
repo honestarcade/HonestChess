@@ -65,6 +65,20 @@ const keyMaterial = [
   'yourapp-ci.json',
 ];
 
+/// The shapes key material arrives in: the same set [keyMaterial] probes the
+/// ignore rules with, as file-name patterns.
+final _keyMaterialName = RegExp(
+  r'(\.keystore|\.jks|\.p12|\.pfx|^key\.properties|credentials[^/]*\.txt|-ci\.json)$',
+);
+
+/// Of [trackedPaths], the ones that are key material (#29). The ignore rules
+/// keep such a file out of `git add .`, but `git add -f` still tracks it, so
+/// what is tracked is checked too.
+List<String> trackedKeyMaterial(Iterable<String> trackedPaths) => [
+  for (final p in trackedPaths)
+    if (_keyMaterialName.hasMatch(p.split('/').last)) p,
+];
+
 void main() {
   group('the fail-closed rule, proven both ways', () {
     const complete = r'''
@@ -108,6 +122,42 @@ buildTypes {
     });
   });
 
+  group('tracked key material, proven both ways', () {
+    test(
+      'every key-material shape is caught, the public certificate is not',
+      () {
+        expect(
+          trackedKeyMaterial([
+            ...keyMaterial,
+            'android/signing/upload_certificate.pem',
+            'android/signing/README.md',
+            'lib/main.dart',
+          ]),
+          keyMaterial,
+        );
+      },
+    );
+
+    test('a force-added keystore in a real repository is caught', () {
+      final dir = Directory.systemTemp.createTempSync('tracked-key');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      ProcessResult git(List<String> args) =>
+          Process.runSync('git', args, workingDirectory: dir.path);
+      git(['init', '-q']);
+      File('${dir.path}/.gitignore').writeAsStringSync('*.keystore\n');
+      File('${dir.path}/upload.keystore').writeAsStringSync('junk');
+      File('${dir.path}/ignored.keystore').writeAsStringSync('junk');
+      File('${dir.path}/README.md').writeAsStringSync('ok');
+      git(['add', '.']);
+      git(['add', '-f', 'upload.keystore']);
+      final tracked = (git(['ls-files']).stdout as String)
+          .split('\n')
+          .where((l) => l.isNotEmpty);
+      expect(tracked, isNot(contains('ignored.keystore')));
+      expect(trackedKeyMaterial(tracked), ['upload.keystore']);
+    });
+  });
+
   group('the real build', () {
     test('android/app/build.gradle.kts fails closed', () {
       final missing = missingFailClosed(
@@ -127,6 +177,21 @@ buildTypes {
         exposed,
         isEmpty,
         reason: describeOffenders('key-material-not-ignored', exposed),
+      );
+    });
+
+    test('no key material is tracked', () {
+      final tracked = trackedFilesUnder('.');
+      expect(
+        tracked,
+        contains('android/signing/upload_certificate.pem'),
+        reason: 'key-material-tracked: git ls-files returned nothing useful',
+      );
+      final offenders = trackedKeyMaterial(tracked);
+      expect(
+        offenders,
+        isEmpty,
+        reason: describeOffenders('key-material-tracked', offenders),
       );
     });
 
