@@ -328,6 +328,13 @@ MUTATIONS: list[Mutation] = [
              'launcher-rasters: 1 offender',
              deletes="android/app/src/main/res/drawable-xhdpi/launch_mark.png"),
 
+    # template leftovers -- template_leftovers_test.dart (#35)
+    Mutation("identity", "the placeholder app's name comes back in the README",
+             "README.md",
+             sub(r"^# Honest Chess$", "# Honest Chess\n\nFormerly <Your App Name>.", flags=re.M),
+             "a doc would describe the template's app, not this one",
+             'template-leftovers: 1 offender'),
+
     # key generation -- setup_scripts_test.dart (#36)
     Mutation("setup", "the upload key accepts a short password",
              "tools/make_upload_key.sh",

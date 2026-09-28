@@ -71,8 +71,9 @@ List<String> pngOffenders(Map<String, List<int>?> files) => [
 
 /// The template's default Flutter launcher icons by density: the SHA-256 of
 /// each `ic_launcher.png` this repository had from the app template before
-/// #18 replaced them: `git show 89b1c6d:<res>/mipmap-<density>/ic_launcher.png
-/// | shasum -a 256`, run 2026-09-28 for #33. A wrong but non-default image is not
+/// #18 replaced them, per density: `git show 89b1c6d:PATH | shasum -a 256`
+/// where PATH is that density's `mipmap-*/ic_launcher.png` under the app's
+/// `res`, run 2026-09-28 for #33. A wrong but non-default image is not
 /// recognised — this catches the template surviving, nothing else.
 const Map<String, String> kTemplateIcons = {
   'mdpi': 'c7c0c0189145e4e32a401c61c9bdc615754b0264e7afae24e834bb81049eaf81',
