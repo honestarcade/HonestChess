@@ -5,6 +5,8 @@ library;
 
 import 'dart:math' as math;
 
+import 'sha256.dart';
+
 /// A PNG's width, height and colour type, read from its signature and IHDR
 /// by hand; null when [bytes] is not a PNG.
 ({int width, int height, int colorType})? pngHeader(List<int> bytes) {
@@ -67,37 +69,29 @@ List<String> pngOffenders(Map<String, List<int>?> files) => [
     }(),
 ];
 
-/// FNV-1a over [bytes], 64-bit: enough to recognise a known file.
-int fnv1a64(List<int> bytes) {
-  var h = 0xcbf29ce484222325;
-  for (final b in bytes) {
-    h ^= b;
-    h = (h * 0x100000001b3).toUnsigned(64);
-  }
-  return h;
-}
-
-/// The template's default Flutter launcher icons by density: length and
-/// FNV-1a 64 of each `ic_launcher.png` in android-studio-app-template at
-/// 4f43e95 (2026-09-23), computed 2026-09-26 with python3 for Honest
-/// Solitaire's #97, and matched byte-for-byte by this repository's icons
-/// from the template at 13a6608 before #18 replaced them (python3,
-/// 2026-09-27). A wrong but non-default image is not recognised — this
-/// catches the template surviving, nothing else.
-const Map<String, (int, int)> kTemplateIcons = {
-  'mdpi': (442, 0xcc80822407dd8469),
-  'hdpi': (544, 0x8c1ddfe1f8e95521),
-  'xhdpi': (721, 0xb50bf20408c675bb),
-  'xxhdpi': (1031, 0x54e861a18f6f9c34),
-  'xxxhdpi': (1443, 0x25b98cf0ac669cff),
+/// The template's default Flutter launcher icons by density: the SHA-256 of
+/// each `ic_launcher.png` this repository had from the app template before
+/// #18 replaced them, per density: `git show 89b1c6d:PATH | shasum -a 256`
+/// where PATH is that density's `mipmap-*/ic_launcher.png` under the app's
+/// `res`, run 2026-09-28 for #33. A wrong but non-default image is not
+/// recognised — this catches the template surviving, nothing else.
+const Map<String, String> kTemplateIcons = {
+  'mdpi': 'c7c0c0189145e4e32a401c61c9bdc615754b0264e7afae24e834bb81049eaf81',
+  'hdpi': '6a7c8f0d703e3682108f9662f813302236240d3f8f638bb391e32bfb96055fef',
+  'xhdpi': 'e14aa40904929bf313fded22cf7e7ffcbf1d1aac4263b5ef1be8bfce650397aa',
+  'xxhdpi': '4d470bf22d5c17d84edc5f82516d1ba8a1c09559cd761cefb792f86d9f52b540',
+  'xxxhdpi': '3c34e1f298d0c9ea3455d46db6b7759c8211a49e9ec6e44b635fc5c87dfb4180',
 };
+
+/// [bytes]' SHA-256 as lower-case hex.
+String sha256Hex(List<int> bytes) =>
+    sha256(bytes).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 
 /// The densities whose `ic_launcher.png` in [files] (density → bytes) is the
 /// template's default icon.
 List<String> templateIconOffenders(Map<String, List<int>> files) => [
   for (final e in files.entries)
-    if (kTemplateIcons[e.key] case final t?
-        when t.$1 == e.value.length && t.$2 == fnv1a64(e.value))
+    if (kTemplateIcons[e.key] == sha256Hex(e.value))
       '${e.key}: ic_launcher.png is the template\'s default Flutter icon',
 ];
 
@@ -132,6 +126,32 @@ List<String> splashOffenders(String xml) {
       '@mipmap/ic_launcher_foreground</item>',
     ))
       'LaunchTheme has no windowSplashScreenAnimatedIcon of the mark',
+  ];
+}
+
+/// What a pre-31 styles file lacks so that no white frame shows between the
+/// launch drawable and Flutter's first frame (#28): `NormalTheme`'s window is
+/// the navy, and both themes inherit from a dark parent.
+List<String> normalThemeOffenders(String xml) {
+  String? style(String name) => RegExp(
+    '<style name="$name"([^>]*)>(.*?)</style>',
+    dotAll: true,
+  ).firstMatch(xml)?.group(0);
+  final normal = style('NormalTheme');
+  final launch = style('LaunchTheme');
+  if (normal == null || launch == null) {
+    return ['no NormalTheme or LaunchTheme'];
+  }
+  bool darkParent(String s) =>
+      RegExp(r'parent="[^"]*(Black|Dark|DeviceDefault\.NoActionBar)[^"]*"')
+          .hasMatch(s);
+  return [
+    if (!normal.contains(
+      '<item name="android:windowBackground">@color/launch_navy</item>',
+    ))
+      'NormalTheme windowBackground is not @color/launch_navy',
+    if (!darkParent(normal)) 'NormalTheme has no dark parent',
+    if (!darkParent(launch)) 'LaunchTheme has no dark parent',
   ];
 }
 
@@ -237,4 +257,60 @@ double? safeZoneReachDp(String foregroundSvg) {
     return null;
   }
   return px / (layer / 108);
+}
+
+/// How far, in dp, the glyph inside the mark (the rook) reaches from the centre
+/// of a 108-dp adaptive-icon layer (#31): every vertex of its path, through
+/// its own `translate(c) scale(k) translate(-c)` about the box centre and the
+/// layer's `translate(t) scale(s)` box transform. Straight segments only
+/// (M, L, H, V, Z), which is what the brand sheet's rook is drawn with; null
+/// when the file cannot be read that way.
+double? glyphReachDp(String foregroundSvg) {
+  final box = RegExp(
+    r'transform="translate\(([\d.]+),\s*([\d.]+)\)\s+scale\(([\d.]+)\)"',
+  ).firstMatch(foregroundSvg);
+  final view = RegExp(r'viewBox="0 0 (\d+) \d+"').firstMatch(foregroundSvg);
+  final glyph = RegExp(
+    r'<path fill="[^"]*"\s+transform="translate\(32,32\) scale\(([\d.]+)\) '
+    r'translate\(-32,-32\)"\s+d="([^"]*)"',
+  ).firstMatch(foregroundSvg);
+  if (box == null || view == null || glyph == null) return null;
+  final k = double.parse(glyph[1]!);
+  final tokens = RegExp(r'[MLHVZ]|-?[\d.]+')
+      .allMatches(glyph[2]!)
+      .map((m) => m[0]!);
+  var x = 0.0, y = 0.0, far = 0.0;
+  String? cmd;
+  final nums = <double>[];
+  void visit() => far = math.max(
+    far,
+    math.sqrt(math.pow((x - 32) * k, 2) + math.pow((y - 32) * k, 2)),
+  );
+  for (final t in tokens) {
+    if (RegExp('[MLHVZ]').hasMatch(t)) {
+      cmd = t;
+      nums.clear();
+      continue;
+    }
+    nums.add(double.parse(t));
+    switch (cmd) {
+      case 'M' || 'L' when nums.length == 2:
+        x = nums[0];
+        y = nums[1];
+        nums.clear();
+        visit();
+      case 'H':
+        x = nums.removeLast();
+        visit();
+      case 'V':
+        y = nums.removeLast();
+        visit();
+      default:
+        if (cmd != 'M' && cmd != 'L') return null;
+    }
+  }
+  if (far == 0) return null;
+  final scale = double.parse(box[3]!);
+  final layer = double.parse(view[1]!);
+  return far * scale / (layer / 108);
 }

@@ -73,7 +73,10 @@ void main() {
           reason: 'the wrong density: not that file',
         );
         expect(templateIconOffenders({'xxxhdpi': _png(192, 192)}), isEmpty);
-        expect(fnv1a64('a'.codeUnits), 0xaf63dc4c8601ec8c);
+        expect(
+          sha256Hex(template),
+          '3c34e1f298d0c9ea3455d46db6b7759c8211a49e9ec6e44b635fc5c87dfb4180',
+        );
       },
     );
 
@@ -142,6 +145,47 @@ void main() {
       );
     });
 
+    test('the pre-31 themes keep the window navy under a dark parent', () {
+      const ok = '''
+<style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+  <item name="android:windowBackground">@drawable/launch_background</item>
+</style>
+<style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+  <item name="android:windowBackground">@color/launch_navy</item>
+</style>''';
+      expect(normalThemeOffenders(ok), isEmpty);
+      expect(
+        normalThemeOffenders(
+          ok.replaceFirst('@color/launch_navy', '@android:color/white'),
+        ).single,
+        contains('NormalTheme windowBackground'),
+      );
+      expect(
+        normalThemeOffenders(
+          ok.replaceAll('Theme.Black.NoTitleBar', 'Theme.Light.NoTitleBar'),
+        ),
+        hasLength(2),
+      );
+      expect(
+        normalThemeOffenders('<resources/>').single,
+        contains('no NormalTheme'),
+      );
+    });
+
+    test(
+      'the rook\'s reach follows its scale; an oversized rook is outside',
+      () {
+        final fg = readFile('assets/brand/android-foreground.svg');
+        final reach = glyphReachDp(fg);
+        expect(reach, closeTo(18.63, 0.05));
+        expect(
+          glyphReachDp(fg.replaceFirst('scale(1.32)', 'scale(2.4)')),
+          greaterThan(33),
+        );
+        expect(glyphReachDp('<svg/>'), isNull);
+      },
+    );
+
     test('the safe-zone reach follows the geometry', () {
       final fg = readFile('assets/brand/android-foreground.svg');
       expect(safeZoneReachDp(fg), closeTo(29.5, 0.2));
@@ -207,6 +251,11 @@ void main() {
           if (!readFile('$res/$dir/styles.xml')
               .contains('@drawable/launch_background'))
             '$dir: LaunchTheme does not use @drawable/launch_background',
+        for (final dir in ['values', 'values-night'])
+          for (final o in normalThemeOffenders(
+            readFile('$res/$dir/styles.xml'),
+          ))
+            '$dir: $o',
       ];
       expect(
         offenders,
@@ -284,6 +333,20 @@ void main() {
         lessThan(33),
         reason:
             'launcher-safe-zone: the mark reaches $reach dp, outside the 33-dp safe radius',
+      );
+      final glyph = glyphReachDp(
+        readFile('assets/brand/android-foreground.svg'),
+      );
+      expect(
+        glyph,
+        isNotNull,
+        reason: 'launcher-safe-zone: the rook path could not be read',
+      );
+      expect(
+        glyph,
+        lessThan(33),
+        reason:
+            'launcher-safe-zone: the rook reaches $glyph dp, outside the 33-dp safe radius',
       );
     });
 

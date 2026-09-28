@@ -54,7 +54,7 @@ esac
 exit 0
 ''';
 
-const _password = 'a-long-throwaway-password';
+const _password = 'a-long-throwaway-password-for-tests';
 
 /// The files of [paths] that exist under [dir].
 List<String> _existing(Directory dir, List<String> paths) =>
@@ -125,10 +125,21 @@ void main() {
     }
 
     test('a missing or short password is refused before keytool runs', () {
-      for (final pass in ['', 'short']) {
+      for (final pass in ['', 'short', 'x' * 31]) {
         final r = makeKey(env: {'HS_KEYSTORE_PASS': pass});
-        expect([r.run.exitCode, r.made], [2, isEmpty], reason: r.run.output);
+        expect(
+          [r.run.exitCode, r.made],
+          [2, isEmpty],
+          reason:
+              'setup-scripts: a ${pass.length}-character password was not '
+              'refused\n${r.run.output}',
+        );
       }
+    });
+
+    test('a 32-character password is the floor, and accepted (#36)', () {
+      final r = makeKey(env: {'HS_KEYSTORE_PASS': 'y' * 32});
+      expect(r.run.exitCode, 0, reason: r.run.output);
     });
   });
 

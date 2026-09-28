@@ -64,9 +64,9 @@ if [ -z "${HS_KEYSTORE_PASS:-}" ]; then
 fi
 
 # PKCS12 and keytool accept six characters; this key signs every release, so
-# the floor is higher.
-if [ "${#HS_KEYSTORE_PASS}" -lt 12 ]; then
-  echo "make_upload_key: HS_KEYSTORE_PASS is ${#HS_KEYSTORE_PASS} characters; 12 is the minimum." >&2
+# the floor is 32 -- what `openssl rand -base64 24` or longer gives (#36).
+if [ "${#HS_KEYSTORE_PASS}" -lt 32 ]; then
+  echo "make_upload_key: HS_KEYSTORE_PASS is ${#HS_KEYSTORE_PASS} characters; 32 is the minimum." >&2
   echo "  This is an upload key that signs every release." >&2
   exit 2
 fi

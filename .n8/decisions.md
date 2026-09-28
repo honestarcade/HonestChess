@@ -125,3 +125,21 @@ Ad-hoc entries (decisions made outside a planning/execution command) use:
 - **Change:** Two infrastructure items move into M1: a scheduled `weekly` workflow for slow tests that refuses to pass having run none (#37, was part of epic #4 in M2), and an `integration_test` harness with a smoke test run on an Android emulator in CI nightly and on demand (#38, was part of epic #10 in M6). Epics #2, #4 and #10 were amended with comments.
   **Why:** Owner, reviewing M0's coverage deferrals: "M2 should be fully app/feature development, anything infra/CI needs to be done before that"; emulator runs nightly + manual, outside the PR gate (owner's choice).
   **Affects:** M1 (two new stories; M1's PR #26 already merged, so they land on a new M1 branch before M1 is verified), M2 (#4 keeps only the ladder test and enables the schedule), M6 (#10 keeps only the scripted game). The remaining M0/M1 deferrals — invariant 3 and 4 guard tests (M2 feature tests, run by the existing gate) and production (M7) — are unchanged. — reconciled at the source 2026-09-28 (issues and epics amended in the same session)
+
+## /n8-exec M0 (verification fix pass) — 2026-09-28
+
+- **Decision:** The nine bugs `/n8-verify M0` filed (#28–#36) are fixed on `milestone/m0-fixes`, each with a guard or test proven both ways and, where the defect lives in a file, a battery mutation; the full battery went from 61 to 67 mutations.
+  **Why:** Verification found guards whose complement was unasserted (#28, #29) or narrower than promised (#30, #31), plus five low-severity gaps.
+  **Issue:** #28–#36
+- **Decision:** #29 (a force-added keystore) has no battery mutation; its complement is proven end to end instead, in a throwaway git repository where a force-added `.keystore` is tracked and refused.
+  **Why:** The defect lives in git's index, which the battery does not mutate; adding index mutation would be a new kind of restore risk for one case.
+  **Issue:** #29
+- **Decision:** The battery gained an `adds` kind (#30) — `(path, text)` written for one run, removed with any directories it needed, BROKEN if the path exists — and `references_test.dart` lists the release-source-set manifest it writes as created only by the battery.
+  **Why:** #16 promised a mutation for a permission in a third source set, and no such file exists to mutate.
+  **Issue:** #30
+- **Decision:** The template-icon check now uses SHA-256 (#33), recomputed from the template's icons at `89b1c6d`, rather than the ported length + FNV-1a table.
+  **Why:** #18's criterion said SHA-256 and `test/guards/sha256.dart` already exists; the ported table was exact but did not meet the wording.
+  **Issue:** #33
+- **Decision:** Two lint fixes rode along (Rule 3): an unbraced `if` from #28's rules and a doc comment from #33 whose code span broke across lines — both caught because `dart analyze --fatal-infos` was not run at those stories' commits, only tests.
+  **Why:** The gate runs analyze; running only `flutter test` per story let them through until the next analyze. From #35 on, analyze ran before each commit.
+  **Issue:** #28, #33
