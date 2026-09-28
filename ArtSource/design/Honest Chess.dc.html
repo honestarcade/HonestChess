@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0a0d12;font-family:Outfit,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#00D6B4;text-decoration:none}a:hover{color:#0076F1}
+@keyframes hc-rise{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes hc-blink{0%,100%{opacity:.3}50%{opacity:1}}
+</style>
+</helmet>
+
+<div style="min-height:100%;padding:56px 48px 90px;box-sizing:border-box;background:#0a0d12;color:#E8EDF4">
+
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:32px;max-width:1420px;margin:0 auto 26px">
+    <div>
+      <div style="font:600 11px/1 'IBM Plex Mono',monospace;letter-spacing:.22em;color:#00D6B4;text-transform:uppercase">Honest Arcade Apps</div>
+      <h1 style="margin:12px 0 6px;font:600 34px/1 Outfit,sans-serif;letter-spacing:-.02em;color:#fff">Honest Chess — mobile app</h1>
+      <p style="margin:0;font:400 14px/1.5 Outfit,sans-serif;color:#7C8899;max-width:680px;text-wrap:pretty">Portrait phone, top-down board, fully playable in the frame. Real move rules — castling, en passant, promotion, check and mate — a five-step strength dial for the computer, pass-and-play for two, and clocks from untimed to custom.</p>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:7px;justify-content:flex-end;max-width:560px">
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="11">
+        <button onClick="{{ n.go }}" style="border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.04);color:#9FB0C4;font:500 11.5px/1 Outfit,sans-serif;padding:8px 12px;border-radius:999px;cursor:pointer" style-hover="border-color:#00D6B4;color:#00D6B4">{{ n.label }}</button>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display:flex;justify-content:center;margin-bottom:64px">
+    <div style="position:relative;width:422px;height:876px;border-radius:52px;background:linear-gradient(160deg,#23262c,#15181d);padding:16px;box-sizing:border-box;box-shadow:0 40px 90px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.06) inset">
+      <div style="position:absolute;left:-3px;top:190px;width:3px;height:56px;border-radius:2px;background:#2c3037"></div>
+      <div style="position:absolute;left:-3px;top:262px;width:3px;height:88px;border-radius:2px;background:#2c3037"></div>
+      <div style="position:relative;width:390px;height:844px;border-radius:40px;overflow:hidden;background:#05285F">
+
+        <div style="position:absolute;left:0;top:0;width:390px;height:44px;z-index:60;display:flex;align-items:center;justify-content:space-between;padding:0 26px;box-sizing:border-box;pointer-events:none">
+          <span style="font:600 13px/1 Outfit,sans-serif;color:rgba(255,255,255,.92)">9:41</span>
+          <span style="display:flex;align-items:center;gap:5px">
+            <span style="width:16px;height:9px;border-radius:2px;background:rgba(255,255,255,.55)"></span>
+            <span style="width:12px;height:9px;border-radius:2px;background:rgba(255,255,255,.4)"></span>
+            <span style="width:22px;height:10px;border-radius:3px;background:rgba(255,255,255,.75)"></span>
+          </span>
+        </div>
+        <div style="position:absolute;left:50%;top:11px;width:112px;height:26px;margin-left:-56px;border-radius:14px;background:#05070b;z-index:70"></div>
+        <div style="position:absolute;left:50%;bottom:8px;width:132px;height:5px;margin-left:-66px;border-radius:3px;background:rgba(255,255,255,.4);z-index:70;pointer-events:none"></div>
+
+        <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ true }}">
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;background:radial-gradient(120% 110% at 50% 18%,#0a3a80 0%,#05285F 55%,#031634 100%)">
+            <svg width="132" height="132" viewBox="0 0 64 64" style="display:block">
+              <g fill="none" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="#00D6B4" d="M 10 25 L 10 17 A 7 7 0 0 1 17 10 L 25 10"></path>
+                <path stroke="#8448FC" d="M 54 25 L 54 17 A 7 7 0 0 0 47 10 L 39 10"></path>
+                <path stroke="#0076F1" d="M 54 39 L 54 47 A 7 7 0 0 1 47 54 L 39 54"></path>
+                <path stroke="#0F3E86" d="M 10 39 L 10 47 A 7 7 0 0 0 17 54 L 25 54"></path>
+              </g>
+              <path fill="#00D6B4" d="M 22.6 15 H 26.5 V 18.8 H 29.9 V 15 H 34.1 V 18.8 H 37.5 V 15 H 41.4 V 23.1 L 38.4 25.6 V 35 L 41.4 39.2 V 42.2 H 43.1 V 48.2 H 20.9 V 42.2 H 22.6 V 39.2 L 25.6 35 V 25.6 L 22.6 23.1 Z"></path>
+            </svg>
+            <div style="text-align:center">
+              <div style="font:700 40px/1 Outfit,sans-serif;letter-spacing:-.03em;color:#fff">Honest<span style="color:#00D6B4">Chess</span></div>
+              <div style="margin-top:14px;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.28em;color:#7FA6D8;text-transform:uppercase">By Honest Arcade</div>
+            </div>
+            <div style="width:220px;height:5px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden">
+              <div style="height:100%;border-radius:3px;background:linear-gradient(90deg,#00D6B4,#0076F1);width:{{ loadPct }}%"></div>
+            </div>
+            <div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;color:#5C7FB0">{{ loadLabel }}</div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isMenu }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;padding:64px 22px 34px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px;background:radial-gradient(110% 90% at 24% 12%,#0a3a80 0%,#05285F 58%,#031634 100%)">
+            <div style="display:flex;align-items:center;gap:14px">
+              <svg width="52" height="52" viewBox="0 0 64 64" style="display:block;flex:none">
+                <g fill="none" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+                  <path stroke="#00D6B4" d="M 10 25 L 10 17 A 7 7 0 0 1 17 10 L 25 10"></path>
+                  <path stroke="#8448FC" d="M 54 25 L 54 17 A 7 7 0 0 0 47 10 L 39 10"></path>
+                  <path stroke="#0076F1" d="M 54 39 L 54 47 A 7 7 0 0 1 47 54 L 39 54"></path>
+                  <path stroke="#0F3E86" d="M 10 39 L 10 47 A 7 7 0 0 0 17 54 L 25 54"></path>
+                </g>
+                <path fill="#00D6B4" d="M 22.6 15 H 26.5 V 18.8 H 29.9 V 15 H 34.1 V 18.8 H 37.5 V 15 H 41.4 V 23.1 L 38.4 25.6 V 35 L 41.4 39.2 V 42.2 H 43.1 V 48.2 H 20.9 V 42.2 H 22.6 V 39.2 L 25.6 35 V 25.6 L 22.6 23.1 Z"></path>
+              </svg>
+              <div>
+                <div style="font:700 27px/1 Outfit,sans-serif;letter-spacing:-.03em;color:#fff">Honest<span style="color:#00D6B4">Chess</span></div>
+                <div style="margin-top:7px;font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:.24em;color:#7FA6D8">BY HONEST ARCADE · NO ADS</div>
+              </div>
+            </div>
+
+            <button onClick="{{ resume }}" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border:none;border-radius:16px;background:#00D6B4;color:#04213F;font:600 18px/1 Outfit,sans-serif;cursor:pointer;text-align:left" style-hover="background:#31E7CB">
+              <span>{{ resumeLabel }}</span>
+              <span style="font:500 11px/1 'IBM Plex Mono',monospace;opacity:.7">{{ resumeMeta }}</span>
+            </button>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
+              <button onClick="{{ goCSetup }}" style="padding:0;border:1px solid rgba(255,255,255,.16);border-radius:16px;background:rgba(255,255,255,.05);cursor:pointer;text-align:left;overflow:hidden" style-hover="border-color:#00D6B4">
+                <span style="display:block;height:78px;background:linear-gradient(150deg,#0F3E86,#04213F);position:relative;overflow:hidden">
+                  <span style="position:absolute;left:16px;top:14px;display:grid;grid-template-columns:repeat(4,25px);grid-template-rows:repeat(2,25px)">
+                    <span style="background:#DCE9F8"></span><span style="background:#0F3E86"></span><span style="background:#DCE9F8"></span><span style="background:#0F3E86"></span>
+                    <span style="background:#0F3E86"></span><span style="background:#DCE9F8;display:flex;align-items:center;justify-content:center;font:400 19px/1 Outfit,sans-serif;color:#10161F">♞</span><span style="background:#0F3E86"></span><span style="background:#DCE9F8"></span>
+                  </span>
+                </span>
+                <span style="display:block;padding:13px 16px 16px">
+                  <span style="display:block;font:600 16px/1 Outfit,sans-serif;color:#fff">vs Computer</span>
+                  <span style="display:block;margin-top:6px;font:400 11.5px/1.4 Outfit,sans-serif;color:#9FC3EE">Five strength steps · pick your colour</span>
+                </span>
+              </button>
+              <button onClick="{{ goPSetup }}" style="padding:0;border:1px solid rgba(255,255,255,.16);border-radius:16px;background:rgba(255,255,255,.05);cursor:pointer;text-align:left;overflow:hidden" style-hover="border-color:#8448FC">
+                <span style="display:block;height:78px;background:linear-gradient(150deg,#3B1F7A,#1B0E3C);position:relative;overflow:hidden">
+                  <span style="position:absolute;left:16px;top:14px;display:grid;grid-template-columns:repeat(4,25px);grid-template-rows:repeat(2,25px)">
+                    <span style="background:#E4DAFB;display:flex;align-items:center;justify-content:center;font:400 19px/1 Outfit,sans-serif;color:#10161F">♛</span><span style="background:#3B2076"></span><span style="background:#E4DAFB"></span><span style="background:#3B2076"></span>
+                    <span style="background:#3B2076"></span><span style="background:#E4DAFB"></span><span style="background:#3B2076;display:flex;align-items:center;justify-content:center;font:400 19px/1 Outfit,sans-serif;color:#F7F5EF">♕</span><span style="background:#E4DAFB"></span>
+                  </span>
+                </span>
+                <span style="display:block;padding:13px 16px 16px">
+                  <span style="display:block;font:600 16px/1 Outfit,sans-serif;color:#fff">Two players</span>
+                  <span style="display:block;margin-top:6px;font:400 11.5px/1.4 Outfit,sans-serif;color:#B48CFF">One phone, pass it across</span>
+                </span>
+              </button>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <button onClick="{{ goStats }}" style="padding:15px 16px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:rgba(255,255,255,.04);color:#fff;font:500 14px/1 Outfit,sans-serif;cursor:pointer;text-align:left" style-hover="border-color:#00D6B4">Statistics</button>
+              <button onClick="{{ goHowTo }}" style="padding:15px 16px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:rgba(255,255,255,.04);color:#fff;font:500 14px/1 Outfit,sans-serif;cursor:pointer;text-align:left" style-hover="border-color:#00D6B4">How to play</button>
+              <button onClick="{{ goSettings }}" style="padding:15px 16px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:rgba(255,255,255,.04);color:#fff;font:500 14px/1 Outfit,sans-serif;cursor:pointer;text-align:left" style-hover="border-color:#00D6B4">Settings</button>
+              <button onClick="{{ goAboutApp }}" style="padding:15px 16px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:rgba(255,255,255,.04);color:#fff;font:500 14px/1 Outfit,sans-serif;cursor:pointer;text-align:left" style-hover="border-color:#00D6B4">About the app</button>
+            </div>
+
+            <button onClick="{{ goAboutStudio }}" style="margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 16px;border:1px solid rgba(0,214,180,.35);border-radius:14px;background:rgba(0,214,180,.1);cursor:pointer;text-align:left" style-hover="background:rgba(0,214,180,.18)">
+              <span>
+                <span style="display:block;font:600 13.5px/1 Outfit,sans-serif;color:#00D6B4">About Honest Arcade</span>
+                <span style="display:block;margin-top:6px;font:400 11px/1.3 Outfit,sans-serif;color:#87A9D0">No ads, no tracking, open source.</span>
+              </span>
+              <span style="font:500 16px/1 Outfit,sans-serif;color:#00D6B4">›</span>
+            </button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isCSetup }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;padding:56px 20px 30px;box-sizing:border-box;display:flex;flex-direction:column;gap:13px;background:#05285F;overflow:auto">
+            <div style="display:flex;align-items:center;gap:13px">
+              <button onClick="{{ goMenu }}" style="width:34px;height:34px;flex:none;border-radius:11px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#fff;font:500 16px/1 Outfit,sans-serif;cursor:pointer">‹</button>
+              <div>
+                <div style="font:600 19px/1 Outfit,sans-serif;color:#fff">New game vs computer</div>
+                <div style="margin-top:6px;font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#6E93C4">RUNS ON DEVICE · NO NETWORK</div>
+              </div>
+            </div>
+
+            <div style="padding:14px 15px;border-radius:14px;background:rgba(255,255,255,.05)">
+              <div style="font:600 13.5px/1 Outfit,sans-serif;color:#fff">Strength</div>
+              <div style="margin-top:6px;font:400 11px/1.4 Outfit,sans-serif;color:#87A9D0">A plain engine with a dial. At the low steps it looks less far ahead and misses things on purpose — no fake blunders dressed up as personality.</div>
+              <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+                <sc-for list="{{ levels }}" as="l" hint-placeholder-count="5">
+                  <button onClick="{{ l.pick }}" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 14px;border:1.5px solid {{ l.border }};border-radius:12px;background:{{ l.bg }};cursor:pointer;text-align:left" style-hover="border-color:#00D6B4">
+                    <span>
+                      <span style="display:block;font:600 13.5px/1 Outfit,sans-serif;color:{{ l.fg }}">{{ l.label }}</span>
+                      <span style="display:block;margin-top:5px;font:400 10.5px/1.3 Outfit,sans-serif;color:#87A9D0">{{ l.desc }}</span>
+                    </span>
+                    <span style="display:flex;gap:3px;flex:none">
+                      <sc-for list="{{ l.pips }}" as="p" hint-placeholder-count="5">
+                        <span style="width:5px;height:16px;border-radius:2px;background:{{ p.c }}"></span>
+                      </sc-for>
+                    </span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="padding:14px 15px;border-radius:14px;background:rgba(255,255,255,.05)">
+              <div style="font:600 13.5px/1 Outfit,sans-serif;color:#fff">Play as</div>
+              <div style="display:flex;gap:8px;margin-top:12px">
+                <sc-for list="{{ sideChoices }}" as="c" hint-placeholder-count="3">
+                  <button onClick="{{ c.pick }}" style="flex:1;padding:11px 8px;border:1.5px solid {{ c.border }};border-radius:11px;background:{{ c.bg }};color:{{ c.fg }};font:600 12.5px/1 Outfit,sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:7px">
+                    <span style="font:400 17px/1 Outfit,sans-serif">{{ c.glyph }}</span>
+                    <span>{{ c.label }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="padding:14px 15px;border-radius:14px;background:rgba(255,255,255,.05)">
+              <div style="font:600 13.5px/1 Outfit,sans-serif;color:#fff">Time control</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+                <sc-for list="{{ timeChoices }}" as="c" hint-placeholder-count="5">
+                  <button onClick="{{ c.pick }}" style="padding:11px 8px;border:1.5px solid {{ c.border }};border-radius:11px;background:{{ c.bg }};color:{{ c.fg }};font:600 12.5px/1 Outfit,sans-serif;cursor:pointer">{{ c.label }}</button>
+                </sc-for>
+              </div>
+              <sc-if value="{{ isCustomTime }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:9px;margin-top:12px">
+                  <sc-for list="{{ steppers }}" as="s" hint-placeholder-count="2">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border-radius:11px;background:rgba(255,255,255,.05)">
+                      <span style="font:500 11.5px/1 Outfit,sans-serif;color:#DCE9F8">{{ s.label }}</span>
+                      <span style="display:flex;align-items:center;gap:9px">
+                        <button onClick="{{ s.dec }}" style="width:28px;height:28px;border-radius:9px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#fff;font:500 15px/1 Outfit,sans-serif;cursor:pointer">−</button>
+                        <span style="min-width:52px;text-align:center;font:600 13px/1 'IBM Plex Mono',monospace;color:#00D6B4">{{ s.value }}</span>
+                        <button onClick="{{ s.inc }}" style="width:28px;height:28px;border-radius:9px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#fff;font:500 15px/1 Outfit,sans-serif;cursor:pointer">+</button>
+                      </span>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+
+            <div style="margin-top:auto;display:flex;flex-direction:column;gap:9px">
+              <button onClick="{{ startC }}" style="padding:17px;border:none;border-radius:14px;background:#00D6B4;color:#04213F;font:600 16px/1 Outfit,sans-serif;cursor:pointer" style-hover="background:#31E7CB">Start game</button>
+              <button onClick="{{ resume }}" style="padding:14px;border:1px solid rgba(255,255,255,.16);border-radius:14px;background:rgba(255,255,255,.04);color:#9FC3EE;font:500 13px/1 Outfit,sans-serif;cursor:pointer">Keep playing the current game</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isPSetup }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;padding:56px 20px 30px;box-sizing:border-box;display:flex;flex-direction:column;gap:13px;background:#05285F;overflow:auto">
+            <div style="display:flex;align-items:center;gap:13px">
+              <button onClick="{{ goMenu }}" style="width:34px;height:34px;flex:none;border-radius:11px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#fff;font:500 16px/1 Outfit,sans-serif;cursor:pointer">‹</button>
+              <div>
+                <div style="font:600 19px/1 Outfit,sans-serif;color:#fff">Two players</div>
+                <div style="margin-top:6px;font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#9E7BFF">ONE PHONE · PASS AND PLAY</div>
+              </div>
+            </div>
+
+            <div style="padding:14px 15px;border-radius:14px;background:rgba(255,255,255,.05)">
+              <div style="font:600 13.5px/1 Outfit,sans-serif;color:#fff">Time control</div>
+              <div style="margin-top:6px;font:400 11px/1.4 Outfit,sans-serif;color:#87A9D0">Both clocks sit on the board, the running one lit.</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+                <sc-for list="{{ timeChoicesP }}" as="c" hint-placeholder-count="5">
+                  <button onClick="{{ c.pick }}" style="padding:11px 8px;border:1.5px solid {{ c.border }};border-radius:11px;background:{{ c.bg }};color:{{ c.fg }};font:600 12.5px/1 Outfit,sans-serif;cursor:pointer">{{ c.label }}</button>
+                </sc-for>
+              </div>
+              <sc-if value="{{ isCustomTime }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:9px;margin-top:12px">
+                  <sc-for list="{{ steppers }}" as="s" hint-placeholder-count="2">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border-radius:11px;background:rgba(255,255,255,.05)">
+                      <span style="font:500 11.5px/1 Outfit,sans-serif;color:#DCE9F8">{{ s.label }}</span>
+                      <span style="display:flex;align-items:center;gap:9px">
+                        <button onClick="{{ s.dec }}" style="width:28px;height:28px;border-radius:9px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#fff;font:500 15px/1 Outfit,sans-serif;cursor:pointer">−</button>
+                        <span style="min-width:52px;text-align:center;font:600 13px/1 'IBM Plex Mono',monospace;color:#B48CFF">{{ s.value }}</span>
+                        <button onClick="{{ s.inc }}" style="width:28px;height:28px;border-radius:9px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#fff;font:500 15px/1 Outfit,sans-serif;cursor:pointer">+</button>
+                      </span>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;border-radius:14px;background:rgba(255,255,255,.05)">
+              <span style="min-width:0">
+                <span style="display:block;font:600 12.5px/1 Outfit,sans-serif;color:#fff">Rotate board each turn</span>
+                <span style="display:block;margin-top:5px;font:400 10.5px/1.35 Outfit,sans-serif;color:#87A9D0">Turn the board to face whoever is to move. Off keeps white at the bottom.</span>
+              </span>
+              <button onClick="{{ toggleRotate }}" style="position:relative;flex:none;width:46px;height:26px;padding:0;border:none;border-radius:13px;cursor:pointer;background:{{ rotTrack }}">
+                <span style="position:absolute;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;left:{{ rotKnob }}px"></span>
+              </button>
+            </div>
+
+            <div style="padding:14px 15px;border-radius:14px;background:rgba(255,255,255,.04)">
+              <div style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#6E93C4">HOUSE RULES</div>
+              <p style="margin:9px 0 0;font:400 11px/1.5 Outfit,sans-serif;color:#87A9D0">Takeback is shared — either player can undo the last move. Draw needs both taps. Everything else is tournament legal.</p>
+            </div>
+
+            <div style="margin-top:auto">
+              <button onClick="{{ startP }}" style="width:100%;padding:17px;border:none;border-radius:14px;background:#8448FC;color:#fff;font:600 16px/1 Outfit,sans-serif;cursor:pointer" style-hover="background:#9A68FF">Start game</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isBoard }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;background:radial-gradient(120% 80% at 50% 0%,#0a3a80 0%,#05285F 52%,#031634 100%)">
+
+            <div style="position:absolute;left:0;top:44px;width:390px;height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;box-sizing:border-box">
+              <button onClick="{{ pause }}" style="display:flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid rgba(255,255,255,.14);border-radius:10px;background:rgba(255,255,255,.06);color:#fff;font:500 11.5px/1 Outfit,sans-serif;cursor:pointer">❚❚ {{ boardTitle }}</button>
+              <span style="padding:7px 10px;border-radius:9px;background:{{ statusBg }};font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.08em;color:{{ statusFg }}">{{ statusText }}</span>
+            </div>
+
+            <sc-for list="{{ panels }}" as="p" hint-placeholder-count="2">
+              <div style="position:absolute;left:8px;top:{{ p.top }}px;width:374px;height:52px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 14px;box-sizing:border-box;border-radius:14px;background:{{ p.bg }};box-shadow:{{ p.ring }}">
+                <span style="display:flex;align-items:center;gap:11px;min-width:0">
+                  <span style="width:30px;height:30px;flex:none;border-radius:9px;background:{{ p.chipBg }};display:flex;align-items:center;justify-content:center;font:400 18px/1 Outfit,sans-serif;color:{{ p.chipFg }}">{{ p.chip }}</span>
+                  <span style="min-width:0">
+                    <span style="display:block;font:600 13px/1 Outfit,sans-serif;color:#fff">{{ p.name }}</span>
+                    <span style="display:block;margin-top:5px;font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:{{ p.subFg }}">{{ p.sub }}</span>
+                  </span>
+                </span>
+                <span style="font:600 20px/1 'IBM Plex Mono',monospace;color:{{ p.clockFg }};opacity:{{ p.clockOp }}">{{ p.clock }}</span>
+              </div>
+            </sc-for>
+
+            <div style="position:absolute;left:{{ boardX }}px;top:{{ boardY }}px;width:{{ boardW }}px;height:{{ boardW }}px;border-radius:10px;overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.12)">
+              <sc-for list="{{ cells }}" as="c" hint-placeholder-count="64">
+                <div onClick="{{ c.tap }}" style="position:absolute;left:{{ c.x }}px;top:{{ c.y }}px;width:{{ c.sz }}px;height:{{ c.sz }}px;background:{{ c.bg }};cursor:pointer;overflow:hidden">
+                  <span style="position:absolute;inset:0;background:{{ c.tex }};pointer-events:none"></span>
+                  <span style="position:absolute;inset:0;background:{{ c.hl }};pointer-events:none"></span>
+                  <span style="position:absolute;inset:0;box-shadow:{{ c.ring }};pointer-events:none"></span>
+                  <span style="position:absolute;left:2px;top:1px;font:600 8px/1 'IBM Plex Mono',monospace;color:{{ c.coordFg }};opacity:{{ c.rankOp }};pointer-events:none">{{ c.rankLbl }}</span>
+                  <span style="position:absolute;right:2px;bottom:1px;font:600 8px/1 'IBM Plex Mono',monospace;color:{{ c.coordFg }};opacity:{{ c.fileOp }};pointer-events:none">{{ c.fileLbl }}</span>
+                  <span style="position:absolute;left:50%;top:50%;width:{{ c.dotSz }}px;height:{{ c.dotSz }}px;transform:translate(-50%,-50%);border-radius:50%;background:{{ c.dot }};pointer-events:none"></span>
+                  <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:{{ c.pWeight }} {{ c.pSize }}px/1 {{ c.pFam }};color:{{ c.pFg }};text-shadow:{{ c.pShadow }};pointer-events:none">{{ c.glyph }}</span>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="position:absolute;left:0;bottom:60px;width:390px;height:62px;display:flex;gap:8px;padding:0 8px;box-sizing:border-box;align-items:center">
+              <sc-for list="{{ tools }}" as="t" hint-placeholder-count="4">
+                <button onClick="{{ t.tap }}" style="flex:1;height:50px;border:1px solid {{ t.edge }};border-radius:13px;background:{{ t.bg }};color:{{ t.fg }};cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:0" style-hover="border-color:#00D6B4">
+                  <span style="font:500 15px/1 Outfit,sans-serif">{{ t.icon }}</span>
+                  <span style="font:500 8.5px/1 'IBM Plex Mono',monospace;letter-spacing:.1em">{{ t.label }}</span>
+                </button>
+              </sc-for>
+            </div>
+
+            <sc-if value="{{ isPromo }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;inset:0;z-index:80;background:rgba(3,14,32,.82);display:flex;align-items:center;justify-content:center;padding:26px;box-sizing:border-box">
+                <div style="width:100%;padding:22px;border-radius:20px;background:#0B3670;box-shadow:0 24px 60px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.1) inset;animation:hc-rise .25s ease-out">
+                  <div style="font:600 18px/1 Outfit,sans-serif;color:#fff">Promote to</div>
+                  <div style="margin-top:8px;font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#7FA6D8">{{ promoMeta }}</div>
+                  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:18px">
+                    <sc-for list="{{ promoChoices }}" as="p" hint-placeholder-count="4">
+                      <button onClick="{{ p.pick }}" style="padding:14px 0 11px;border:1px solid rgba(255,255,255,.16);border-radius:13px;background:rgba(255,255,255,.06);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:9px" style-hover="border-color:#00D6B4">
+                        <span style="font:400 28px/1 Outfit,sans-serif;color:{{ p.fg }};text-shadow:{{ p.shadow }}">{{ p.glyph }}</span>
+                        <span style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#9FC3EE">{{ p.label }}</span>
+                      </button>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isPaused }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;inset:0;z-index:80;background:rgba(3,14,32,.82);display:flex;align-items:center;justify-content:center;padding:26px;box-sizing:border-box">
+                <div style="width:100%;padding:22px;border-radius:20px;background:#0B3670;box-shadow:0 24px 60px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.1) inset">
+                  <div style="font:600 19px/1 Outfit,sans-serif;color:#fff">Paused</div>
+                  <div style="margin-top:8px;font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#7FA6D8">{{ pauseMeta }}</div>
+                  <div style="display:flex;flex-direction:column;gap:9px;margin-top:18px">
+                    <button onClick="{{ resumePlay }}" style="padding:15px;border:none;border-radius:13px;background:#00D6B4;color:#04213F;font:600 15px/1 Outfit,sans-serif;cursor:pointer">Resume</button>
+                    <button onClick="{{ offerDraw }}" style="padding:14px;border:1px solid rgba(255,255,255,.18);border-radius:13px;background:rgba(255,255,255,.05);color:#fff;font:500 14px/1 Outfit,sans-serif;cursor:pointer">{{ drawLabel }}</button>
+                    <button onClick="{{ resign }}" style="padding:14px;border:1px solid rgba(224,90,78,.5);border-radius:13px;background:rgba(224,90,78,.12);color:#FF8C7E;font:500 14px/1 Outfit,sans-serif;cursor:pointer">Resign</button>
+                    <div style="display:flex;gap:9px">
+                      <button onClick="{{ goHowTo }}" style="flex:1;padding:13px;border:1px solid rgba(255,255,255,.14);border-radius:13px;background:rgba(255,255,255,.04);color:#9FC3EE;font:500 13px/1 Outfit,sans-serif;cursor:pointer">Rules</button>
+                      <button onClick="{{ goSettings }}" style="flex:1;padding:13px;border:1px solid rgba(255,255,255,.14);border-radius:13px;background:rgba(255,255,255,.04);color:#9FC3EE;font:500 13px/1 Outfit,sans-serif;cursor:pointer">Settings</button>
+                    </div>
+                    <button onClick="{{ goMenu }}" style="padding:13px;border:none;border-radius:13px;background:transparent;color:#7FA6D8;font:500 13px/1 Outfit,sans-serif;cursor:pointer">Main menu</button>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isOver }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;inset:0;z-index:80;background:rgba(3,14,32,.85);display:flex;align-items:center;justify-content:center;padding:26px;box-sizing:border-box">
+                <div style="width:100%;padding:24px;border-radius:20px;background:linear-gradient(170deg,#0B3670,#04213F);box-shadow:0 24px 60px rgba(0,0,0,.55),0 0 0 1px rgba(0,214,180,.3) inset;animation:hc-rise .35s ease-out">
+                  <div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;color:{{ overKicker }}">{{ overTag }}</div>
+                  <div style="margin-top:11px;font:700 26px/1.1 Outfit,sans-serif;letter-spacing:-.02em;color:#fff;text-wrap:pretty">{{ overTitle }}</div>
+                  <p style="margin:10px 0 0;font:400 12.5px/1.55 Outfit,sans-serif;color:#BBD2EC;text-wrap:pretty">{{ overBody }}</p>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:18px">
+                    <sc-for list="{{ overStats }}" as="w" hint-placeholder-count="4">
+                      <div style="padding:12px 13px;border-radius:12px;background:rgba(255,255,255,.06)">
+                        <div style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#7FA6D8">{{ w.k }}</div>
+                        <div style="margin-top:7px;font:600 18px/1 Outfit,sans-serif;color:#fff">{{ w.v }}</div>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:9px;margin-top:18px">
+                    <button onClick="{{ rematch }}" style="padding:15px;border:none;border-radius:13px;background:#00D6B4;color:#04213F;font:600 15px/1 Outfit,sans-serif;cursor:pointer">Rematch</button>
+                    <button onClick="{{ goStats }}" style="padding:13px;border:1px solid rgba(255,255,255,.16);border-radius:13px;background:rgba(255,255,255,.05);color:#fff;font:500 13.5px/1 Outfit,sans-serif;cursor:pointer">See statistics</button>
+                    <button onClick="{{ goMenu }}" style="padding:12px;border:none;border-radius:13px;background:transparent;color:#7FA6D8;font:500 13px/1 Outfit,sans-serif;cursor:pointer">Main menu</button>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isStats }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;padding:56px 20px 30px;box-sizing:border-box;display:flex;flex-direction:column;gap:13px;background:#05285F;overflow:auto">
+            <div style="display:flex;align-items:center;gap:13px">
+              <button onClick="{{ goMenu }}" style="width:34px;height:34px;flex:none;border-radius:11px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#fff;font:500 16px/1 Outfit,sans-serif;cursor:pointer">‹</button>
+              <div style="font:600 19px/1 Outfit,sans-serif;color:#fff">Statistics</div>
+            </div>
+            <div style="display:flex;gap:7px;padding:4px;border-radius:12px;background:rgba(255,255,255,.05)">
+              <sc-for list="{{ statTabs }}" as="t" hint-placeholder-count="2">
+                <button onClick="{{ t.pick }}" style="flex:1;padding:10px;border:none;border-radius:9px;background:{{ t.bg }};color:{{ t.fg }};font:600 12.5px/1 Outfit,sans-serif;cursor:pointer">{{ t.label }}</button>
+              </sc-for>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+              <sc-for list="{{ statCards }}" as="s" hint-placeholder-count="6">
+                <div style="padding:14px;border-radius:13px;background:{{ s.bg }}">
+                  <div style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#7FA6D8">{{ s.k }}</div>
+                  <div style="margin-top:8px;font:600 21px/1 Outfit,sans-serif;color:{{ s.fg }}">{{ s.v }}</div>
+                  <div style="margin-top:6px;font:400 10.5px/1.3 Outfit,sans-serif;color:#87A9D0">{{ s.sub }}</div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="padding:15px;border-radius:13px;background:rgba(255,255,255,.05);display:flex;flex-direction:column;gap:10px">
+              <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#6E93C4">{{ breakdownTitle }}</div>
+              <sc-for list="{{ breakdown }}" as="b" hint-placeholder-count="3">
+                <div>
+                  <div style="display:flex;justify-content:space-between;font:500 11.5px/1 Outfit,sans-serif;color:#DCE9F8">
+                    <span>{{ b.label }}</span><span style="font-family:'IBM Plex Mono',monospace;color:#9FC3EE">{{ b.value }}</span>
+                  </div>
+                  <div style="margin-top:7px;height:6px;border-radius:3px;background:rgba(255,255,255,.09);overflow:hidden">
+                    <div style="height:100%;border-radius:3px;background:{{ b.color }};width:{{ b.pct }}%"></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <button onClick="{{ askResetStats }}" style="margin-top:auto;padding:14px;border:1px solid rgba(224,90,78,.5);border-radius:13px;background:rgba(224,90,78,.12);color:#FF8C7E;font:600 13px/1 Outfit,sans-serif;cursor:pointer">Reset statistics</button>
+            <sc-if value="{{ confirmStats }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;inset:0;background:rgba(3,14,32,.82);display:flex;align-items:center;justify-content:center;padding:26px;box-sizing:border-box">
+                <div style="width:100%;padding:22px;border-radius:18px;background:#0B3670;box-shadow:0 20px 50px rgba(0,0,0,.5)">
+                  <div style="font:600 17px/1 Outfit,sans-serif;color:#fff">Reset statistics?</div>
+                  <p style="margin:11px 0 0;font:400 12.5px/1.55 Outfit,sans-serif;color:#BBD2EC">Clears every recorded game, streak and result for both the computer and pass-and-play. Nothing was ever uploaded, so this is the only copy.</p>
+                  <div style="display:flex;gap:9px;margin-top:18px">
+                    <button onClick="{{ cancelStats }}" style="flex:1;padding:13px;border:1px solid rgba(255,255,255,.2);border-radius:12px;background:rgba(255,255,255,.06);color:#fff;font:500 13px/1 Outfit,sans-serif;cursor:pointer">Cancel</button>
+                    <button onClick="{{ doResetStats }}" style="flex:1;padding:13px;border:none;border-radius:12px;background:#E05A4E;color:#fff;font:600 13px/1 Outfit,sans-serif;cursor:pointer">Reset</button>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;padding:56px 20px 30px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;background:#05285F;overflow:auto">
+            <div style="display:flex;align-items:center;gap:13px">
+              <button onClick="{{ goBack }}" style="width:34px;height:34px;flex:none;border-radius:11px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#fff;font:500 16px/1 Outfit,sans-serif;cursor:pointer">‹</button>
+              <div style="font:600 19px/1 Outfit,sans-serif;color:#fff">Settings</div>
+            </div>
+
+            <div style="padding:14px 15px;border-radius:14px;background:rgba(255,255,255,.05)">
+              <div style="font:600 13px/1 Outfit,sans-serif;color:#fff">Board colour</div>
+              <div style="margin-top:6px;font:400 10.5px/1.35 Outfit,sans-serif;color:#87A9D0">Four pairs from the Honest Arcade palette.</div>
+              <div style="display:flex;gap:9px;margin-top:12px">
+                <sc-for list="{{ themeChoices }}" as="t" hint-placeholder-count="4">
+                  <button onClick="{{ t.pick }}" style="flex:1;padding:9px;border:1.5px solid {{ t.border }};border-radius:12px;background:rgba(255,255,255,.04);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px">
+                    <span style="display:grid;grid-template-columns:repeat(2,15px);grid-template-rows:repeat(2,15px);border-radius:4px;overflow:hidden">
+                      <span style="background:{{ t.light }}"></span><span style="background:{{ t.dark }}"></span>
+                      <span style="background:{{ t.dark }}"></span><span style="background:{{ t.light }}"></span>
+                    </span>
+                    <span style="font:500 9px/1 'IBM Plex Mono',monospace;color:{{ t.fg }}">{{ t.label }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="padding:14px 15px;border-radius:14px;background:rgba(255,255,255,.05)">
+              <div style="font:600 13px/1 Outfit,sans-serif;color:#fff">Piece style</div>
+              <div style="display:flex;gap:9px;margin-top:12px">
+                <sc-for list="{{ styleChoices }}" as="p" hint-placeholder-count="3">
+                  <button onClick="{{ p.pick }}" style="flex:1;padding:11px 8px;border:1.5px solid {{ p.border }};border-radius:12px;background:{{ p.bg }};cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px">
+                    <span style="font:{{ p.weight }} 22px/1 {{ p.fam }};color:#F7F5EF;text-shadow:0 1px 2px rgba(0,0,0,.5)">{{ p.sample }}</span>
+                    <span style="font:500 9.5px/1 'IBM Plex Mono',monospace;color:{{ p.fg }}">{{ p.label }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="padding:14px 15px;border-radius:14px;background:rgba(255,255,255,.05)">
+              <div style="font:600 13px/1 Outfit,sans-serif;color:#fff">Board surface</div>
+              <div style="display:flex;gap:9px;margin-top:12px">
+                <sc-for list="{{ texChoices }}" as="t" hint-placeholder-count="3">
+                  <button onClick="{{ t.pick }}" style="flex:1;padding:9px;border:1.5px solid {{ t.border }};border-radius:12px;background:rgba(255,255,255,.04);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px">
+                    <span style="position:relative;width:100%;height:26px;border-radius:5px;background:{{ t.base }};overflow:hidden">
+                      <span style="position:absolute;inset:0;background:{{ t.tex }}"></span>
+                    </span>
+                    <span style="font:500 9.5px/1 'IBM Plex Mono',monospace;color:{{ t.fg }}">{{ t.label }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+
+            <sc-for list="{{ settingGroups }}" as="g" hint-placeholder-count="3">
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#6E93C4;padding-left:3px">{{ g.title }}</div>
+                <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="4">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.05)">
+                    <span style="min-width:0">
+                      <span style="display:block;font:600 12.5px/1 Outfit,sans-serif;color:#fff">{{ r.label }}</span>
+                      <span style="display:block;margin-top:5px;font:400 10.5px/1.35 Outfit,sans-serif;color:#87A9D0">{{ r.desc }}</span>
+                    </span>
+                    <button onClick="{{ r.toggle }}" style="position:relative;flex:none;width:46px;height:26px;padding:0;border:none;border-radius:13px;cursor:pointer;background:{{ r.track }}">
+                      <span style="position:absolute;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;left:{{ r.knob }}px"></span>
+                    </button>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-for>
+
+            <div style="padding:14px 15px;border-radius:14px;background:rgba(255,255,255,.04)">
+              <div style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#6E93C4">STORED ON DEVICE ONLY</div>
+              <p style="margin:9px 0 0;font:400 11px/1.5 Outfit,sans-serif;color:#87A9D0">Games, statistics and settings never leave your phone. No account, no sync, nothing to delete on a server.</p>
+            </div>
+            <div style="font:500 9.5px/1.6 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#4E739F">v1.0 · BUILD 17</div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isHowTo }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;padding:56px 20px 30px;box-sizing:border-box;display:flex;flex-direction:column;gap:13px;background:#05285F;overflow:auto">
+            <div style="display:flex;align-items:center;gap:13px">
+              <button onClick="{{ goBack }}" style="width:34px;height:34px;flex:none;border-radius:11px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#fff;font:500 16px/1 Outfit,sans-serif;cursor:pointer">‹</button>
+              <div style="font:600 19px/1 Outfit,sans-serif;color:#fff">How to play</div>
+            </div>
+            <div style="display:flex;gap:7px;padding:4px;border-radius:12px;background:rgba(255,255,255,.05)">
+              <sc-for list="{{ ruleTabs }}" as="t" hint-placeholder-count="2">
+                <button onClick="{{ t.pick }}" style="flex:1;padding:10px;border:none;border-radius:9px;background:{{ t.bg }};color:{{ t.fg }};font:600 12.5px/1 Outfit,sans-serif;cursor:pointer">{{ t.label }}</button>
+              </sc-for>
+            </div>
+            <sc-if value="{{ showMoves }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:9px">
+                <sc-for list="{{ pieceRules }}" as="p" hint-placeholder-count="6">
+                  <div style="display:flex;align-items:flex-start;gap:12px;padding:13px 14px;border-radius:13px;background:rgba(255,255,255,.05)">
+                    <span style="width:34px;height:34px;flex:none;border-radius:9px;background:{{ p.sqBg }};display:flex;align-items:center;justify-content:center;font:400 21px/1 Outfit,sans-serif;color:#10161F">{{ p.glyph }}</span>
+                    <span style="min-width:0">
+                      <span style="display:block;font:600 13px/1 Outfit,sans-serif;color:#fff">{{ p.name }}</span>
+                      <span style="display:block;margin-top:6px;font:400 11.5px/1.5 Outfit,sans-serif;color:#9FC3EE;text-wrap:pretty">{{ p.body }}</span>
+                    </span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ showRules }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:11px">
+                <sc-for list="{{ rules }}" as="r" hint-placeholder-count="6">
+                  <div style="padding:14px 15px;border-radius:13px;background:{{ r.bg }};box-shadow:{{ r.ring }}">
+                    <div style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:{{ r.kicker }}">{{ r.tag }}</div>
+                    <p style="margin:9px 0 0;font:400 12.5px/1.6 Outfit,sans-serif;color:#D3E6FF;text-wrap:pretty">{{ r.body }}</p>
+                  </div>
+                </sc-for>
+                <div style="padding:14px 15px;border-radius:13px;background:rgba(255,255,255,.05)">
+                  <div style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#6E93C4">GESTURES</div>
+                  <div style="display:flex;flex-direction:column;gap:8px;margin-top:11px">
+                    <sc-for list="{{ gestures }}" as="g" hint-placeholder-count="4">
+                      <div style="display:flex;align-items:baseline;gap:10px">
+                        <span style="flex:none;padding:5px 8px;border-radius:7px;background:rgba(0,214,180,.14);font:500 9.5px/1 'IBM Plex Mono',monospace;color:#00D6B4">{{ g.k }}</span>
+                        <span style="font:400 11.5px/1.45 Outfit,sans-serif;color:#BBD2EC">{{ g.v }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isAboutApp }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;padding:56px 20px 30px;box-sizing:border-box;display:flex;flex-direction:column;gap:13px;background:#05285F;overflow:auto">
+            <div style="display:flex;align-items:center;gap:13px">
+              <button onClick="{{ goMenu }}" style="width:34px;height:34px;flex:none;border-radius:11px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#fff;font:500 16px/1 Outfit,sans-serif;cursor:pointer">‹</button>
+              <div style="font:600 19px/1 Outfit,sans-serif;color:#fff">About the App</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;padding:16px;border-radius:16px;background:rgba(255,255,255,.05)">
+              <span style="width:62px;height:62px;flex:none;border-radius:15px;background:#04213F;display:flex;align-items:center;justify-content:center">
+                <svg width="48" height="48" viewBox="0 0 64 64">
+                  <g fill="none" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+                    <path stroke="#00D6B4" d="M 10 25 L 10 17 A 7 7 0 0 1 17 10 L 25 10"></path>
+                    <path stroke="#8448FC" d="M 54 25 L 54 17 A 7 7 0 0 0 47 10 L 39 10"></path>
+                    <path stroke="#0076F1" d="M 54 39 L 54 47 A 7 7 0 0 1 47 54 L 39 54"></path>
+                    <path stroke="#0F3E86" d="M 10 39 L 10 47 A 7 7 0 0 0 17 54 L 25 54"></path>
+                  </g>
+                  <path fill="#00D6B4" d="M 22.6 15 H 26.5 V 18.8 H 29.9 V 15 H 34.1 V 18.8 H 37.5 V 15 H 41.4 V 23.1 L 38.4 25.6 V 35 L 41.4 39.2 V 42.2 H 43.1 V 48.2 H 20.9 V 42.2 H 22.6 V 39.2 L 25.6 35 V 25.6 L 22.6 23.1 Z"></path>
+                </svg>
+              </span>
+              <span>
+                <span style="display:block;font:700 20px/1 Outfit,sans-serif;color:#fff">Honest Chess</span>
+                <span style="display:block;margin-top:7px;font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#7FA6D8">v1.0 · 3.6 MB · OFFLINE</span>
+              </span>
+            </div>
+            <p style="margin:0;font:400 13.5px/1.65 Outfit,sans-serif;color:#BBD2EC;text-wrap:pretty">Chess, complete and offline. The full rule set — castling, en passant, promotion, stalemate, the fifty-move draw — a computer opponent with five honest strength steps, and pass-and-play for two people on one phone. Nothing is unlocked with money, because there is nothing to buy.</p>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#6E93C4">WHAT'S IN IT</div>
+              <sc-for list="{{ features }}" as="f" hint-placeholder-count="6">
+                <div style="display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border-radius:11px;background:rgba(255,255,255,.05)">
+                  <span style="flex:none;width:6px;height:6px;margin-top:6px;border-radius:50%;background:#00D6B4"></span>
+                  <span style="min-width:0">
+                    <span style="display:block;font:600 12px/1 Outfit,sans-serif;color:#fff">{{ f.k }}</span>
+                    <span style="display:block;margin-top:5px;font:400 11px/1.4 Outfit,sans-serif;color:#9FC3EE">{{ f.v }}</span>
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="padding:14px 15px;border-radius:13px;background:rgba(0,214,180,.1);box-shadow:0 0 0 1px rgba(0,214,180,.32) inset">
+              <div style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#00D6B4">THE HONEST PROMISES</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:11px">
+                <sc-for list="{{ promiseChips }}" as="p" hint-placeholder-count="7">
+                  <span style="display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;background:rgba(255,255,255,.07);font:500 10px/1.2 'IBM Plex Mono',monospace;color:#D3E6FF">
+                    <span style="flex:none;font:600 10px/1 Outfit,sans-serif;color:#00D6B4">✓</span>
+                    <span style="min-width:0">{{ p }}</span>
+                  </span>
+                </sc-for>
+              </div>
+              <button onClick="{{ goAboutStudio }}" style="margin-top:14px;width:100%;padding:12px;border:1px solid rgba(0,214,180,.4);border-radius:11px;background:transparent;color:#00D6B4;font:600 12.5px/1 Outfit,sans-serif;cursor:pointer">Honest Arcade Promises</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;font:500 9.5px/1.7 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#4E739F">
+              <span>MADE BY</span>
+              <a href="https://honestarcade.app" target="_blank" rel="noreferrer" style="color:#7FA6D8;text-decoration:none;border-bottom:1px solid rgba(127,166,216,.4)">HONEST ARCADE ↗</a>
+              <span>·</span>
+              <a href="https://github.com/honestarcade" target="_blank" rel="noreferrer" style="color:#7FA6D8;text-decoration:none;border-bottom:1px solid rgba(127,166,216,.4)">SOURCE ON GITHUB ↗</a>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isAboutStudio }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;padding:56px 20px 30px;box-sizing:border-box;display:flex;flex-direction:column;gap:15px;background:radial-gradient(110% 80% at 78% 12%,#0a3a80 0%,#05285F 58%,#031634 100%);overflow:auto">
+            <div style="display:flex;align-items:center;gap:13px">
+              <button onClick="{{ goBack }}" style="width:34px;height:34px;flex:none;border-radius:11px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#fff;font:500 16px/1 Outfit,sans-serif;cursor:pointer">‹</button>
+              <div style="font:600 19px/1 Outfit,sans-serif;color:#fff">About Honest Arcade</div>
+            </div>
+            <div style="display:flex;justify-content:center;padding:6px 0 2px">
+              <svg width="120" height="120" viewBox="0 0 64 64">
+                <g fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+                  <path stroke="#00D6B4" d="M 11 25 L 11 18 A 7 7 0 0 1 18 11 L 25 11"></path>
+                  <path stroke="#8448FC" d="M 53 25 L 53 18 A 7 7 0 0 0 46 11 L 39 11"></path>
+                  <path stroke="#0076F1" d="M 53 39 L 53 46 A 7 7 0 0 1 46 53 L 39 53"></path>
+                  <path stroke="#0F3E86" d="M 11 39 L 11 46 A 7 7 0 0 0 18 53 L 25 53"></path>
+                </g>
+              </svg>
+            </div>
+            <p style="margin:0;font:400 14px/1.65 Outfit,sans-serif;color:#C6DAF0;text-wrap:pretty">Honest Arcade makes simple games and useful apps with no ads, no tracking, and no hidden agenda. Everything we build is open source, so you can see exactly what you're getting.</p>
+            <p style="margin:0;font:400 14px/1.65 Outfit,sans-serif;color:#7FA6D8">Just good software that respects your time, privacy, and device.</p>
+            <a href="https://honestarcade.app/contribute" target="_blank" rel="noreferrer" style="display:flex;flex-direction:column;gap:6px;padding:14px 15px;border-radius:14px;text-decoration:none;background:linear-gradient(135deg,rgba(0,214,180,.13),rgba(132,72,252,.13));border:1px solid rgba(0,214,180,.28)">
+              <span style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#00D6B4">SUPPORT HONEST ARCADE</span>
+              <span style="font:400 12.5px/1.55 Outfit,sans-serif;color:#C6DAF0;text-wrap:pretty">Our games stay free and ad-free because people chip in. If you'd like to help keep them that way, visit the website for details.</span>
+              <span style="font:600 11.5px/1 Outfit,sans-serif;color:#fff">honestarcade.app/contribute →</span>
+            </a>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#6E93C4">OUR PROMISES</div>
+              <sc-for list="{{ promises }}" as="p" hint-placeholder-count="7">
+                <div style="display:flex;align-items:flex-start;gap:11px;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.05)">
+                  <span style="flex:none;font:600 12px/1.2 Outfit,sans-serif;color:{{ p.c }}">✓</span>
+                  <span style="min-width:0">
+                    <span style="display:block;font:600 12.5px/1 Outfit,sans-serif;color:#fff">{{ p.k }}</span>
+                    <span style="display:block;margin-top:5px;font:400 11px/1.45 Outfit,sans-serif;color:#9FC3EE">{{ p.v }}</span>
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+              <span style="padding:7px 12px;border-radius:999px;background:rgba(0,214,180,.14);color:#00D6B4;font:500 10.5px/1 'IBM Plex Mono',monospace">NO ADS</span>
+              <span style="padding:7px 12px;border-radius:999px;background:rgba(0,118,241,.16);color:#6FB4FF;font:500 10.5px/1 'IBM Plex Mono',monospace">NO TRACKING</span>
+              <span style="padding:7px 12px;border-radius:999px;background:rgba(132,72,252,.16);color:#B48CFF;font:500 10.5px/1 'IBM Plex Mono',monospace">OPEN SOURCE</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:8px;font:500 9.5px/1.7 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#4E739F">
+              <a href="https://honestarcade.app" target="_blank" rel="noreferrer" style="color:#7FA6D8;text-decoration:none;border-bottom:1px solid rgba(127,166,216,.4)">HONESTARCADE.APP ↗</a>
+              <span>·</span>
+              <a href="https://github.com/honestarcade" target="_blank" rel="noreferrer" style="color:#7FA6D8;text-decoration:none;border-bottom:1px solid rgba(127,166,216,.4)">SOURCE ON GITHUB ↗</a>
+            </div>
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width:1420px;margin:0 auto">
+    <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:20px">
+      <h2 style="margin:0;font:600 22px/1 Outfit,sans-serif;color:#fff">Brand sheet</h2>
+      <span style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#5C6B7E">APP ICON · BOARDS · PALETTE</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px">
+
+      <div style="border:1px solid rgba(255,255,255,.09);border-radius:14px;background:#11151b;padding:16px">
+        <div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.18em;color:#5C6B7E;margin-bottom:14px">APP ICON</div>
+        <div style="display:flex;gap:12px;align-items:center">
+          <div style="width:82px;height:82px;border-radius:19px;background:#04213F;display:flex;align-items:center;justify-content:center">
+            <svg width="82" height="82" viewBox="0 0 64 64">
+              <g fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="#00D6B4" d="M 3 21 L 3 10 A 7 7 0 0 1 10 3 L 21 3"></path>
+                <path stroke="#8448FC" d="M 61 21 L 61 10 A 7 7 0 0 0 54 3 L 43 3"></path>
+                <path stroke="#0076F1" d="M 61 43 L 61 54 A 7 7 0 0 1 54 61 L 43 61"></path>
+                <path stroke="#0F3E86" d="M 3 43 L 3 54 A 7 7 0 0 0 10 61 L 21 61"></path>
+              </g>
+              <path fill="#00D6B4" transform="translate(32,32) scale(1.32) translate(-32,-32)" d="M 22.6 15 H 26.5 V 18.8 H 29.9 V 15 H 34.1 V 18.8 H 37.5 V 15 H 41.4 V 23.1 L 38.4 25.6 V 35 L 41.4 39.2 V 42.2 H 43.1 V 48.2 H 20.9 V 42.2 H 22.6 V 39.2 L 25.6 35 V 25.6 L 22.6 23.1 Z"></path>
+            </svg>
+          </div>
+          <div style="width:82px;height:82px;border-radius:19px;background:#F3F6FA;display:flex;align-items:center;justify-content:center">
+            <svg width="82" height="82" viewBox="0 0 64 64">
+              <g fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="#00D6B4" d="M 3 21 L 3 10 A 7 7 0 0 1 10 3 L 21 3"></path>
+                <path stroke="#8448FC" d="M 61 21 L 61 10 A 7 7 0 0 0 54 3 L 43 3"></path>
+                <path stroke="#0076F1" d="M 61 43 L 61 54 A 7 7 0 0 1 54 61 L 43 61"></path>
+                <path stroke="#0F3E86" d="M 3 43 L 3 54 A 7 7 0 0 0 10 61 L 21 61"></path>
+              </g>
+              <path fill="#05285F" transform="translate(32,32) scale(1.32) translate(-32,-32)" d="M 22.6 15 H 26.5 V 18.8 H 29.9 V 15 H 34.1 V 18.8 H 37.5 V 15 H 41.4 V 23.1 L 38.4 25.6 V 35 L 41.4 39.2 V 42.2 H 43.1 V 48.2 H 20.9 V 42.2 H 22.6 V 39.2 L 25.6 35 V 25.6 L 22.6 23.1 Z"></path>
+            </svg>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;margin-top:12px">
+          <div style="width:82px;height:82px;border-radius:19px;background:#04213F;display:flex;align-items:center;justify-content:center">
+            <svg width="82" height="82" viewBox="0 0 64 64">
+              <g fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="#00D6B4" d="M 3 21 L 3 10 A 7 7 0 0 1 10 3 L 21 3"></path>
+                <path stroke="#8448FC" d="M 61 21 L 61 10 A 7 7 0 0 0 54 3 L 43 3"></path>
+                <path stroke="#0076F1" d="M 61 43 L 61 54 A 7 7 0 0 1 54 61 L 43 61"></path>
+                <path stroke="#0F3E86" d="M 3 43 L 3 54 A 7 7 0 0 0 10 61 L 21 61"></path>
+              </g>
+            </svg>
+          </div>
+          <div style="width:82px;height:82px;border-radius:19px;background:#F3F6FA;display:flex;align-items:center;justify-content:center">
+            <svg width="82" height="82" viewBox="0 0 64 64">
+              <g fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="#00D6B4" d="M 3 21 L 3 10 A 7 7 0 0 1 10 3 L 21 3"></path>
+                <path stroke="#8448FC" d="M 61 21 L 61 10 A 7 7 0 0 0 54 3 L 43 3"></path>
+                <path stroke="#0076F1" d="M 61 43 L 61 54 A 7 7 0 0 1 54 61 L 43 61"></path>
+                <path stroke="#0F3E86" d="M 3 43 L 3 54 A 7 7 0 0 0 10 61 L 21 61"></path>
+              </g>
+            </svg>
+          </div>
+        </div>
+        <p style="margin:14px 0 0;font:400 11.5px/1.5 Outfit,sans-serif;color:#5C6B7E">Same four-corner outline mark as Honest Solitaire; the rook replaces the spade. The bare mark below is the studio badge, used without a game glyph.</p>
+      </div>
+
+      <div style="border:1px solid rgba(255,255,255,.09);border-radius:14px;background:#11151b;padding:16px">
+        <div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.18em;color:#5C6B7E;margin-bottom:14px">BOARD COLOURS</div>
+        <div style="display:flex;gap:11px">
+          <sc-for list="{{ themeSwatches }}" as="t" hint-placeholder-count="4">
+            <div style="text-align:center">
+              <div style="display:grid;grid-template-columns:repeat(4,14px);grid-template-rows:repeat(4,14px);border-radius:5px;overflow:hidden">
+                <sc-for list="{{ t.cells }}" as="c" hint-placeholder-count="16">
+                  <span style="background:{{ c }}"></span>
+                </sc-for>
+              </div>
+              <div style="margin-top:8px;font:500 8px/1 'IBM Plex Mono',monospace;color:#5C6B7E">{{ t.label }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <p style="margin:14px 0 0;font:400 11.5px/1.5 Outfit,sans-serif;color:#5C6B7E">Each pair keeps a 4:1 contrast ratio so both piece colours read on either square.</p>
+      </div>
+
+      <div style="border:1px solid rgba(255,255,255,.09);border-radius:14px;background:#11151b;padding:16px">
+        <div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.18em;color:#5C6B7E;margin-bottom:14px">PALETTE</div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px">
+          <div style="text-align:center"><div style="width:40px;height:40px;border-radius:10px;background:#00D6B4"></div><div style="margin-top:7px;font:500 8px/1 'IBM Plex Mono',monospace;color:#5C6B7E">00D6B4</div></div>
+          <div style="text-align:center"><div style="width:40px;height:40px;border-radius:10px;background:#0076F1"></div><div style="margin-top:7px;font:500 8px/1 'IBM Plex Mono',monospace;color:#5C6B7E">0076F1</div></div>
+          <div style="text-align:center"><div style="width:40px;height:40px;border-radius:10px;background:#8448FC"></div><div style="margin-top:7px;font:500 8px/1 'IBM Plex Mono',monospace;color:#5C6B7E">8448FC</div></div>
+          <div style="text-align:center"><div style="width:40px;height:40px;border-radius:10px;background:#05285F"></div><div style="margin-top:7px;font:500 8px/1 'IBM Plex Mono',monospace;color:#5C6B7E">05285F</div></div>
+          <div style="text-align:center"><div style="width:40px;height:40px;border-radius:10px;background:#C6483D"></div><div style="margin-top:7px;font:500 8px/1 'IBM Plex Mono',monospace;color:#5C6B7E">C6483D</div></div>
+          <div style="text-align:center"><div style="width:40px;height:40px;border-radius:10px;background:#F7F5EF"></div><div style="margin-top:7px;font:500 8px/1 'IBM Plex Mono',monospace;color:#5C6B7E">F7F5EF</div></div>
+        </div>
+      </div>
+    </div>
+    <p style="margin:26px 0 0;font:400 12.5px/1.7 Outfit,sans-serif;color:#5C6B7E;max-width:820px;text-wrap:pretty">The board is live — tap a piece, then tap a legal square. The computer plays for real at every level, clocks run, promotion asks, and mate, stalemate, resignation and flag-fall all end the game properly. Say the word if you want a move list in notation, a captured-piece tray, puzzles, or a landscape tablet layout next.</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1240},&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;loading&quot;,&quot;menu&quot;,&quot;csetup&quot;,&quot;psetup&quot;,&quot;board&quot;,&quot;pvp&quot;,&quot;stats&quot;,&quot;settings&quot;,&quot;howto&quot;,&quot;aboutapp&quot;,&quot;aboutstudio&quot;],&quot;default&quot;:&quot;loading&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Prototype&quot;},&quot;boardTheme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;navy&quot;,&quot;teal&quot;,&quot;violet&quot;,&quot;bone&quot;],&quot;default&quot;:&quot;navy&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Board&quot;},&quot;pieceStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;classic&quot;,&quot;outline&quot;,&quot;flat&quot;],&quot;default&quot;:&quot;classic&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Board&quot;},&quot;boardSurface&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;plain&quot;,&quot;felt&quot;,&quot;wood&quot;],&quot;default&quot;:&quot;felt&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Board&quot;}}">
+const KN=[[1,2],[2,1],[2,-1],[1,-2],[-1,-2],[-2,-1],[-2,1],[-1,2]];
+const KG=[[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];
+const RD=[[1,0],[-1,0],[0,1],[0,-1]];
+const BD=[[1,1],[1,-1],[-1,1],[-1,-1]];
+const VAL={p:100,n:320,b:330,r:500,q:900,k:0};
+const FILES='abcdefgh';
+const IX=(f,r)=>r*8+f;
+const isW=p=>p!=='.'&&p===p.toUpperCase();
+const sqName=i=>FILES[i%8]+(8-((i/8)|0));
+const START=('rnbqkbnr'+'pppppppp'+'........'+'........'+'........'+'........'+'PPPPPPPP'+'RNBQKBNR').split('');
+const PST_P=[0,0,0,0,0,0,0,0,60,60,60,60,60,60,60,60,12,14,22,32,32,22,14,12,5,6,12,26,26,12,6,5,0,0,2,20,20,2,0,0,4,-4,-8,0,0,-8,-4,4,5,8,8,-18,-18,8,8,5,0,0,0,0,0,0,0,0];
+const CTR=[-20,-12,-6,-6,-6,-6,-12,-20,-12,0,5,6,6,5,0,-12,-6,5,10,12,12,10,5,-6,-6,6,12,18,18,12,6,-6,-6,6,12,18,18,12,6,-6,-6,5,10,12,12,10,5,-6,-12,0,5,6,6,5,0,-12,-20,-12,-6,-6,-6,-6,-12,-20];
+
+const GLYPH={
+  classic:{K:'♚',Q:'♛',R:'♜',B:'♝',N:'♞',P:'♟'},
+  outline:{K:'♔',Q:'♕',R:'♖',B:'♗',N:'♘',P:'♙'},
+  flat:{K:'K',Q:'Q',R:'R',B:'B',N:'N',P:'P'}
+};
+const THEMES={
+  navy:{light:'#DCE9F8',dark:'#0F3E86',label:'NAVY'},
+  teal:{light:'#D6F0EB',dark:'#0B615A',label:'TEAL'},
+  violet:{light:'#E4DAFB',dark:'#3B2076',label:'VIOLET'},
+  bone:{light:'#F1EFE7',dark:'#6B7788',label:'BONE'}
+};
+const TEX={
+  plain:{label:'PLAIN',css:'none'},
+  felt:{label:'FELT',css:'repeating-linear-gradient(45deg,rgba(255,255,255,.05) 0 1px,rgba(0,0,0,.03) 1px 4px)'},
+  wood:{label:'WOOD',css:'repeating-linear-gradient(87deg,rgba(0,0,0,.09) 0 2px,rgba(255,255,255,.05) 2px 7px)'}
+};
+const LEVELS=[
+  {k:'beginner',label:'Beginner',desc:'Looks one move ahead. Will hand you pieces.',depth:1,noise:280},
+  {k:'casual',label:'Casual',desc:'Sees your obvious threats, not much more.',depth:2,noise:130},
+  {k:'club',label:'Club',desc:'Punishes loose pieces and short tactics.',depth:2,noise:35},
+  {k:'strong',label:'Strong',desc:'Three moves deep. You will need a plan.',depth:3,noise:12},
+  {k:'master',label:'Master',desc:'Full search, no handicap, no mercy.',depth:3,noise:0}
+];
+const TIMES=[
+  {k:'none',label:'Untimed',secs:0,inc:0},
+  {k:'blitz',label:'Blitz 5+0',secs:300,inc:0},
+  {k:'rapid',label:'Rapid 10+5',secs:600,inc:5},
+  {k:'classical',label:'Classical 30+0',secs:1800,inc:0},
+  {k:'custom',label:'Custom',secs:0,inc:0}
+];
+const SETTING_ROWS=[
+  {sec:'PLAY',key:'dots',label:'Legal-move dots',desc:'Mark every square the selected piece can reach.',def:true},
+  {sec:'PLAY',key:'lastMove',label:'Last-move highlight',desc:'Tint the two squares of the move just played.',def:true},
+  {sec:'PLAY',key:'takeback',label:'Takeback allowed',desc:'Undo the last move — both yours and the reply.',def:true},
+  {sec:'PLAY',key:'autoQueen',label:'Auto-promote to queen',desc:'Skip the promotion sheet and take a queen.',def:false},
+  {sec:'PLAY',key:'rotate',label:'Rotate board each turn',desc:'Two-player only. Faces the board at whoever moves.',def:false},
+  {sec:'DISPLAY',key:'anim',label:'Piece animations',desc:'Slide pieces to their square instead of jumping.',def:true},
+  {sec:'DISPLAY',key:'checkFlash',label:'Flag check on the board',desc:'Redden the king square whenever it is in check.',def:true},
+  {sec:'SOUND',key:'sfx',label:'Sound effects',desc:'Piece taps, captures, castling and the mate chime.',def:true},
+  {sec:'SOUND',key:'music',label:'Background music',desc:'Quiet loop while you play.',def:false},
+  {sec:'SOUND',key:'haptics',label:'Haptics',desc:'A short tick on an illegal tap or a capture.',def:true}
+];
+const PROMISES=[
+  {k:'No ads. Ever.',v:'No banners, no interstitials, no "watch a video to unlock". What you open is the whole thing.',c:'#00D6B4'},
+  {k:'No tracking, no analytics',v:'We collect nothing. No identifiers, no crash pings, no usage events.',c:'#6FB4FF'},
+  {k:'No accounts, no sign-in',v:'Your progress stays on your device (unless an account is explicitly needed for the app to function).',c:'#B48CFF'},
+  {k:'No in-app purchases',v:'Everything is included. Nothing is held back for money.',c:'#00D6B4'},
+  {k:'No permissions',v:'We ask for nothing — no contacts, no location, no storage, no network (unless explicitly needed for the app to function).',c:'#6FB4FF'},
+  {k:'Open source',v:'The code is readable. Check how it works rather than taking our word for it.',c:'#B48CFF'},
+  {k:'Works offline, stays small',v:'No background activity, no battery drain while you are not using it (unless being online is explicitly needed for the app to function).',c:'#00D6B4'}
+];
+const FEATURES=[
+  {k:'Every rule, no shortcuts',v:'Castling both sides, en passant, promotion to any piece, stalemate, fifty-move and insufficient-material draws.'},
+  {k:'Five strength steps',v:'Beginner to Master. The dial changes how deep it looks, and it says so.'},
+  {k:'Pass-and-play for two',v:'One phone, two clocks, an optional board rotation between turns.'},
+  {k:'Clocks that behave',v:'Untimed, blitz, rapid, classical or your own time and increment.'},
+  {k:'Board you can live with',v:'Four colour pairs, three piece styles, plain, felt or wood surface.'},
+  {k:'Honest statistics',v:'Results by strength step and by time control. Kept on the device, nowhere else.'}
+];
+const PIECE_RULES=[
+  {p:'K',name:'King',body:'One square in any direction. Castles once per game with an unmoved rook, if nothing is between them and the king passes through no attacked square.'},
+  {p:'Q',name:'Queen',body:'Any distance along a rank, file or diagonal, until something blocks it.'},
+  {p:'R',name:'Rook',body:'Any distance along a rank or file. Both rooks take part in castling.'},
+  {p:'B',name:'Bishop',body:'Any distance diagonally. It never leaves the colour it started on.'},
+  {p:'N',name:'Knight',body:'Two squares one way, one the other. The only piece that jumps over others.'},
+  {p:'P',name:'Pawn',body:'One square forward, or two from its starting rank. Captures diagonally, takes en passant, and promotes to any piece on the last rank.'}
+];
+const RULES=[
+  {tag:'THE GOAL',body:'Trap the enemy king so that every square it could move to is attacked and nothing can block or capture the attacker. That is checkmate, and the game ends there.'},
+  {tag:'CHECK',body:'A king under attack must be dealt with immediately — move it, block the line, or take the attacker. You may never leave your own king in check, so some legal-looking moves are not offered.'},
+  {tag:'DRAWS',body:'Stalemate — no legal move but no check — is a draw. So are fifty moves without a capture or pawn move, and positions where neither side has enough material to mate.'},
+  {tag:'THE CLOCK',body:'If a clock runs out, that side loses — unless the other side has no mating material, in which case it is a draw. Increment is added after each completed move.'},
+  {tag:'TAKEBACK',body:'Against the computer a takeback undoes both its reply and your move, so it is your turn again. In two-player either player can undo the last move.'}
+];
+const GESTURES=[
+  {k:'TAP',v:'Tap a piece to pick it up, then tap a dotted square to move it.'},
+  {k:'TAP AGAIN',v:'Tap the same piece to put it down without moving.'},
+  {k:'TAP KING',v:'Select the king and tap two squares along to castle.'},
+  {k:'UNDO',v:'Takes back the last move, and the computer reply with it.'},
+  {k:'HOLD PAUSE',v:'Pause holds the clocks and hides nothing — the board stays visible.'}
+];
+const STATS={
+  c:{played:212,won:96,drew:24,streak:3,best:'Club',rows:[{label:'Beginner',value:'41 / 42 · 98%',pct:98,color:'#00D6B4'},{label:'Casual',value:'33 / 48 · 69%',pct:69,color:'#0076F1'},{label:'Club',value:'18 / 61 · 30%',pct:30,color:'#8448FC'},{label:'Strong',value:'4 / 44 · 9%',pct:9,color:'#6FB4FF'},{label:'Master',value:'0 / 17 · 0%',pct:2,color:'#C6483D'}]},
+  p:{played:64,won:35,drew:7,streak:2,best:'Rapid 10+5',rows:[{label:'Untimed',value:'21 games',pct:33,color:'#00D6B4'},{label:'Blitz 5+0',value:'19 games',pct:30,color:'#0076F1'},{label:'Rapid 10+5',value:'18 games',pct:28,color:'#8448FC'},{label:'Classical 30+0',value:'6 games',pct:9,color:'#6FB4FF'}]}
+};
+
+function inb(f,r){return f>=0&&f<8&&r>=0&&r<8;}
+function attacks(b,i,byWhite){
+  const f=i%8,r=(i/8)|0;
+  const pr=r+(byWhite?1:-1);
+  for(const df of [-1,1]){const nf=f+df;if(inb(nf,pr)){const p=b[IX(nf,pr)];if(p!=='.'&&isW(p)===byWhite&&p.toLowerCase()==='p')return true;}}
+  for(const d of KN){const nf=f+d[0],nr=r+d[1];if(!inb(nf,nr))continue;const p=b[IX(nf,nr)];if(p!=='.'&&isW(p)===byWhite&&p.toLowerCase()==='n')return true;}
+  for(const d of KG){const nf=f+d[0],nr=r+d[1];if(!inb(nf,nr))continue;const p=b[IX(nf,nr)];if(p!=='.'&&isW(p)===byWhite&&p.toLowerCase()==='k')return true;}
+  const rays=[[RD,'rq'],[BD,'bq']];
+  for(const pair of rays){
+    for(const d of pair[0]){
+      let nf=f+d[0],nr=r+d[1];
+      while(inb(nf,nr)){
+        const p=b[IX(nf,nr)];
+        if(p!=='.'){if(isW(p)===byWhite&&pair[1].indexOf(p.toLowerCase())>=0)return true;break;}
+        nf+=d[0];nr+=d[1];
+      }
+    }
+  }
+  return false;
+}
+function kingSq(b,white){for(let i=0;i<64;i++){const p=b[i];if(p!=='.'&&isW(p)===white&&p.toLowerCase()==='k')return i;}return -1;}
+function inCheck(P,white){const k=kingSq(P.b,white);return k<0?false:attacks(P.b,k,!white);}
+function pseudo(P,white,skipCastle){
+  const b=P.b,out=[];
+  for(let i=0;i<64;i++){
+    const p=b[i];if(p==='.'||isW(p)!==white)continue;
+    const f=i%8,r=(i/8)|0,t=p.toLowerCase();
+    if(t==='p'){
+      const d=white?-1:1,r2=r+d,last=white?0:7;
+      if(inb(f,r2)&&b[IX(f,r2)]==='.'){
+        if(r2===last)['q','r','b','n'].forEach(pr=>out.push({f:i,t:IX(f,r2),pr:pr}));
+        else out.push({f:i,t:IX(f,r2)});
+        const start=white?6:1,r3=r+2*d;
+        if(r===start&&b[IX(f,r3)]==='.')out.push({f:i,t:IX(f,r3),dp:1});
+      }
+      for(const df of [-1,1]){
+        const nf=f+df;if(!inb(nf,r2))continue;
+        const j=IX(nf,r2),q=b[j];
+        if(q!=='.'&&isW(q)!==white){
+          if(r2===last)['q','r','b','n'].forEach(pr=>out.push({f:i,t:j,pr:pr}));
+          else out.push({f:i,t:j});
+        } else if(q==='.'&&j===P.ep) out.push({f:i,t:j,ep:1});
+      }
+    } else if(t==='n'||t==='k'){
+      for(const d of (t==='n'?KN:KG)){
+        const nf=f+d[0],nr=r+d[1];if(!inb(nf,nr))continue;
+        const j=IX(nf,nr),q=b[j];
+        if(q==='.'||isW(q)!==white)out.push({f:i,t:j});
+      }
+    } else {
+      const dirs=t==='r'?RD:t==='b'?BD:RD.concat(BD);
+      for(const d of dirs){
+        let nf=f+d[0],nr=r+d[1];
+        while(inb(nf,nr)){
+          const j=IX(nf,nr),q=b[j];
+          if(q==='.')out.push({f:i,t:j});
+          else {if(isW(q)!==white)out.push({f:i,t:j});break;}
+          nf+=d[0];nr+=d[1];
+        }
+      }
+    }
+  }
+  if(!skipCastle){
+    const home=white?7:0,K=white?'K':'k',R=white?'R':'r';
+    const ks=P.c[white?'K':'k'],qs=P.c[white?'Q':'q'];
+    const e=IX(4,home);
+    if((ks||qs)&&b[e]===K&&!attacks(b,e,!white)){
+      if(ks&&b[IX(5,home)]==='.'&&b[IX(6,home)]==='.'&&b[IX(7,home)]===R&&!attacks(b,IX(5,home),!white)&&!attacks(b,IX(6,home),!white))out.push({f:e,t:IX(6,home),cs:'k'});
+      if(qs&&b[IX(3,home)]==='.'&&b[IX(2,home)]==='.'&&b[IX(1,home)]==='.'&&b[IX(0,home)]===R&&!attacks(b,IX(3,home),!white)&&!attacks(b,IX(2,home),!white))out.push({f:e,t:IX(2,home),cs:'q'});
+    }
+  }
+  return out;
+}
+function make(P,m){
+  const b=P.b.slice(),c={K:P.c.K,Q:P.c.Q,k:P.c.k,q:P.c.q};
+  const p=b[m.f],white=isW(p),t=p.toLowerCase();
+  const cap=b[m.t]!=='.'||!!m.ep;
+  b[m.t]=m.pr?(white?m.pr.toUpperCase():m.pr):p;
+  b[m.f]='.';
+  if(m.ep){const dir=white?1:-1;b[m.t+8*dir]='.';}
+  if(m.cs){
+    const home=white?7:0;
+    if(m.cs==='k'){b[IX(5,home)]=b[IX(7,home)];b[IX(7,home)]='.';}
+    else {b[IX(3,home)]=b[IX(0,home)];b[IX(0,home)]='.';}
+  }
+  if(t==='k'){if(white){c.K=false;c.Q=false;}else{c.k=false;c.q=false;}}
+  if(t==='r'){
+    if(m.f===IX(7,7))c.K=false; if(m.f===IX(0,7))c.Q=false;
+    if(m.f===IX(7,0))c.k=false; if(m.f===IX(0,0))c.q=false;
+  }
+  if(m.t===IX(7,7))c.K=false; if(m.t===IX(0,7))c.Q=false;
+  if(m.t===IX(7,0))c.k=false; if(m.t===IX(0,0))c.q=false;
+  return {b:b,w:!P.w,c:c,ep:m.dp?(m.f+m.t)/2:null,half:(cap||t==='p')?0:P.half+1,full:P.w?P.full:P.full+1};
+}
+function legal(P,white){
+  const side=white===undefined?P.w:white;
+  return pseudo(P,side).filter(m=>{const Q=make(P,m);return !inCheck({b:Q.b},side);});
+}
+function evalPos(P){
+  let s=0;
+  for(let i=0;i<64;i++){
+    const p=P.b[i];if(p==='.')continue;
+    const t=p.toLowerCase(),w=isW(p),mi=w?i:63-i;
+    let v=VAL[t];
+    if(t==='p')v+=PST_P[mi]*0.6;
+    else if(t==='n'||t==='b')v+=CTR[mi];
+    else if(t==='q')v+=CTR[mi]*0.3;
+    else if(t==='k')v-=CTR[mi]*0.4;
+    s+=w?v:-v;
+  }
+  return s;
+}
+function negamax(P,d,a,b){
+  const ms=legal(P);
+  if(!ms.length)return inCheck(P,P.w)?-90000-d*100:0;
+  if(d<=0)return (P.w?1:-1)*evalPos(P);
+  ms.sort((x,y)=>(P.b[y.t]!=='.'?1:0)-(P.b[x.t]!=='.'?1:0));
+  let best=-1e9;
+  for(const m of ms){
+    const sc=-negamax(make(P,m),d-1,-b,-a);
+    if(sc>best)best=sc;
+    if(best>a)a=best;
+    if(a>=b)break;
+  }
+  return best;
+}
+function pickMove(P,level){
+  const L=LEVELS.find(l=>l.k===level)||LEVELS[2];
+  const ms=legal(P);
+  if(!ms.length)return null;
+  let best=null,bs=-1e9;
+  for(const m of ms){
+    let sc=-negamax(make(P,m),L.depth-1,-1e9,1e9);
+    if(L.noise)sc+=(Math.random()*2-1)*L.noise;
+    if(sc>bs){bs=sc;best=m;}
+  }
+  return best;
+}
+function mateMaterial(b,white){
+  let n=0,minor=0;
+  for(let i=0;i<64;i++){const p=b[i];if(p==='.'||isW(p)!==white)continue;const t=p.toLowerCase();if(t==='k')continue;n++;if(t==='n'||t==='b')minor++;if(t==='p'||t==='r'||t==='q')return true;}
+  return n>minor||minor>1;
+}
+function fmt(s){if(s<0)s=0;const m=Math.floor(s/60);return m+':'+String(s%60).padStart(2,'0');}
+
+class Component extends DCLogic {
+  state={screen:'loading',pct:0,tab:'c',rtab:'moves',paused:false,set:{},theme:null,pstyle:null,tex:null,
+    cOpt:{level:'club',side:'w',time:'rapid'},pOpt:{time:'rapid'},custom:{min:10,inc:5},
+    g:null,confirmStats:false,prev:'menu',promo:null,drawAsked:false};
+
+  componentDidMount(){
+    this.setState({g:this.newGame('c',{level:'club',side:'w',time:'rapid'})});
+    const start=this.props.startScreen;
+    if(start&&start!=='loading'){
+      const g=start==='pvp'?this.newGame('p',{time:'rapid'}):this.newGame('c',{level:'club',side:'w',time:'rapid'});
+      this.setState({screen:start==='pvp'?'board':start,g:g});
+    } else {
+      this.load=setInterval(()=>{
+        this.setState(s=>{
+          if(s.pct>=100){clearInterval(this.load);setTimeout(()=>this.setState({screen:'menu'}),350);return s;}
+          return {pct:Math.min(100,s.pct+9)};
+        });
+      },80);
+    }
+    this.tick=setInterval(()=>{
+      this.setState(s=>{
+        const g=s.g;
+        if(s.screen!=='board'||s.paused||!g||g.over||!g.secs||s.promo)return s;
+        const side=g.P.w?'w':'b';
+        const cl=Object.assign({},g.clock);
+        cl[side]=cl[side]-1;
+        const ng=Object.assign({},g,{clock:cl});
+        if(cl[side]<=0){
+          cl[side]=0;
+          const winner=g.P.w?'b':'w';
+          ng.over=mateMaterial(g.P.b,winner==='w')?{r:'flag',w:winner}:{r:'flagdraw'};
+        }
+        return {g:ng};
+      });
+    },1000);
+  }
+  componentWillUnmount(){clearInterval(this.load);clearInterval(this.tick);if(this.ai)clearTimeout(this.ai);}
+
+  timeCfg(key){
+    if(key==='custom')return {secs:this.state.custom.min*60,inc:this.state.custom.inc};
+    const t=TIMES.find(x=>x.k===key)||TIMES[0];
+    return {secs:t.secs,inc:t.inc};
+  }
+  newGame(mode,opt){
+    const cfg=this.timeCfg(opt.time);
+    return {mode:mode,level:opt.level||'club',you:opt.side==='r'?(Math.random()<0.5?'w':'b'):(opt.side||'w'),
+      timeKey:opt.time,secs:cfg.secs,inc:cfg.inc,clock:{w:cfg.secs||0,b:cfg.secs||0},
+      P:{b:START.slice(),w:true,c:{K:true,Q:true,k:true,q:true},ep:null,half:0,full:1},
+      sel:null,last:null,hist:[],over:null,thinking:false,plies:0,caps:0};
+  }
+  go(screen){this.setState(s=>({screen:screen,prev:s.screen,paused:false,confirmStats:false}));}
+  opt(k){const row=SETTING_ROWS.find(r=>r.key===k);const v=this.state.set[k];return v===undefined?(row?row.def:false):v;}
+  themeKey(){return this.state.theme||this.props.boardTheme||'navy';}
+  styleKey(){return this.state.pstyle||this.props.pieceStyle||'classic';}
+  texKey(){return this.state.tex||this.props.boardSurface||'felt';}
+  cpuSide(g){return g.mode==='c'?(g.you==='w'?'b':'w'):null;}
+
+  finish(g){
+    const ms=legal(g.P);
+    if(!ms.length){
+      g.over=inCheck(g.P,g.P.w)?{r:'mate',w:g.P.w?'b':'w'}:{r:'stalemate'};
+      return g;
+    }
+    if(g.P.half>=100)g.over={r:'fifty'};
+    else if(!mateMaterial(g.P.b,true)&&!mateMaterial(g.P.b,false))g.over={r:'material'};
+    return g;
+  }
+  apply(g,m){
+    const cap=g.P.b[m.t]!=='.'||!!m.ep;
+    g.hist=g.hist.concat([{P:g.P,last:g.last,clock:g.clock,plies:g.plies,caps:g.caps}]);
+    if(g.hist.length>60)g.hist=g.hist.slice(-60);
+    const mover=g.P.w?'w':'b';
+    g.P=make(g.P,m);
+    g.last={f:m.f,t:m.t};
+    g.sel=null;
+    g.plies=g.plies+1;
+    g.caps=g.caps+(cap?1:0);
+    if(g.secs&&g.inc){const cl=Object.assign({},g.clock);cl[mover]=cl[mover]+g.inc;g.clock=cl;}
+    return this.finish(g);
+  }
+  scheduleAI(){
+    if(this.ai)clearTimeout(this.ai);
+    const s=this.state,g=s.g;
+    if(!g||g.over||g.mode!=='c'||s.screen!=='board')return;
+    const cpu=this.cpuSide(g);
+    if((g.P.w?'w':'b')!==cpu)return;
+    this.setState({g:Object.assign({},g,{thinking:true})});
+    this.ai=setTimeout(()=>{
+      this.setState(st=>{
+        const gg=Object.assign({},st.g);
+        if(gg.over||(gg.P.w?'w':'b')!==this.cpuSide(gg))return {g:Object.assign({},gg,{thinking:false})};
+        const m=pickMove(gg.P,gg.level);
+        gg.thinking=false;
+        if(m)this.apply(gg,m);
+        return {g:gg};
+      });
+    },520);
+  }
+  tapSq(i){
+    this.setState(s=>{
+      const g=Object.assign({},s.g);
+      if(!g||g.over||s.paused||s.promo||g.thinking)return s;
+      if(g.mode==='c'&&(g.P.w?'w':'b')!==g.you)return s;
+      const side=g.P.w;
+      if(g.sel!==null){
+        const ms=legal(g.P).filter(m=>m.f===g.sel&&m.t===i);
+        if(ms.length){
+          if(ms[0].pr&&!this.opt('autoQueen')){
+            this.setState({promo:{f:g.sel,t:i}});
+            g.sel=null;return {g:g};
+          }
+          const m=ms[0].pr?ms.find(x=>x.pr==='q'):ms[0];
+          this.apply(g,m);
+          setTimeout(()=>this.scheduleAI(),10);
+          return {g:g};
+        }
+        const p=g.P.b[i];
+        g.sel=(p!=='.'&&isW(p)===side&&i!==g.sel)?i:null;
+        return {g:g};
+      }
+      const p=g.P.b[i];
+      if(p==='.'||isW(p)!==side)return s;
+      g.sel=i;return {g:g};
+    });
+  }
+  doPromo(pr){
+    const pm=this.state.promo;
+    if(!pm)return;
+    this.setState(s=>{
+      const g=Object.assign({},s.g);
+      const m=legal(g.P).find(x=>x.f===pm.f&&x.t===pm.t&&x.pr===pr);
+      if(m)this.apply(g,m);
+      return {g:g,promo:null};
+    },()=>setTimeout(()=>this.scheduleAI(),10));
+  }
+  undo(){
+    if(!this.opt('takeback'))return;
+    if(this.ai)clearTimeout(this.ai);
+    this.setState(s=>{
+      const g=Object.assign({},s.g);
+      if(!g.hist.length)return s;
+      let steps=1;
+      if(g.mode==='c'&&g.hist.length>1&&(g.P.w?'w':'b')===g.you)steps=2;
+      const hist=g.hist.slice();
+      let snap=null;
+      for(let i=0;i<steps;i++){if(hist.length)snap=hist.pop();}
+      if(!snap)return s;
+      g.P=snap.P;g.last=snap.last;g.clock=snap.clock;g.plies=snap.plies;g.caps=snap.caps;
+      g.hist=hist;g.sel=null;g.over=null;g.thinking=false;
+      return {g:g,paused:false};
+    });
+  }
+
+  renderVals(){
+    const s=this.state,g=s.g;
+    const th=THEMES[this.themeKey()],sk=this.styleKey(),tx=TEX[this.texKey()];
+    const nav=[
+      {label:'Splash',go:()=>this.setState({screen:'loading',pct:0})},
+      {label:'Main menu',go:()=>this.go('menu')},
+      {label:'New vs computer',go:()=>this.go('csetup')},
+      {label:'New two-player',go:()=>this.go('psetup')},
+      {label:'Board (vs CPU)',go:()=>this.setState({screen:'board',paused:false,promo:null,g:this.newGame('c',s.cOpt)})},
+      {label:'Board (2 player)',go:()=>this.setState({screen:'board',paused:false,promo:null,g:this.newGame('p',s.pOpt)})},
+      {label:'Result screen',go:()=>this.setState(st=>({screen:'board',paused:false,g:Object.assign({},st.g,{over:{r:'mate',w:st.g.you||'w'}})}))},
+      {label:'Statistics',go:()=>this.go('stats')},
+      {label:'Settings',go:()=>this.go('settings')},
+      {label:'How to play',go:()=>this.go('howto')},
+      {label:'About the App',go:()=>this.go('aboutapp')},
+      {label:'Honest Arcade',go:()=>this.go('aboutstudio')}
+    ];
+    const v={
+      nav:nav,
+      isLoading:s.screen==='loading',isMenu:s.screen==='menu',
+      isCSetup:s.screen==='csetup',isPSetup:s.screen==='psetup',
+      isBoard:s.screen==='board',isStats:s.screen==='stats',
+      isSettings:s.screen==='settings',isHowTo:s.screen==='howto',
+      isAboutApp:s.screen==='aboutapp',isAboutStudio:s.screen==='aboutstudio',
+      loadPct:s.pct,
+      loadLabel:s.pct<45?'SETTING UP':s.pct<85?'SORTING PIECES':'READY',
+      goMenu:()=>this.go('menu'),goCSetup:()=>this.go('csetup'),goPSetup:()=>this.go('psetup'),
+      goStats:()=>this.go('stats'),goSettings:()=>this.go('settings'),goHowTo:()=>this.go('howto'),
+      goAboutApp:()=>this.go('aboutapp'),goAboutStudio:()=>this.go('aboutstudio'),
+      goBack:()=>this.go(s.prev==='board'?'board':'menu'),
+      resume:()=>this.setState({screen:'board',paused:false},()=>this.scheduleAI()),
+      promises:PROMISES,
+      promiseChips:['NO ADS','NO TRACKING','NO ACCOUNTS','NO PURCHASES','NO PERMISSIONS','OPEN SOURCE','WORKS OFFLINE'],
+      features:FEATURES,
+      gestures:GESTURES,
+      pieceRules:PIECE_RULES.map((r,i)=>({name:r.name,body:r.body,glyph:GLYPH[sk][r.p],sqBg:i%2?th.light:'#F1EFE7'})),
+      rules:RULES.map((r,i)=>({tag:r.tag,body:r.body,
+        bg:i===0?'rgba(0,214,180,.11)':'rgba(255,255,255,.05)',
+        ring:i===0?'0 0 0 1px rgba(0,214,180,.34) inset':'none',
+        kicker:i===0?'#00D6B4':'#6E93C4'})),
+      ruleTabs:[{k:'moves',label:'The pieces'},{k:'rules',label:'The rules'}].map(t=>({
+        label:t.label,bg:s.rtab===t.k?'#00D6B4':'transparent',
+        fg:s.rtab===t.k?'#04213F':'#9FC3EE',pick:()=>this.setState({rtab:t.k})})),
+      showMoves:s.rtab==='moves',showRules:s.rtab==='rules',
+      statTabs:[{k:'c',label:'vs Computer'},{k:'p',label:'Two players'}].map(t=>({
+        label:t.label,bg:s.tab===t.k?'#00D6B4':'transparent',
+        fg:s.tab===t.k?'#04213F':'#9FC3EE',pick:()=>this.setState({tab:t.k})})),
+      themeChoices:Object.keys(THEMES).map(k=>({
+        label:THEMES[k].label,light:THEMES[k].light,dark:THEMES[k].dark,
+        border:this.themeKey()===k?'#00D6B4':'rgba(255,255,255,.12)',
+        fg:this.themeKey()===k?'#00D6B4':'#87A9D0',
+        pick:()=>this.setState({theme:k})})),
+      themeSwatches:Object.keys(THEMES).map(k=>({
+        label:THEMES[k].label,
+        cells:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15].map(n=>(((n%4)+((n/4)|0))%2?THEMES[k].dark:THEMES[k].light))})),
+      styleChoices:[{k:'classic',label:'CLASSIC'},{k:'outline',label:'OUTLINE'},{k:'flat',label:'FLAT'}].map(o=>({
+        label:o.label,sample:GLYPH[o.k].N,
+        fam:o.k==='flat'?"'IBM Plex Mono',monospace":'Outfit,sans-serif',
+        weight:o.k==='flat'?600:400,
+        border:this.styleKey()===o.k?'#00D6B4':'rgba(255,255,255,.12)',
+        bg:this.styleKey()===o.k?'rgba(0,214,180,.12)':'rgba(255,255,255,.04)',
+        fg:this.styleKey()===o.k?'#00D6B4':'#87A9D0',
+        pick:()=>this.setState({pstyle:o.k})})),
+      texChoices:Object.keys(TEX).map(k=>({
+        label:TEX[k].label,tex:TEX[k].css,base:th.dark,
+        border:this.texKey()===k?'#00D6B4':'rgba(255,255,255,.12)',
+        fg:this.texKey()===k?'#00D6B4':'#87A9D0',
+        pick:()=>this.setState({tex:k})})),
+      settingGroups:['PLAY','DISPLAY','SOUND'].map(sec=>({
+        title:sec,
+        rows:SETTING_ROWS.filter(r=>r.sec===sec).map(r=>{
+          const on=this.opt(r.key);
+          return {label:r.label,desc:r.desc,track:on?'#00D6B4':'rgba(255,255,255,.16)',knob:on?23:3,
+            toggle:()=>this.setState(st=>({set:Object.assign({},st.set,{[r.key]:!this.opt(r.key)})}))};
+        })
+      })),
+      confirmStats:s.confirmStats,
+      askResetStats:()=>this.setState({confirmStats:true}),
+      cancelStats:()=>this.setState({confirmStats:false}),
+      doResetStats:()=>this.setState({confirmStats:false,wiped:true}),
+      levels:LEVELS.map((l,li)=>({
+        label:l.label,desc:l.desc,
+        border:s.cOpt.level===l.k?'#00D6B4':'rgba(255,255,255,.14)',
+        bg:s.cOpt.level===l.k?'rgba(0,214,180,.14)':'rgba(255,255,255,.04)',
+        fg:s.cOpt.level===l.k?'#00D6B4':'#DCE9F8',
+        pips:[0,1,2,3,4].map(n=>({c:n<=li?(s.cOpt.level===l.k?'#00D6B4':'#7FA6D8'):'rgba(255,255,255,.12)'})),
+        pick:()=>this.setState({cOpt:Object.assign({},s.cOpt,{level:l.k})})})),
+      sideChoices:[{k:'w',label:'White',gl:'♔'},{k:'b',label:'Black',gl:'♚'},{k:'r',label:'Random',gl:'⁇'}].map(c=>({
+        label:c.label,glyph:c.gl,
+        border:s.cOpt.side===c.k?'#00D6B4':'rgba(255,255,255,.14)',
+        bg:s.cOpt.side===c.k?'rgba(0,214,180,.14)':'rgba(255,255,255,.04)',
+        fg:s.cOpt.side===c.k?'#00D6B4':'#DCE9F8',
+        pick:()=>this.setState({cOpt:Object.assign({},s.cOpt,{side:c.k})})})),
+      timeChoices:TIMES.map(t=>({
+        label:t.label,
+        border:s.cOpt.time===t.k?'#00D6B4':'rgba(255,255,255,.14)',
+        bg:s.cOpt.time===t.k?'rgba(0,214,180,.14)':'rgba(255,255,255,.04)',
+        fg:s.cOpt.time===t.k?'#00D6B4':'#DCE9F8',
+        pick:()=>this.setState({cOpt:Object.assign({},s.cOpt,{time:t.k})})})),
+      timeChoicesP:TIMES.map(t=>({
+        label:t.label,
+        border:s.pOpt.time===t.k?'#8448FC':'rgba(255,255,255,.14)',
+        bg:s.pOpt.time===t.k?'rgba(132,72,252,.16)':'rgba(255,255,255,.04)',
+        fg:s.pOpt.time===t.k?'#B48CFF':'#DCE9F8',
+        pick:()=>this.setState({pOpt:Object.assign({},s.pOpt,{time:t.k})})})),
+      isCustomTime:(s.screen==='csetup'?s.cOpt.time:s.pOpt.time)==='custom',
+      steppers:[
+        {label:'Minutes per side',value:s.custom.min+' min',
+         dec:()=>this.setState(st=>({custom:Object.assign({},st.custom,{min:Math.max(1,st.custom.min-1)})})),
+         inc:()=>this.setState(st=>({custom:Object.assign({},st.custom,{min:Math.min(90,st.custom.min+1)})}))},
+        {label:'Increment per move',value:s.custom.inc+' sec',
+         dec:()=>this.setState(st=>({custom:Object.assign({},st.custom,{inc:Math.max(0,st.custom.inc-1)})})),
+         inc:()=>this.setState(st=>({custom:Object.assign({},st.custom,{inc:Math.min(60,st.custom.inc+1)})}))}
+      ],
+      rotTrack:this.opt('rotate')?'#8448FC':'rgba(255,255,255,.16)',
+      rotKnob:this.opt('rotate')?23:3,
+      toggleRotate:()=>this.setState(st=>({set:Object.assign({},st.set,{rotate:!this.opt('rotate')})})),
+      startC:()=>this.setState({screen:'board',paused:false,promo:null,g:this.newGame('c',s.cOpt)},()=>this.scheduleAI()),
+      startP:()=>this.setState({screen:'board',paused:false,promo:null,g:this.newGame('p',s.pOpt)})
+    };
+
+    const st=STATS[s.tab],wiped=s.wiped,dash=x=>wiped?'—':x;
+    v.statCards=[
+      {k:'GAMES PLAYED',v:dash(st.played),sub:'Since install',bg:'rgba(255,255,255,.05)',fg:'#fff'},
+      {k:'WIN RATE',v:wiped?'—':Math.round(st.won/st.played*100)+'%',sub:dash(st.won)+' won',bg:'rgba(0,214,180,.12)',fg:'#00D6B4'},
+      {k:'DRAWS',v:dash(st.drew),sub:'Agreed or forced',bg:'rgba(255,255,255,.05)',fg:'#fff'},
+      {k:'CURRENT STREAK',v:dash(st.streak),sub:'Consecutive wins',bg:'rgba(255,255,255,.05)',fg:'#fff'},
+      {k:s.tab==='c'?'USUAL LEVEL':'USUAL CLOCK',v:dash(st.best),sub:'Most games played',bg:'rgba(255,255,255,.05)',fg:'#fff'},
+      {k:'LONGEST GAME',v:dash(s.tab==='c'?'86':'104'),sub:'Moves',bg:'rgba(255,255,255,.05)',fg:'#fff'}
+    ];
+    v.breakdownTitle=s.tab==='c'?'BY STRENGTH':'BY TIME CONTROL';
+    v.breakdown=wiped?[]:st.rows;
+
+    if(!g)return v;
+
+    const lv=LEVELS.find(l=>l.k===g.level)||LEVELS[2];
+    const tName=g.timeKey==='custom'?(s.custom.min+'+'+s.custom.inc):((TIMES.find(t=>t.k===g.timeKey)||TIMES[0]).label);
+    v.boardTitle=g.mode==='c'?('vs '+lv.label):'Two players';
+    const whiteBottom=g.mode==='p'&&this.opt('rotate')?g.P.w:(g.mode==='c'?g.you==='w':true);
+    const checked=inCheck(g.P,g.P.w);
+    const turnName=g.P.w?'White':'Black';
+    v.statusText=g.over?(g.over.r==='mate'?'CHECKMATE':g.over.r==='stalemate'?'STALEMATE':g.over.r==='flag'?'FLAG FALL':g.over.r==='resign'?'RESIGNED':'DRAWN')
+      :g.thinking?'THINKING…':checked?turnName.toUpperCase()+' IN CHECK':turnName.toUpperCase()+' TO MOVE';
+    v.statusBg=g.over?'rgba(0,214,180,.16)':checked?'rgba(224,90,78,.2)':'rgba(255,255,255,.07)';
+    v.statusFg=g.over?'#00D6B4':checked?'#FF8C7E':'#9FC3EE';
+
+    const boardW=374,sz=boardW/8;
+    v.boardX=8;v.boardY=200;v.boardW=boardW;
+
+    const cells=[];
+    const ms=g.sel!==null?legal(g.P).filter(m=>m.f===g.sel):[];
+    const targets={};ms.forEach(m=>{targets[m.t]=g.P.b[m.t]!=='.'||!!m.ep?2:1;});
+    const kSq=this.opt('checkFlash')&&checked?kingSq(g.P.b,g.P.w):-1;
+    for(let i=0;i<64;i++){
+      const f=i%8,r=(i/8)|0;
+      const vf=whiteBottom?f:7-f,vr=whiteBottom?r:7-r;
+      const dark=(f+r)%2===1;
+      const p=g.P.b[i],white=isW(p),t=p==='.'?'':p.toUpperCase();
+      const isSel=g.sel===i;
+      const isLast=this.opt('lastMove')&&g.last&&(g.last.f===i||g.last.t===i);
+      const tgt=this.opt('dots')?targets[i]:0;
+      cells.push({
+        x:Math.round(vf*sz),y:Math.round(vr*sz),sz:Math.ceil(sz),
+        bg:dark?th.dark:th.light,tex:tx.css,
+        hl:isSel?'rgba(0,214,180,.42)':(i===kSq?'rgba(224,90,78,.5)':(isLast?'rgba(0,214,180,.2)':'transparent')),
+        ring:tgt===2?'0 0 0 3px rgba(0,214,180,.6) inset':(isSel?'0 0 0 2px #00D6B4 inset':'none'),
+        dotSz:tgt===1?Math.round(sz*0.3):0,
+        dot:tgt===1?'rgba(0,214,180,.62)':'transparent',
+        coordFg:dark?'rgba(255,255,255,.5)':'rgba(0,0,0,.42)',
+        rankLbl:String(8-r),fileLbl:FILES[f],
+        rankOp:vf===0?1:0,fileOp:vr===7?1:0,
+        glyph:p==='.'?'':GLYPH[sk][t],
+        pFam:sk==='flat'?"'IBM Plex Mono',monospace":'Outfit,sans-serif',
+        pWeight:sk==='flat'?600:400,
+        pSize:sk==='flat'?Math.round(sz*0.62):Math.round(sz*0.92),
+        pFg:p==='.'?'transparent':(white?'#FCFBF7':'#12181F'),
+        pShadow:p==='.'?'none':(white?'0 0 1px #12181F, 0 0 2px rgba(18,24,31,.9), 1px 1px 0 #12181F, -1px 1px 0 #12181F, 1px -1px 0 #12181F, -1px -1px 0 #12181F, 0 2px 4px rgba(0,0,0,.4)':'0 0 1px rgba(255,255,255,.5), 0 1px 1px rgba(255,255,255,.28)'),
+        tap:()=>this.tapSq(i)
+      });
+    }
+    v.cells=cells;
+
+    const oppTop=100,youTop=200+boardW+48;
+    const mkPanel=(sideW,top)=>{
+      const isTurn=(g.P.w===sideW)&&!g.over;
+      const you=g.mode==='c'?(g.you==='w')===sideW:false;
+      const name=g.mode==='c'?(you?'You':lv.label):(sideW?'White':'Black');
+      const sub=g.mode==='c'?(you?(sideW?'WHITE':'BLACK'):'COMPUTER · '+(sideW?'WHITE':'BLACK')):(sideW?'PLAYER ONE':'PLAYER TWO');
+      return {top:top,
+        bg:isTurn?'rgba(0,214,180,.14)':'rgba(255,255,255,.05)',
+        ring:isTurn?'0 0 0 1px rgba(0,214,180,.4) inset':'none',
+        chip:sideW?'♔':'♚',chipBg:sideW?'#F1EFE7':'#12181F',chipFg:sideW?'#12181F':'#F1EFE7',
+        name:g.thinking&&!you&&g.mode==='c'?name+' is thinking':name,
+        sub:sub+' · '+tName.toUpperCase(),subFg:isTurn?'#00D6B4':'#7FA6D8',
+        clock:g.secs?fmt(g.clock[sideW?'w':'b']):'∞',
+        clockFg:g.secs&&g.clock[sideW?'w':'b']<30?'#FF8C7E':(isTurn?'#fff':'#7FA6D8'),
+        clockOp:isTurn?1:0.6};
+    };
+    v.panels=whiteBottom?[mkPanel(false,oppTop),mkPanel(true,youTop)]:[mkPanel(true,oppTop),mkPanel(false,youTop)];
+
+    const T=(icon,label,tap,accent)=>({icon:icon,label:label,tap:tap,
+      edge:accent?'rgba(0,214,180,.4)':'rgba(255,255,255,.14)',
+      bg:accent?'rgba(0,214,180,.12)':'rgba(255,255,255,.06)',
+      fg:accent?'#00D6B4':'#DCE9F8'});
+    v.tools=[
+      T('↺','TAKEBACK',()=>this.undo(),false),
+      T('⟳','RESTART',()=>this.setState(s2=>({paused:false,promo:null,g:this.newGame(s2.g.mode,s2.g.mode==='c'?s2.cOpt:s2.pOpt)}),()=>this.scheduleAI()),false),
+      T('⚑','RESIGN',()=>this.setState(s2=>({g:Object.assign({},s2.g,{over:{r:'resign',w:s2.g.P.w?'b':'w'}})})),false),
+      T('✚','NEW',()=>this.go(g.mode==='c'?'csetup':'psetup'),true)
+    ];
+
+    v.isPaused=s.paused&&!g.over;
+    v.pause=()=>this.setState({paused:true});
+    v.resumePlay=()=>this.setState({paused:false});
+    v.pauseMeta=(g.mode==='c'?'VS '+lv.label.toUpperCase():'TWO PLAYERS')+' · '+tName.toUpperCase()+' · MOVE '+g.P.full;
+    v.drawLabel=g.mode==='c'?'Claim a draw':'Agree a draw';
+    v.offerDraw=()=>this.setState(s2=>({paused:false,g:Object.assign({},s2.g,{over:{r:'agreed'}})}));
+    v.resign=()=>this.setState(s2=>({paused:false,g:Object.assign({},s2.g,{over:{r:'resign',w:s2.g.P.w?'b':'w'}})}));
+
+    v.isPromo=!!s.promo;
+    v.promoMeta=s.promo?('PAWN TO '+sqName(s.promo.t).toUpperCase()):'';
+    v.promoChoices=['q','r','b','n'].map(pr=>{
+      const white=s.promo?isW(g.P.b[s.promo.f]):true;
+      return {glyph:GLYPH[sk][pr.toUpperCase()],label:{q:'QUEEN',r:'ROOK',b:'BISHOP',n:'KNIGHT'}[pr],
+        fg:white?'#F9F7F2':'#12181F',
+        shadow:white?'0 1px 3px rgba(0,0,0,.6)':'0 1px 1px rgba(255,255,255,.3)',
+        pick:()=>this.doPromo(pr)};
+    });
+
+    v.isOver=!!g.over;
+    if(g.over){
+      const o=g.over;
+      const youWon=g.mode==='c'?o.w===g.you:false;
+      const winName=o.w?(o.w==='w'?'White':'Black'):null;
+      v.overTag=o.w?(g.mode==='c'?(youWon?'YOU WIN':'YOU LOSE'):winName.toUpperCase()+' WINS'):'DRAWN';
+      v.overKicker=o.w&&g.mode==='c'&&!youWon?'#FF8C7E':'#00D6B4';
+      v.overTitle=o.r==='mate'?(winName+' delivers checkmate'):
+        o.r==='resign'?((o.w==='w'?'Black':'White')+' resigned'):
+        o.r==='flag'?((o.w==='w'?'Black':'White')+' ran out of time'):
+        o.r==='stalemate'?'Stalemate — no legal move':
+        o.r==='fifty'?'Draw by the fifty-move rule':
+        o.r==='material'?'Draw — not enough material':
+        o.r==='flagdraw'?'Flag fell, but no mating material':'Draw agreed';
+      v.overBody=o.r==='mate'?'The king has no legal square, nothing blocks the check and the attacker cannot be taken.':
+        o.r==='stalemate'?'The side to move is not in check but has no legal move at all. That is a draw, not a win.':
+        o.r==='fifty'?'Fifty moves each without a capture or a pawn move. Either player can claim it.':
+        o.r==='material'?'Neither side has the material to force mate, so the game is drawn on the spot.':
+        o.r==='flagdraw'?'The clock ran out, but the other side could never have mated. Drawn.':
+        o.r==='resign'?'Resignation ends the game immediately. The position is kept in your statistics.':
+        o.r==='flag'?'The clock hit zero with mating material still on the board.':'Both players agreed to split the point.';
+      v.overStats=[
+        {k:'MOVES',v:g.P.full},
+        {k:'CAPTURES',v:g.caps},
+        {k:g.mode==='c'?'LEVEL':'CLOCK',v:g.mode==='c'?lv.label:tName},
+        {k:'TIME LEFT',v:g.secs?fmt(g.clock[g.you==='b'?'b':'w']):'—'}
+      ];
+      v.rematch=()=>this.setState(s2=>({paused:false,promo:null,g:this.newGame(s2.g.mode,s2.g.mode==='c'?s2.cOpt:s2.pOpt)}),()=>this.scheduleAI());
+    }
+
+    v.resumeLabel=g.mode==='c'?'Continue vs '+lv.label:'Continue two-player';
+    v.resumeMeta='MOVE '+g.P.full+' · '+(g.P.w?'WHITE':'BLACK');
+    return v;
+  }
+}
+</script>
+</body>
+</html>

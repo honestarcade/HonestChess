@@ -44,20 +44,10 @@ Load-bearing constraints no story may breach without an explicit conversation
 with the project owner. Changing one is plan drift by definition: log it as an
 ad-hoc ledger entry in `.n8/decisions.md` and suggest `/n8-replan`.
 
-**This section is a template.** Honest Sudoku's actual invariants (no
-network, on-device generation, lean dependencies, deterministic output) were
-answers to *that* project's own questions at planning time — copy the shape
-of an invariant, not its content:
-
-1. **`<a constraint stated as a fact about the shipped app>`.** *(test-enforced:
-   `<which test/guards/ file proves it>` — guard: `<issue #, or "planned">`)* or
-   *(honor-system, checked by audits)* if nothing can test it directly.
-
-A guard that could exist today should — `/n8-roadmap`'s own discipline is
-that a guard's *subject* exists once it could fail on a real breach, and its
-home is the milestone where that becomes true. `test/guards/` in this
-template already demonstrates the pattern for a permission-shaped and a
-dependency-policy-shaped invariant; add your project's specifics there.
+1. **No ads, no tracking, no analytics, no network.** The release build declares no Android permissions at all (INTERNET included) and all player data stays on the device. *(test-enforced: `test/guards/manifest_permission_example_test.dart`, `tools/check_aab.sh` over every built bundle via `test/guards/bundle_scan_test.dart`, and the dependency blocklist in `test/guards/dependency_policy_example_test.dart` — guard: #1)*
+2. **Lean dependencies.** A third-party package is added only when it is necessary, carries a trailing `# why: <reason>` on its `pubspec.yaml` key line, and never brings ads, analytics or network access. A plugin is adopted only at planning, after its own `AndroidManifest.xml` has been read for permissions and the owner has approved it. *(test-enforced: blocklist and justification — guard: #1; "necessary" is honor-system, checked by audits)*
+3. **Legal chess, verified.** Move generation matches published perft counts on the standard reference positions, and the computer only ever plays a legal move. *(test-enforced: guard planned in M2 — #3)*
+4. **The strength dial is honest, and the computer runs on the device.** Each strength step's handicap is exactly what its description says, Master has none, the search never runs on the UI thread, and the same position, step and seed always give the same move. *(test-enforced: guard planned in M2 — #4)*
 
 ## n8SDLC project
 
