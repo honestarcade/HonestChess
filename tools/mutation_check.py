@@ -170,6 +170,11 @@ MUTATIONS: list[Mutation] = [
                  flags=re.M),
              "an ads SDK would pass the dependency guard",
              'dependency-policy: 1 offender'),
+    Mutation("deps", "a network client is added", "pubspec.yaml",
+             sub(r"^dependencies:\n", "dependencies:\n  http: ^1.2.0 # why: mutation\n",
+                 flags=re.M),
+             "the app would carry an HTTP client, against invariant 1",
+             'dependency-policy: 1 offender'),
 
     # manifests -- manifest_permission_example_test.dart
     Mutation("manifest", "the main manifest requests a permission",
@@ -189,6 +194,18 @@ MUTATIONS: list[Mutation] = [
              sub(r'<uses-permission android:name="android.permission.INTERNET"/>',
                  '<uses-permission android:name="android.permission.INTERNET" tools:node="remove"/>'),
              "a removal rule would hide a plugin's permission instead of refusing the plugin",
+             'manifest-removal-rule: 1 offender'),
+    Mutation("manifest", "the debug manifest declares a permission",
+             "android/app/src/debug/AndroidManifest.xml",
+             sub(r"(<manifest [^>]*>\n)",
+                 r'\1    <permission android:name="com.acme.P" />\n'),
+             "a declaration outside the main manifest would reach only the bundle scan",
+             'manifest-permission-element: 1 offender'),
+    Mutation("manifest", "a manifest removes an attribute at build time",
+             "android/app/src/debug/AndroidManifest.xml",
+             sub(r'<uses-permission android:name="android.permission.INTERNET"/>',
+                 '<uses-permission android:name="android.permission.INTERNET" tools:remove="android:maxSdkVersion"/>'),
+             "a tools:remove rule would rewrite a plugin's request unseen",
              'manifest-removal-rule: 1 offender'),
 
     # bundle scan -- bundle_scan_test.dart

@@ -6,19 +6,42 @@ library;
 //
 // pubspec.yaml is read with package:yaml, so a shape that is valid YAML but
 // unusual — a comment on the section header, deeper indentation, a quoted
-// key, CRLF line endings — cannot hide a package. Replace the blocklist with
-// your own app's policy; keep the fixtures that prove it both ways.
+// key, CRLF line endings — cannot hide a package. The blocklist is Honest
+// Chess's (CLAUDE.md invariants 1 and 2, widened to network clients by the
+// owner at /n8-plan M0, 2026-09-27, #16).
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yaml/yaml.dart';
 
 import 'repo_files.dart';
 
-/// Package-name globs this project refuses as direct dependencies.
+/// Package-name globs this project refuses as direct dependencies, by family.
 ///
 /// `*_ads` is anchored on an underscore rather than written `*ads*`, which
-/// would also block `gamepads`, `threads` and `downloads_path_provider`.
-const blockedNameGlobs = ['*_ads', '*analytics*', '*firebase_crashlytics*'];
+/// would also block `gamepads`, `threads` and `downloads_path_provider`; the
+/// network clients are named exactly, since `*http*` would also block
+/// `http_parser`.
+const blockedFamilies = {
+  'ads': ['*_ads', '*admob*'],
+  'analytics': ['*analytics*'],
+  'attribution': ['appsflyer*', 'adjust_sdk', 'flutter_branch_sdk'],
+  'crash reporting': ['*crashlytics*', 'sentry*', 'bugsnag*'],
+  'push and remote config': [
+    'firebase_messaging',
+    '*remote_config*',
+    'onesignal*',
+  ],
+  'network clients': [
+    'http',
+    'dio',
+    'web_socket_channel',
+    'grpc',
+    'connectivity_plus',
+    '*_http_client',
+  ],
+};
+
+final blockedNameGlobs = [for (final g in blockedFamilies.values) ...g];
 
 /// Direct dependencies exempt from the justification rule: the SDK and the
 /// lint set.
@@ -127,6 +150,46 @@ void main() {
         isEmpty,
       );
     });
+
+    const caughtByFamily = {
+      'ads': ['google_mobile_ads', 'admob_flutter'],
+      'analytics': ['firebase_analytics'],
+      'attribution': ['appsflyer_sdk', 'adjust_sdk', 'flutter_branch_sdk'],
+      'crash reporting': [
+        'firebase_crashlytics',
+        'sentry_flutter',
+        'bugsnag_flutter',
+      ],
+      'push and remote config': [
+        'firebase_messaging',
+        'firebase_remote_config',
+        'onesignal_flutter',
+      ],
+      'network clients': [
+        'http',
+        'dio',
+        'web_socket_channel',
+        'grpc',
+        'connectivity_plus',
+        'cronet_http_client',
+      ],
+    };
+    const notCaughtByFamily = {
+      'ads': ['gamepads', 'threads'],
+      'analytics': ['analyzer'],
+      'attribution': ['adjustable_text', 'branching'],
+      'crash reporting': ['crash_course', 'sentence'],
+      'push and remote config': ['push_button', 'remote'],
+      'network clients': ['http_parser', 'diorama', 'grpc_tools'],
+    };
+
+    for (final family in blockedFamilies.keys) {
+      test('the $family family is caught, and its look-alikes are not', () {
+        final caught = caughtByFamily[family]!;
+        expect(blockedDependencies(caught), hasLength(caught.length));
+        expect(blockedDependencies(notCaughtByFamily[family]!), isEmpty);
+      });
+    }
 
     for (final shape in bypassShapes.entries) {
       test('${shape.key} does not hide a blocked package', () {

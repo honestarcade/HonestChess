@@ -1,15 +1,13 @@
 @Tags(['guard'])
 library;
 
-// The source half of the no-permissions rule: the main manifest requests and
-// declares no permission, and no manifest a build reads strips one at build
-// time. tools/check_aab.sh is the artefact half, since a plugin's merged
-// manifest is visible only in the built bundle; bundle_scan_test.dart proves
-// that script fails.
-//
-// If your app needs a permission, allow that one by name here and keep the
-// rest of the rule, so the guard still tells "clean" from "the parser stopped
-// seeing anything".
+// The source half of the no-permissions rule (CLAUDE.md invariant 1): no
+// manifest outside the debug and profile source sets requests a permission,
+// no manifest declares one, and no manifest a build reads strips one at build
+// time. Flutter's own dev-only INTERNET request lives in debug and profile,
+// which are never uploaded. tools/check_aab.sh is the artefact half, since a
+// plugin's merged manifest is visible only in the built bundle;
+// bundle_scan_test.dart proves that script fails.
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -32,12 +30,12 @@ List<String> permissionElementOffenders(String manifestXml) =>
         .map((m) => m.group(0)!)
         .toList();
 
-/// Build-time removal rules (`tools:node="remove"` or `"removeAll"`). A plugin
-/// that brings a permission is refused, not adopted and then stripped: a
-/// removal rule hides the permission from this guard while the plugin still
-/// expects it.
+/// Build-time removal rules (`tools:node="remove"`, `"removeAll"` or
+/// `"replace"`, and `tools:remove="…"`). A plugin that brings a permission is
+/// refused, not adopted and then stripped: a removal rule hides the permission
+/// from this guard while the plugin still expects it.
 List<String> removalRuleOffenders(String manifestXml) =>
-    RegExp(r'tools:node\s*=\s*"(?:remove|removeAll)"')
+    RegExp(r'tools:node\s*=\s*"(?:remove|removeAll|replace)"|tools:remove\s*=')
         .allMatches(stripXmlComments(manifestXml))
         .map((m) => m.group(0)!)
         .toList();
@@ -52,10 +50,39 @@ List<String> sourceManifests() =>
 
 const mainManifest = 'android/app/src/main/AndroidManifest.xml';
 
+/// The manifests that may not request a permission: all of [manifests] but
+/// the debug and profile source sets, which carry Flutter's dev-only
+/// INTERNET and never reach Play.
+List<String> requestScopedManifests(Iterable<String> manifests) => [
+  for (final path in manifests)
+    if (!path.contains('/src/debug/') && !path.contains('/src/profile/')) path,
+];
+
 void main() {
   group('the real manifests', () {
-    test('the main manifest requests no permission', () {
-      final offenders = usesPermissionOffenders(readFile(mainManifest));
+    late List<String> manifests;
+
+    setUpAll(() => manifests = sourceManifests());
+
+    test('the reader finds every source set', () {
+      expect(
+        manifests,
+        containsAll([
+          mainManifest,
+          'android/app/src/debug/AndroidManifest.xml',
+          'android/app/src/profile/AndroidManifest.xml',
+        ]),
+        reason: 'manifest-reader: the source manifests were not all found',
+      );
+    });
+
+    test('no manifest outside debug and profile requests a permission', () {
+      final scoped = requestScopedManifests(manifests);
+      expect(scoped, contains(mainManifest));
+      final offenders = [
+        for (final path in scoped)
+          for (final e in usesPermissionOffenders(readFile(path))) '$path: $e',
+      ];
       expect(
         offenders,
         isEmpty,
@@ -63,8 +90,12 @@ void main() {
       );
     });
 
-    test('the main manifest declares no permission', () {
-      final offenders = permissionElementOffenders(readFile(mainManifest));
+    test('no manifest declares a permission', () {
+      final offenders = [
+        for (final path in manifests)
+          for (final e in permissionElementOffenders(readFile(path)))
+            '$path: $e',
+      ];
       expect(
         offenders,
         isEmpty,
@@ -73,15 +104,6 @@ void main() {
     });
 
     test('no manifest under android/ carries a removal rule', () {
-      final manifests = sourceManifests();
-      expect(
-        manifests,
-        containsAll([
-          mainManifest,
-          'android/app/src/debug/AndroidManifest.xml',
-        ]),
-        reason: 'manifest-reader: the source manifests were not all found',
-      );
       final offenders = [
         for (final path in manifests)
           for (final rule in removalRuleOffenders(readFile(path)))
@@ -134,14 +156,36 @@ void main() {
       expect(permissionElementOffenders(dirty), hasLength(3));
     });
 
-    test('a removal rule is caught, a merge rule is not', () {
+    test('every removal rule shape is caught, a merge rule is not', () {
       const dirty = '''
 <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
 <uses-permission android:name="android.permission.CAMERA" tools:node = "removeAll" />
+<uses-permission android:name="android.permission.CAMERA" tools:node="replace" />
+<application tools:remove="android:allowBackup" />
 <activity tools:node="merge" />
 ''';
-      expect(removalRuleOffenders(dirty), hasLength(2));
+      expect(removalRuleOffenders(dirty), hasLength(4));
     });
+
+    test(
+      'only debug and profile may request, every other source set may not',
+      () {
+        expect(
+          requestScopedManifests([
+            'android/app/src/main/AndroidManifest.xml',
+            'android/app/src/debug/AndroidManifest.xml',
+            'android/app/src/profile/AndroidManifest.xml',
+            'android/app/src/release/AndroidManifest.xml',
+            'android/app/src/staging/AndroidManifest.xml',
+          ]),
+          [
+            'android/app/src/main/AndroidManifest.xml',
+            'android/app/src/release/AndroidManifest.xml',
+            'android/app/src/staging/AndroidManifest.xml',
+          ],
+        );
+      },
+    );
 
     test('a commented-out element or rule does not count', () {
       const commented = '''
