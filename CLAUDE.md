@@ -3,11 +3,14 @@
 Flutter app (Dart) for Android, built on
 `honestarcade/android-studio-app-template`. Build with `flutter pub get && flutter run`.
 
-The quality gate is **`tools/gate.sh`** — one command running the six steps CI
-runs, in order: dependencies against the lockfile, `dart analyze --fatal-infos`,
-format check, `flutter test` (which includes the invariant guards below), the
-release bundle build, and `tools/check_aab.sh` over that bundle. It must print
-`GATE PASSED` before anything is considered done.
+The quality gate is **`tools/gate.sh`** — one command running six steps, in
+order: dependencies against the lockfile, `dart analyze --fatal-infos`, format
+check, `flutter test` (which includes the invariant guards below), the release
+bundle build, and `tools/check_aab.sh` over that bundle. It must print
+`GATE PASSED` before anything is considered done. CI's `gate` job runs exactly
+this script, plus two CI-only steps before it: shellcheck over `tools/`, and
+the guards alone (`flutter test --tags guard`) so a guard failure is named
+first in the log.
 
 CI runs one more thing the gate does not: **`tools/mutation_check.py`**, its own
 job, which reintroduces every known defect one at a time and requires the guard
@@ -44,8 +47,8 @@ Load-bearing constraints no story may breach without an explicit conversation
 with the project owner. Changing one is plan drift by definition: log it as an
 ad-hoc ledger entry in `.n8/decisions.md` and suggest `/n8-replan`.
 
-1. **No ads, no tracking, no analytics, no network.** The release build declares no Android permissions at all (INTERNET included) and all player data stays on the device. *(test-enforced: `test/guards/manifest_permission_example_test.dart`, `tools/check_aab.sh` over every built bundle via `test/guards/bundle_scan_test.dart`, and the dependency blocklist in `test/guards/dependency_policy_example_test.dart` — guard: #16 (planned))*
-2. **Lean dependencies.** A third-party package is added only when it is necessary, carries a trailing `# why: <reason>` on its `pubspec.yaml` key line, and never brings ads, analytics or network access. A plugin is adopted only at planning, after its own `AndroidManifest.xml` has been read for permissions and the owner has approved it. *(test-enforced: blocklist and justification — guard: #16 (planned); "necessary" is honor-system, checked by audits)*
+1. **No ads, no tracking, no analytics, no network.** The release build declares no Android permissions at all (INTERNET included) and all player data stays on the device. *(test-enforced: `test/guards/manifest_permission_example_test.dart`, `tools/check_aab.sh` over every built bundle via `test/guards/bundle_scan_test.dart`, and the dependency blocklist in `test/guards/dependency_policy_example_test.dart` — guard: #16 (merged))* Guards defend against honest mistakes, not deliberate evasion — a permission hidden by an obfuscated manifest edit, or a harmful package that is not on the blocklist, is left to code review and `/n8-audit` (the same scope Honest Solitaire recorded at its M0/M1 verification, 2026-09-24).
+2. **Lean dependencies.** A third-party package is added only when it is necessary, carries a trailing `# why: <reason>` on its `pubspec.yaml` key line, and never brings ads, analytics or network access. A plugin is adopted only at planning, after its own `AndroidManifest.xml` has been read for permissions and the owner has approved it. *(test-enforced: blocklist and justification — guard: #16 (merged); "necessary" is honor-system, checked by audits)*
 3. **Legal chess, verified.** Move generation matches published perft counts on the standard reference positions, and the computer only ever plays a legal move. *(test-enforced — guard: deferred → M2, epic #3)*
 4. **The strength dial is honest, and the computer runs on the device.** Each strength step's handicap is exactly what its description says, Master has none, the search never runs on the UI thread, and the same position, step and seed always give the same move. *(test-enforced — guard: deferred → M2, epic #4)*
 

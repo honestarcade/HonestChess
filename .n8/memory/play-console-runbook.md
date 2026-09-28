@@ -1,12 +1,12 @@
 # Play Console runbook — click by click
 
 Everything the owner must do by hand is marked *(owner)*; everything a
-session running this template's tools can do is marked *(agent)*. App
+session running this repository's tools (taken from the app template) can do is marked *(agent)*. App
 values are named by their key in `app_identity.yaml` (`package_id`, `slug`,
 `label`), which `tools/rename_app.py` wrote — run it before these steps.
 
 The Console steps are not automatable — there is no API for them. Every
-agent-side step below is a script this template ships; `test/guards/`
+agent-side step below is a script in `tools/`; `test/guards/`
 exercises each one's refusals against stubs.
 
 ---
@@ -192,7 +192,7 @@ extend `test/guards/play_scripts_test.dart` in the same change.
 
 ## Taking it out of draft, and to production
 
-Two more things this template's scripts do NOT do, deliberately, matching
+Two more things this repository's scripts do NOT do, deliberately, matching
 the division of labour above:
 
 1. **Publishing the app out of draft** is a Console act (Store presence →

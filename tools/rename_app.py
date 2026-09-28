@@ -41,7 +41,7 @@ PACKAGE_LITERAL_FILES = ["tools/check_aab.sh"]
 SLUG_FILES = ["tools/make_upload_key.sh", "tools/setup_play_ci.sh",
               "tools/set_ci_secrets.sh"]
 LABEL_FILES = ["tools/make_upload_key.sh", "tools/setup_play_ci.sh"]
-# Exists only in the template repository; an app never needs it.
+# Exists only in the template repository; the rename deletes it from an app.
 TEMPLATE_ONLY = [".github/workflows/template-smoke.yml"]
 
 PACKAGE_RE = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$")
