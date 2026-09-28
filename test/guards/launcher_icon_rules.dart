@@ -135,6 +135,31 @@ List<String> splashOffenders(String xml) {
   ];
 }
 
+/// What a pre-31 styles file lacks so that no white frame shows between the
+/// launch drawable and Flutter's first frame (#28): `NormalTheme`'s window is
+/// the navy, and both themes inherit from a dark parent.
+List<String> normalThemeOffenders(String xml) {
+  String? style(String name) => RegExp(
+    '<style name="$name"([^>]*)>(.*?)</style>',
+    dotAll: true,
+  ).firstMatch(xml)?.group(0);
+  final normal = style('NormalTheme');
+  final launch = style('LaunchTheme');
+  if (normal == null || launch == null)
+    return ['no NormalTheme or LaunchTheme'];
+  bool darkParent(String s) =>
+      RegExp(r'parent="[^"]*(Black|Dark|DeviceDefault\.NoActionBar)[^"]*"')
+          .hasMatch(s);
+  return [
+    if (!normal.contains(
+      '<item name="android:windowBackground">@color/launch_navy</item>',
+    ))
+      'NormalTheme windowBackground is not @color/launch_navy',
+    if (!darkParent(normal)) 'NormalTheme has no dark parent',
+    if (!darkParent(launch)) 'LaunchTheme has no dark parent',
+  ];
+}
+
 /// What a pre-12 launch_background.xml lacks: navy under the centred mark.
 List<String> launchBackgroundOffenders(String xml) => [
   if (!xml.contains('@color/launch_navy')) 'no @color/launch_navy layer',

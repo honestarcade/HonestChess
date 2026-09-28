@@ -142,6 +142,33 @@ void main() {
       );
     });
 
+    test('the pre-31 themes keep the window navy under a dark parent', () {
+      const ok = '''
+<style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+  <item name="android:windowBackground">@drawable/launch_background</item>
+</style>
+<style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+  <item name="android:windowBackground">@color/launch_navy</item>
+</style>''';
+      expect(normalThemeOffenders(ok), isEmpty);
+      expect(
+        normalThemeOffenders(
+          ok.replaceFirst('@color/launch_navy', '@android:color/white'),
+        ).single,
+        contains('NormalTheme windowBackground'),
+      );
+      expect(
+        normalThemeOffenders(
+          ok.replaceAll('Theme.Black.NoTitleBar', 'Theme.Light.NoTitleBar'),
+        ),
+        hasLength(2),
+      );
+      expect(
+        normalThemeOffenders('<resources/>').single,
+        contains('no NormalTheme'),
+      );
+    });
+
     test('the safe-zone reach follows the geometry', () {
       final fg = readFile('assets/brand/android-foreground.svg');
       expect(safeZoneReachDp(fg), closeTo(29.5, 0.2));
@@ -207,6 +234,11 @@ void main() {
           if (!readFile('$res/$dir/styles.xml')
               .contains('@drawable/launch_background'))
             '$dir: LaunchTheme does not use @drawable/launch_background',
+        for (final dir in ['values', 'values-night'])
+          for (final o in normalThemeOffenders(
+            readFile('$res/$dir/styles.xml'),
+          ))
+            '$dir: $o',
       ];
       expect(
         offenders,
