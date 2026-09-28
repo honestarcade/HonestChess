@@ -155,9 +155,12 @@ jobs:
           HS_KEY_ALIAS: ${{ secrets.HS_KEY_ALIAS }}
           HS_KEY_PASS: ${{ secrets.HS_KEY_PASS }}
           HS_RELEASE: "1"
+        # No --no-pub: the build must regenerate the plugin registrant for
+        # release, which leaves dev-only plugins (integration_test, #38) out;
+        # tools/gate.sh has the same rule and the reason.
         run: |
           set -euo pipefail
-          flutter build appbundle --release --no-pub \
+          flutter build appbundle --release \
             --build-name="${{ steps.version.outputs.name }}" \
             --build-number="${{ steps.version.outputs.code }}"
 

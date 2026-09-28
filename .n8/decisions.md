@@ -143,3 +143,21 @@ Ad-hoc entries (decisions made outside a planning/execution command) use:
 - **Decision:** Two lint fixes rode along (Rule 3): an unbraced `if` from #28's rules and a doc comment from #33 whose code span broke across lines — both caught because `dart analyze --fatal-infos` was not run at those stories' commits, only tests.
   **Why:** The gate runs analyze; running only `flutter test` per story let them through until the next analyze. From #35 on, analyze ran before each commit.
   **Issue:** #28, #33
+
+## /n8-exec M1 (test infrastructure: #37, #38) — 2026-09-28
+
+- **Decision:** One refuse-empty runner, `tools/counted_tests.sh`, serves both scheduled jobs (`weekly_tests.sh`, `device_tests.sh`); it counts passed tests from the JSON reporter's `testDone` events, matching each field on its own because the reporter's key order is not a contract.
+  **Why:** `flutter test` does exit 79 when a tag selects nothing, but a run of only skipped or hidden tests would still exit 0; the count is the verdict either way. The first version assumed a key order and counted zero — caught by its own stubbed tests.
+  **Issue:** #37, #38
+- **Decision:** `weekly.yml` is dispatch-only, its `schedule:` commented, until M2 adds the first `weekly` test; `device.yml` runs nightly (04:00 UTC) and on dispatch.
+  **Why:** A schedule that can only fail would be noise until the tier has a test; the device job has its smoke test now.
+  **Issue:** #37, #38
+- **Decision:** The emulator binary is pinned (`emulator-build: "15917651"`, the stable channel's 37.1.11 in Google's `repository2-3.xml` on 2026-09-28); the image is API 34 `google_apis` x86_64 on `ubuntu-latest` with KVM enabled; the action is `ReactiveCircus/android-emulator-runner@v2` (latest v2.38.0).
+  **Why:** Left empty, the action installs whatever sdkmanager serves that day — a floating third party inside a CI job.
+  **Issue:** #38
+- **Decision (Rule 1):** `tools/gate.sh` and `release.yml` build the release bundle without `--no-pub`, guarded (`release-build:`) with a mutation.
+  **Why:** Adding `integration_test` (a dev-only plugin) made `flutter build appbundle --release --no-pub` fail: `flutter pub get` writes a plugin registrant that names dev plugins, and only the build's own resolution regenerates it for release. The gate failed at the build on a fresh worktree; the next tagged release would have failed the same way.
+  **Issue:** #38
+- **Decision:** Running `flutter test integration_test` locally leaves a debug registrant in the tree; the gate now regenerates it at the build step, so no `flutter clean` is needed between a local device run and the gate.
+  **Why:** The same fix; recorded because the first failure looked like stale local state and was not.
+  **Issue:** #38

@@ -18,6 +18,8 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^6.0.0
+  integration_test: # why: device-level tests on an emulator (#38); SDK, dev only
+    sdk: flutter
   # Test-only: dev_dependencies are not compiled into the release bundle.
   yaml: ^3.1.4 # why: guards read YAML structurally; a line scan misreads it
 
