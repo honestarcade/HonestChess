@@ -107,3 +107,6 @@ Ad-hoc entries (decisions made outside a planning/execution command) use:
 - **Decision:** Least privilege is now an executed guard (`workflow_permissions_test.dart`): every workflow declares a top-level read-only `permissions:` mapping, and a write scope exists only where an allowlist names the job (`release.yml` → `ship` → `contents`).
   **Why:** The plan's discretion; the template only checked ci.yml's top-level block.
   **Issue:** #20
+- **Decision:** `.n8/memory/play-console.md` records the internal testers list as "Testers", not the plan's "Owner".
+  **Why:** The owner created it under that name; the name is cosmetic, the content (the owner's account only) is what #21 requires.
+  **Issue:** #21
