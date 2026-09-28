@@ -92,3 +92,9 @@ Ad-hoc entries (decisions made outside a planning/execution command) use:
 - **Decision:** Removing the PEM from `references_test.dart`'s `createdLater` broke that guard's own "files that exist pass" fixture; the fixture's existing-set now names the PEM instead of restoring the exemption (Rule 3).
   **Why:** The exemption was for fresh clones of the template; this repository has the file.
   **Issue:** #15
+- **Decision:** The launcher icon pipeline was ported from Honest Solitaire rather than written anew: `assets/brand/`, `tools/render_icons.sh`, `launcher_icon_rules.dart`/`launcher_icon_test.dart`, and the battery's `deletes`/`replaces_with` mutation kinds (with a new `--self-test` for the byte round trip). The only rule change is `launcher-colours`, which ties `launch_navy` to `lib/main.dart`'s `_navy` and the tile to the brand sheet's `#04213F`, because there is no palette file yet.
+  **Why:** The plan's discretion ("port rather than rewrite"); the template-icon hashes Solitaire recorded match this repository's template icons byte for byte.
+  **Issue:** #18
+- **Decision:** The epic amendments #18's last criterion names (#1 gains the icon, #8 loses it) were made at planning on 2026-09-27, with comments on both epics, not during execution.
+  **Why:** The owner's "Real icon now" was a planning answer; the amendment belongs with it.
+  **Issue:** #18, #1, #8
