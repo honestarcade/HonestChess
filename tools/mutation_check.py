@@ -370,7 +370,7 @@ MUTATIONS: list[Mutation] = [
              'device-workflow: the emulator binary is not pinned'),
     Mutation("ci", "the release build reuses pub get's plugin registrant",
              ".github/workflows/release.yml",
-             sub(r"flutter build appbundle --release \\", "flutter build appbundle --release --no-pub \\"),
+             sub(r"flutter build appbundle --release \\", r"flutter build appbundle --release --no-pub \\"),
              "the next tagged release would fail to compile the dev-only plugin",
              'release-build: a release build with --no-pub'),
     Mutation("ci", "the PR gate tries to run the device tests",
