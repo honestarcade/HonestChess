@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The design's phone background; lib/main.dart's placeholder uses the same navy. -->
+    <color name="launch_navy">#05285F</color>
+</resources>

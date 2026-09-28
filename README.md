@@ -2,8 +2,9 @@
 
 Chess for Android from Honest Arcade: no ads, no tracking, no network.
 
-Status: just initialized. The app is still the template's placeholder
-screen; the roadmap lives in this repository's GitHub milestones and issues.
+Status: in development. The app opens an Honest Chess placeholder screen
+until the board and menus land (milestones M3 and M4); the roadmap lives in
+this repository's GitHub milestones and issues.
 
 ## Build and test
 
