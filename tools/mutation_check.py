@@ -342,6 +342,23 @@ MUTATIONS: list[Mutation] = [
              "the key that signs every release could be generated with a weak password",
              'character password was not refused'),
 
+    # weekly tier -- weekly_tests_test.dart (#37)
+    Mutation("ci", "the weekly job passes having run nothing",
+             "tools/weekly_tests.sh",
+             sub(r'  exit 3\n', '  exit 0\n'),
+             "a scheduled job would stay green while testing nothing",
+             'weekly-tests: an empty run was not refused'),
+    Mutation("ci", "the PR gate runs the weekly tests",
+             "tools/gate.sh",
+             sub(r'"flutter test --no-pub --exclude-tags weekly"', '"flutter test --no-pub"'),
+             "every pull request would pay for the slow tier",
+             'weekly-gate: tools/gate.sh would run the weekly tests'),
+    Mutation("ci", "the weekly workflow bypasses the empty-run refusal",
+             ".github/workflows/weekly.yml",
+             sub(r'run: tools/weekly_tests\.sh', 'run: flutter test --no-pub --tags weekly'),
+             "an empty weekly run would read as a pass",
+             'weekly-workflow: the job does not run tools/weekly_tests.sh'),
+
     # gate -- gate_failure_test.dart
     Mutation("gate", "the gate exits 0 after a failing step", "tools/gate.sh",
              sub(r'(echo "GATE FAILED at \$label \(exit \$status\)" >&2\n)    exit "\$status"',

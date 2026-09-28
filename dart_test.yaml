@@ -10,3 +10,8 @@ tags:
       child process, for instance. tools/mutation_check.py's default run
       excludes this tag; a mutation whose guard needs it sets `slow=True`
       so the battery still exercises it, just not on every entry.
+  weekly:
+    description: >-
+      Tests too slow for the pull-request gate (the computer's strength
+      ladder, from M2). tools/gate.sh excludes them; .github/workflows/weekly.yml
+      runs them through tools/weekly_tests.sh, which refuses to pass empty.
