@@ -224,3 +224,27 @@ Ad-hoc entries (decisions made outside a planning/execution command) use:
 - **Miss:** M3's round one went out without the outcomes list and its closing question; the outcomes were presented at the approval gate instead and accepted with the "go".
   **Why:** Planner error.
   **Issue:** M3
+
+## /n8-plan M4 — 2026-09-28
+
+- **Decision:** M4 is fourteen stories: #80–#82, #90 under epic #7 (storage, saves, statistics recording, the Statistics screen) and #83–#89, #91–#93 under epic #6 (Settings, both setup screens, the three info screens, the menu, the board's cards, the splash).
+  **Why:** The coverage map (53 items from epics #6 and #7's criteria, the design's nine non-board screens, and M3's DESCOPED buttons and "until M4" deferrals) has every item delivered by a quoted criterion, confirmed by two coverage checks.
+  **Issue:** #6, #7, #80–#93
+- **Decision:** Owner, round one ("all recs good"): a vs-computer game counts once you've moved; abandoning it while unfinished is a loss; two players count only on a real ending; one saved game per mode; Android's own backup stays allowed (invariant 1 amended); Settings hides the four M5 switches; Takeback allowed applies from the next game, not the current one.
+  **Why:** Round-one answers.
+  **Issue:** #80, #82, #83, #84, #85, #86, #90
+- **Decision:** Owner, round two ("good to go"): a game reopened by Takeback after it ended keeps its first recorded result; back on a finished game's result card shows the board, then the menu (tapping the result bar still brings the card back); a game that ends before your first move — a quick resignation, an early flag fall — is still recorded.
+  **Why:** Round-two answers.
+  **Issue:** #82, #92
+- **Decision:** Epic #7's win-rate/streak criterion is replaced for two-player statistics by White wins and Black wins; its breakdown criterion narrows to one axis per mode (strength for vs Computer, time control for two players), matching the design; the reset confirmation's wording is corrected for Android backup. Comments added to epics #6, #7 and #8 recording these and the M5-deferred switches and the fonts already delivered by #71.
+  **Why:** The design and #71's font delivery only fit the epics' criteria this way; the epic #7 breakdown narrowing had no recorded owner quote and is logged here rather than left implicit.
+  **Issue:** #6, #7, #8, #82, #90
+- **Decision:** CLAUDE.md invariant 1 gets a `guard: #80 (planned)` annotation alongside its existing `#16 (merged)`; the substantive wording change (Android backup, "the app itself sends player data nowhere") is #80's to make at execution, as its own Ad-hoc entry, following Honest Solitaire's precedent for the same amendment.
+  **Why:** The guard is planned now; the invariant is only enforced, and its wording only changes, once the code lands.
+  **Issue:** #80
+- **Decision:** Planner calls shown at the gate and not overruled: Restart's "Your previous game counted as a loss." message; Keep playing returns unpaused with no pause card; a clock at 0:00 when you leave the app ends the game on time; a failed statistics reset shows "Couldn't reset — try again" and keeps your numbers, and a successful one also purges set-aside damaged copies; an unreadable file at launch opens the app without it and is never overwritten that session; the splash holds at least 0.6 s and usually jumps straight to READY on a phone; setup screens default Custom to 10+5 and repeat on a held stepper after 0.4 s; Two players' outlined controls press violet.
+  **Why:** Two simulation passes' build-level guesses with visible effect, routed to the gate.
+  **Issue:** #80, #82, #85, #86, #90, #93
+- **Decision:** Two full executor-simulation passes (563 decisions total across 14 stories) plus a cross-story critic each pass, then a final coverage check and adversarial review, all run as background workflows. 23 cross-story conflicts from the pass-2 reconciliation and 8 items from the final review (a coverage gap, a misattributed quote, an unrecorded epic narrowing, an idle-controller test gap, byte-identical test seams, a stale Restart message, a duplicated colour token, an untyped guard map) were fixed before filing.
+  **Why:** Ultracode was on for this session; the scale matched the milestone's fourteen interdependent screens.
+  **Issue:** M4
