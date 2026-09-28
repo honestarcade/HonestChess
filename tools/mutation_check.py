@@ -55,6 +55,7 @@ class Mutation:
     creates: tuple = ()
     deletes: str = ""
     replaces_with: tuple = ()
+    adds: tuple = ()
     """`expect` is a substring of the reason the RIGHT assertion prints when it
     fires. Without it the battery measures "the suite went red", which is not
     "this guard caught it": an unrelated test reading the same file could go
@@ -72,7 +73,11 @@ class Mutation:
     defects a text substitution cannot express -- a missing raster, the
     template's icon back in place. Both are byte snapshots restored in the
     same try/finally as the text edits, and `--self-test` proves that round
-    trip byte-identical. A mutation of these kinds may leave `path` empty.
+    trip byte-identical. `adds` holds `(path, text)` pairs written for the
+    run -- a new file, such as a manifest in a source set that does not exist
+    (#30) -- and deleted afterwards with any directories they needed; a path
+    that already exists makes the mutation BROKEN. A mutation of these kinds
+    may leave `path` empty.
     (Ported from Honest Solitaire's battery, #18.)
     """
 
@@ -205,6 +210,14 @@ MUTATIONS: list[Mutation] = [
                  '<uses-permission android:name="android.permission.INTERNET" tools:node="remove"/>'),
              "a removal rule would hide a plugin's permission instead of refusing the plugin",
              'manifest-removal-rule: 1 offender'),
+    Mutation("manifest", "a new source set requests a permission (#30)",
+             "", None,
+             "a release-only manifest could ask for network access unseen",
+             'permission-guard: 1 offender',
+             adds=(("android/app/src/release/AndroidManifest.xml",
+                    '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n'
+                    '    <uses-permission android:name="android.permission.INTERNET"/>\n'
+                    '</manifest>\n'),)),
     Mutation("manifest", "the debug manifest declares a permission",
              "android/app/src/debug/AndroidManifest.xml",
              sub(r"(<manifest [^>]*>\n)",
@@ -555,6 +568,30 @@ def restore_bytes(snapshot: dict) -> None:
         p.write_bytes(data)
 
 
+def write_added(pairs: list) -> list:
+    """Writes each `(path, text)` and returns what to remove afterwards: the
+    files, then every directory created for them, deepest first."""
+    made = []
+    for path, text in pairs:
+        missing_dirs = []
+        parent = path.parent
+        while not parent.exists():
+            missing_dirs.append(parent)
+            parent = parent.parent
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+        made += [path, *missing_dirs]
+    return made
+
+
+def remove_added(made: list) -> None:
+    for p in made:
+        if p.is_dir():
+            p.rmdir()
+        else:
+            p.unlink(missing_ok=True)
+
+
 def self_test() -> int:
     """The binary round trip: a file deleted and a file overwritten both come
     back byte-identical from their snapshot."""
@@ -570,7 +607,13 @@ def self_test() -> int:
         b.write_bytes(b"fixture bytes")
         restore_bytes(snap)
         ok = a.read_bytes() == bytes(range(256)) and b.read_bytes() == b"\x89PNG original"
-    print("self-test: binary snapshot round trip " + ("ok" if ok else "FAILED"))
+        # adds: a file in new directories comes back out, directories and all.
+        new = pathlib.Path(d) / "x" / "y" / "added.txt"
+        made = write_added([(new, "added")])
+        remove_added(made)
+        ok = ok and not (pathlib.Path(d) / "x").exists()
+    print("self-test: binary snapshot and added-file round trip "
+          + ("ok" if ok else "FAILED"))
     return 0 if ok else 1
 
 
@@ -588,11 +631,13 @@ def main() -> int:
 
     selected = [m for m in MUTATIONS if args.only.lower() in
                 f"{m.issue} {m.name} {m.path or m.deletes} "
+                f"{' '.join(p for p, _ in m.adds)} "
                 f"{' '.join(t for t, _ in m.replaces_with)}".lower()]
 
     if args.list:
         for m in selected:
-            where = m.path or m.deletes or m.replaces_with[0][0]
+            where = (m.path or m.deletes
+                     or (m.replaces_with[0][0] if m.replaces_with else m.adds[0][0]))
             print(f"{m.issue:<7} {where:<42} {m.name}")
         print(f"\n{len(selected)} mutations")
         return 0
@@ -785,6 +830,12 @@ def main() -> int:
             broken.append((m, str(exc)))
             print(f"  BROKEN  {label}\n          {exc}")
             continue
+        new_files = [(ROOT / path, text) for path, text in m.adds]
+        present = [p for p, _ in new_files if p.exists()]
+        if present:
+            broken.append((m, f"file to add already exists: {present[0]}"))
+            print(f"  BROKEN  {label}\n          {present[0]} already exists")
+            continue
         missing = [p for p in binary if not p.exists()]
         if missing:
             broken.append((m, f"binary target missing: {missing[0]}"))
@@ -793,7 +844,7 @@ def main() -> int:
         fixtures = {ROOT / target: (ROOT / fixture).read_bytes()
                     for target, fixture in m.replaces_with}
         same = [p for p, data in fixtures.items() if p.read_bytes() == data]
-        if (mutated == originals and not binary) or same:
+        if (mutated == originals and not binary and not new_files) or same:
             broken.append((m, "changed nothing"))
             print(f"  BROKEN  {label}\n          changed nothing")
             continue
@@ -808,7 +859,7 @@ def main() -> int:
                 for new, old in zip(mutated, originals)
                 for line in new.splitlines()
                 if line not in old.splitlines()
-            )
+            ) + "\n" + "\n".join(text for _, text in new_files)
             if m.expect in added:
                 broken.append((m, "the marker is in the text this mutation "
                                   "inserts, so a guard that echoes the "
@@ -821,6 +872,7 @@ def main() -> int:
             f"{m.issue} {m.name}\n"
             + "".join(f"  {path}\n" for path, _ in edits)
             + "".join(f"  {p.relative_to(ROOT)}\n" for p in binary)
+            + "".join(f"  {p.relative_to(ROOT)} (added)\n" for p, _ in new_files)
         )
         snapshot = snapshot_bytes(binary)
         for target, text in zip(targets, mutated):
@@ -829,6 +881,7 @@ def main() -> int:
             (ROOT / m.deletes).unlink()
         for target, data in fixtures.items():
             target.write_bytes(data)
+        made = write_added(new_files)
         try:
             unparseable = [t for t in targets
                            if not (parses_as_yaml(t) and parses_as_shell(t))]
@@ -879,8 +932,9 @@ def main() -> int:
             for target, text in zip(targets, originals):
                 target.write_text(text)
             restore_bytes(snapshot)
-            for made in m.creates:
-                (ROOT / made).unlink(missing_ok=True)
+            remove_added(made)
+            for created in m.creates:
+                (ROOT / created).unlink(missing_ok=True)
             IN_FLIGHT.unlink(missing_ok=True)
 
     print()
