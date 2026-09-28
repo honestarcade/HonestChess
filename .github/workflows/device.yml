@@ -1,0 +1,93 @@
+# The real app on an Android emulator (#38): tools/device_tests.sh runs the
+# tests in integration_test/ on it, and fails if none ran. Nightly and on
+# demand — an emulator run takes minutes, so it stays out of the pull-request
+# gate (owner's choice, 2026-09-28). It opens nothing; a failure is the red run
+# and its summary.
+name: Device tests
+
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: device-tests
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  device:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      FLUTTER_SUPPRESS_ANALYTICS: "true"
+    steps:
+      - id: checkout
+        name: Checkout
+        uses: actions/checkout@v7
+
+      # The emulator needs KVM; GitHub's Linux runners have it but the device
+      # node is not open to the runner user by default.
+      - id: kvm
+        name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - id: java
+        name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # flutter-version-file reads .fvmrc, the single place the exact version
+      # is pinned, so this runs the Flutter the pull-request gate runs.
+      - id: flutter
+        name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: .fvmrc
+          cache: true
+
+      - id: deps
+        name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+
+      # API 34 google_apis x86_64, the image the owner's checks used locally.
+      # emulator-build pins the emulator binary to the stable channel's build
+      # on 2026-09-28 (37.1.11, build 15917651, from Google's
+      # repository2-3.xml); left empty, the action installs whatever
+      # sdkmanager serves that day.
+      - id: device
+        name: Device tests on an emulator
+        uses: ReactiveCircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          emulator-build: "15917651"
+          script: tools/device_tests.sh
+
+      - id: summary
+        name: Write the summary
+        if: always()
+        env:
+          OUTCOME: ${{ steps.device.outcome }}
+        run: |
+          {
+            echo "### Device tests: $OUTCOME"
+            echo
+            echo "tools/device_tests.sh ran integration_test/ on an API 34 emulator"
+            echo "and fails when no test ran. Open the \`Device tests on an"
+            echo "emulator\` step for the counts."
+          } >> "$GITHUB_STEP_SUMMARY"
