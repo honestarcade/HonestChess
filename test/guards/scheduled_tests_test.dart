@@ -6,6 +6,8 @@ library;
 // tools/counted_tests.sh, which must refuse to pass having run no test; and
 // the gate must run neither.
 
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yaml/yaml.dart';
 
@@ -21,8 +23,17 @@ String _flutter(List<String> events, {int exit = 0}) =>
 String _done(int id, String result, {bool hidden = false}) =>
     '{"testID":$id,"result":"$result","skipped":false,"hidden":$hidden,"type":"testDone","time":1}';
 
-ScriptRun _run(String script, String flutterStub) =>
-    runWithStubs([tool(script)], stubs: {'flutter': flutterStub});
+ScriptRun _run(
+  String script,
+  String flutterStub, {
+  void Function(Directory dir)? inspect,
+}) => runWithStubs(
+  [tool(script)],
+  stubs: {'flutter': flutterStub},
+  files: {'summary.md': ''},
+  env: {'GITHUB_STEP_SUMMARY': '{dir}/summary.md'},
+  inspect: inspect,
+);
 
 /// Every `run:` body and every `with.script` of [path]'s steps, trimmed.
 List<String> _commands(String path) => [
@@ -61,6 +72,30 @@ void main() {
           );
           expect(r.output, contains('refusing to pass empty'));
         }
+      });
+
+      test('$script: the job summary carries the counts and the refusal', () {
+        var summary = '';
+        final r = _run(
+          script,
+          _flutter([_done(1, 'success', hidden: true)], exit: 79),
+          inspect: (dir) =>
+              summary = File('${dir.path}/summary.md').readAsStringSync(),
+        );
+        expect(r.exitCode, 3, reason: r.output);
+        expect(
+          summary,
+          allOf(contains('0 passed, 0 failed'), contains('no test ran')),
+          reason: 'scheduled-summary: the job summary does not say what ran',
+        );
+        var ok = '';
+        _run(
+          script,
+          _flutter([_done(1, 'success')]),
+          inspect: (dir) =>
+              ok = File('${dir.path}/summary.md').readAsStringSync(),
+        );
+        expect(ok, contains('1 passed, 0 failed'));
       });
 
       test('$script: a failing test fails', () {
@@ -118,6 +153,41 @@ void main() {
         builds.where((b) => b.contains('--no-pub')),
         isEmpty,
         reason: 'release-build: a release build with --no-pub compiles the dev-only integration_test plugin into the registrant',
+      );
+    });
+
+    test('no ci.yml step runs the weekly tier or the device tests', () {
+      final commands = _commands('.github/workflows/ci.yml');
+      expect(
+        commands.where((c) => c.contains('integration_test')),
+        isEmpty,
+        reason: 'device-gate: a ci.yml step would need a device',
+      );
+      expect(
+        commands.where(
+          (c) =>
+              c.startsWith('flutter test') &&
+              !c.contains('--exclude-tags weekly'),
+        ),
+        isEmpty,
+        reason: 'weekly-gate: a ci.yml test step would run weekly-tagged tests',
+      );
+    });
+
+    test('the weekly schedule is on only once a weekly test exists', () {
+      final scheduled = (triggers(
+        readWorkflow('.github/workflows/weekly.yml'),
+      ) as YamlMap).containsKey('schedule');
+      final weeklyTests = [
+        for (final p in filesUnder('test'))
+          if (p.endsWith('_test.dart') &&
+              RegExp(r'''Tags\(\[[^\]]*['"]weekly['"]''').hasMatch(readFile(p)))
+            p,
+      ];
+      expect(
+        scheduled && weeklyTests.isEmpty,
+        isFalse,
+        reason: 'weekly-schedule: weekly.yml is scheduled but no test is tagged weekly — it would fail every week',
       );
     });
 

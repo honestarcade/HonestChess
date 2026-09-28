@@ -161,3 +161,18 @@ Ad-hoc entries (decisions made outside a planning/execution command) use:
 - **Decision:** Running `flutter test integration_test` locally leaves a debug registrant in the tree; the gate now regenerates it at the build step, so no `flutter clean` is needed between a local device run and the gate.
   **Why:** The same fix; recorded because the first failure looked like stale local state and was not.
   **Issue:** #38
+
+## /n8-verify M1 + fix pass — 2026-09-28
+
+- **Decision:** M1 verification (fresh agent per story, against 28cb9bb) filed #44 (high), #45–#46 (medium), #47–#55 (low); #21's testers-list criterion was amended to the owner's "Testers" list. The fix pass on `milestone/m1-fixes` closes #44–#48 and #54; #49–#53 and #55 are carried as `sev:low`, #52 waiting on the owner's App-integrity fingerprint.
+  **Why:** The gate blocks on confirmed high/unrated bugs only; the carried lows keep their own issues.
+  **Issue:** #44–#55
+- **Decision:** `play-promote.yml`'s refusal step is tested by executing its own `run:` body (read from the parsed workflow) under bash, not a copy.
+  **Why:** A copy would drift from the workflow; running the workflow's text is what makes a regression in it visible (the same choice Honest Solitaire made for play-api-check).
+  **Issue:** #44
+- **Decision:** `tools/counted_tests.sh` writes the counts and any empty-run refusal to `$GITHUB_STEP_SUMMARY` itself; the workflows' summary steps now point at it.
+  **Why:** The script is where the counts are known; a summary step would have to re-derive them.
+  **Issue:** #45
+- **Decision:** The M1 verification ran its five per-story agents as a background Workflow, again without the owner having opted into workflows — the second such slip this session (the first was the planning simulation's second pass).
+  **Why:** An orchestration mistake, not a plan choice; logged so it is visible. Subsequent fan-outs use individual subagents.
+  **Issue:** #20, #21, #22, #37, #38

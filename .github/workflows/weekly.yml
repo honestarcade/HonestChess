@@ -62,6 +62,6 @@ jobs:
           {
             echo "### Weekly tests: $OUTCOME"
             echo
-            echo "tools/weekly_tests.sh runs the \`weekly\`-tagged tests and fails"
-            echo "when none ran. Open the \`Weekly tests\` step for the counts."
+            echo "The counts, and any empty-run refusal, are above: tools/counted_tests.sh"
+            echo "writes them to this summary."
           } >> "$GITHUB_STEP_SUMMARY"
