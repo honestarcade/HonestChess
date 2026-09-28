@@ -200,3 +200,27 @@ Ad-hoc entries (decisions made outside a planning/execution command) use:
 - **Decision:** The FIDE coverage map counts 57 in-scope clauses; Article 4 (24 clauses) and the arbiter claim clauses 9.2.1 and 9.3.1 are descoped by the owner's roadmap approval of the coverage claim.
   **Why:** The claim's "not covered" line, approved 2026-09-27.
   **Issue:** M2
+
+## /n8-plan M3 — 2026-09-28
+
+- **Decision:** M3 is eight stories under epic #5: #71 board, #72 tap/drag and highlights (creates the game controller), #73 promotion card, #74 top bar/panels/clocks, #75 play the computer from launch, #76 tool row and temporary new-game picker, #77 pause/auto-pause/draw, #78 result card and view board.
+  **Why:** One vertical slice per screen element the design draws; the coverage map (40 items from epic #5 and the design's board, promotion, pause and result sections) has every item delivered by a quoted criterion.
+  **Issue:** #5, #71–#78
+- **Decision:** Owner, round one: the app opens straight into a vs-computer game (Club, White, Rapid 10+5), with a temporary new-game picker until M4; the pause and result overlays' M4 buttons are hidden until M4; tap-tap and drag; "View board" after the end.
+  **Why:** Round-one answers.
+  **Issue:** #73–#78
+- **Decision:** Owner, round two ("good to go", accepting all four recommendations): leaving the app auto-pauses; the design's fonts and a chess-piece font (Noto Sans Symbols 2 subset, SIL OFL, as asset files — no package) ship in M3; no confirmation on Restart, New or Resign; the clock keeps running while the promotion card is open (the design stops it).
+  **Why:** Round-two answers.
+  **Issue:** #71, #73, #76, #77
+- **Decision:** Two-player "Agree a draw" is one tap on the pause card, although #64's text says the UI gathers two taps and the design's two-player setup text says "Draw needs both taps".
+  **Why:** Both players are at the same device; the design's setup screen is M4's and its text is revisited there.
+  **Issue:** #77, #64
+- **Decision:** Planner calls shown at the gate and not overruled: sub-lines "YOU · WHITE" / "PLAYER ONE · WHITE"; tenths under 10 s; draw offers only after both sides have moved, one per own move; the fifty-move text says "drawn automatically" (the design's "either player can claim it" contradicts the automatic-draw rule); the result card waits 600 ms after a mating move; rematch keeps colours; a failed computer move shows a retry chip; THINKING… outranks IN CHECK on the chip.
+  **Why:** Pass-2 simulation guesses with visible effect, routed to the gate.
+  **Issue:** #74, #75, #77, #78
+- **Decision:** No golden-image tests in M3; widget tests assert colours, glyphs, fonts and positions directly.
+  **Why:** CI renders on Linux and local runs on macOS; making goldens stable is infrastructure work, which the owner wants kept out of feature milestones.
+  **Issue:** #71
+- **Miss:** M3's round one went out without the outcomes list and its closing question; the outcomes were presented at the approval gate instead and accepted with the "go".
+  **Why:** Planner error.
+  **Issue:** M3
