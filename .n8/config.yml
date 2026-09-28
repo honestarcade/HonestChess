@@ -11,3 +11,23 @@ template: "honestarcade/android-studio-app-template @ 13a6608 — gate, guards, 
 studio_reference: "/Users/npond/StudioProjects/honest_solitaire — the most recent app built from the template; /Users/npond/StudioProjects/honest_sudoku — the first"
 platforms:
   v1: android            # portrait-only
+design_source: "claude.ai/design project f63fd12a-e2ba-4c22-be28-04afe3fd8f47, file Honest Chess.dc.html (local copy ArtSource/design/) — splash, menu, vs-computer and two-player setup, board with promotion/pause/result, statistics, settings, how to play, about the app, about Honest Arcade, brand sheet; prototype rules and search; read 2026-09-27"
+android:
+  application_id: com.honestarcade.chess   # immutable after the first Play upload
+  min_sdk: 24
+deployment:
+  dev: flutter run on a local device or emulator; signed AAB buildable locally
+  stage: Google Play internal testing track, uploaded by CI on a version tag
+  production: Google Play production, promoted from the closed test (M7) and rolled out by the owner in the Console
+  notes: same personal Play developer account as Honest Solitaire — production access needs a closed test with >=12 testers opted in for 14 continuous days
+ci:
+  provider: github-actions
+  on_pr: [gate (tools/gate.sh), mutations (tools/mutation_check.py)]
+  release: "tag v* -> gate -> signed, scanned, certificate-checked AAB -> Google Play internal track and the GitHub release"
+  secrets_needed: [HS_KEYSTORE_B64, HS_KEYSTORE_PASS, HS_KEY_ALIAS, HS_KEY_PASS, PLAY_SERVICE_ACCOUNT_JSON]
+fonts: bundled in the app (Outfit, IBM Plex Mono); never fetched at runtime
+chess:
+  rules: FIDE Laws of Chess 2023, Basic Rules (Arts. 1-5) plus 6.9 and 9; threefold repetition and fifty-move draw automatically
+  engine: own pure-Dart search in an isolate; five steps Beginner..Master; Master targets roughly 1800-2000
+  modes: vs computer (pick colour or random), two players on one phone
+  clocks: untimed, blitz 5+0, rapid 10+5, classical 30+0, custom minutes + increment
