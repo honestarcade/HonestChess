@@ -281,6 +281,23 @@ MUTATIONS: list[Mutation] = [
              "a pull request's code would run with a token that can push",
              'workflow-permissions: 1 offender'),
 
+    # play-promote.yml's own barriers -- play_promote_workflow_test.dart (#44)
+    Mutation("promote", "the promote workflow also runs on push",
+             ".github/workflows/play-promote.yml",
+             sub(r"^on:\n  workflow_dispatch:", "on:\n  push:\n    branches: [main]\n  workflow_dispatch:", flags=re.M),
+             "a merge could start a promotion no person asked for",
+             'promote-trigger: play-promote.yml runs on more than workflow_dispatch'),
+    Mutation("promote", "production becomes a track choice",
+             ".github/workflows/play-promote.yml",
+             sub(r"options: \[internal, alpha, beta\]", "options: [internal, alpha, beta, production]"),
+             "the dispatch form would offer production",
+             'promote-options: production is offered as a track'),
+    Mutation("promote", "the promote step stops calling the script",
+             ".github/workflows/play-promote.yml",
+             sub(r"tools/play_promote\.sh \"\$PACKAGE\"", 'echo promoted "$PACKAGE"'),
+             "the script's own production refusal would be bypassed",
+             'promote-script: the promote step does not call tools/play_promote.sh'),
+
     # privacy policy -- privacy_policy_test.dart
     Mutation("docs", "the privacy policy names another package", "docs/privacy.md",
              sub(r"`com\.honestarcade\.chess`", "`com.honestarcade.solitaire`"),
