@@ -4,6 +4,7 @@ library;
 
 export 'attacks.dart';
 export 'clock.dart';
+export 'computer_player.dart';
 export 'evaluate.dart';
 export 'fen.dart';
 export 'game.dart';

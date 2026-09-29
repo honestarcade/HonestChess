@@ -758,6 +758,13 @@ MUTATIONS: list[Mutation] = [
                  "splitMixFinalise(splitMixIncrement)"),
              "every game at a step would play alike, whatever its seed",
              'strength-seed: the seed never changed'),
+
+    # computer player -- test/engine/computer_player_test.dart (#68)
+    Mutation("computer", "the search runs inline in the caller's isolate",
+             "lib/engine/computer_player.dart",
+             sub(r"worker\.port\.send\(message\);", "_onReply(_serve(message));"),
+             "the computer would think on the UI thread and freeze the app (invariant 4)",
+             'computer-isolate: the search ran in the calling isolate'),
 ]
 
 
