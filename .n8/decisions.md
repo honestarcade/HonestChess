@@ -447,3 +447,5 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** The CI `mutations` job's `timeout-minutes` is raised from 30 to 45 in `.github/workflows/ci.yml`.
   **Why:** The first M2 PR run (PR #126, job 109257466458, 2026-09-29) caught 108 of 109 mutations and was cancelled at 30 minutes, with the last one still running. The readiness pass pre-authorised exactly this edit (decisions entry 2026-09-28), and the job's own comment asks for it. At this rate M4/M5's added mutations may pass 45 minutes. If they do, the battery gets split across jobs, as that comment also offers.
   **Issue:** #69
+
+## /n8-exec M3 — 2026-09-29
