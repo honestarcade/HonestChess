@@ -177,15 +177,20 @@ class _HouseRules extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 9),
-          Text(
-            houseRulesText(takebackAllowed: takebackAllowed),
-            key: const Key('psetup-house-rules'),
-            style: const TextStyle(
-              fontFamily: Fonts.outfit,
-              fontWeight: FontWeight.w400,
-              fontSize: 11,
-              height: 1.5,
-              color: Palette.textMuted,
+          // Its own node, so a screen reader reads it after the
+          // heading (#147).
+          Semantics(
+            container: true,
+            child: Text(
+              houseRulesText(takebackAllowed: takebackAllowed),
+              key: const Key('psetup-house-rules'),
+              style: const TextStyle(
+                fontFamily: Fonts.outfit,
+                fontWeight: FontWeight.w400,
+                fontSize: 11,
+                height: 1.5,
+                color: Palette.textMuted,
+              ),
             ),
           ),
         ],

@@ -481,14 +481,19 @@ class _Section extends StatelessWidget {
           ),
           if (caption != null) ...[
             const SizedBox(height: 6),
-            Text(
-              caption,
-              style: const TextStyle(
-                fontFamily: Fonts.outfit,
-                fontWeight: FontWeight.w400,
-                fontSize: 10.5,
-                height: 1.35,
-                color: Palette.textMuted,
+            // Its own node, so a screen reader reads it after the
+            // heading (#147).
+            Semantics(
+              container: true,
+              child: Text(
+                caption,
+                style: const TextStyle(
+                  fontFamily: Fonts.outfit,
+                  fontWeight: FontWeight.w400,
+                  fontSize: 10.5,
+                  height: 1.35,
+                  color: Palette.textMuted,
+                ),
               ),
             ),
           ],

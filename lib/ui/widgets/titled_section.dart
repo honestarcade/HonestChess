@@ -41,14 +41,19 @@ class TitledSection extends StatelessWidget {
           ),
           if (intro != null) ...[
             const SizedBox(height: 6),
-            Text(
-              intro,
-              style: const TextStyle(
-                fontFamily: Fonts.outfit,
-                fontWeight: FontWeight.w400,
-                fontSize: 11,
-                height: 1.4,
-                color: Palette.textMuted,
+            // Its own node, so a screen reader reads it after the
+            // heading (#147).
+            Semantics(
+              container: true,
+              child: Text(
+                intro,
+                style: const TextStyle(
+                  fontFamily: Fonts.outfit,
+                  fontWeight: FontWeight.w400,
+                  fontSize: 11,
+                  height: 1.4,
+                  color: Palette.textMuted,
+                ),
               ),
             ),
           ],
