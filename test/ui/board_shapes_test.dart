@@ -176,7 +176,8 @@ void main() {
             .border!
             .top
             .color,
-        Palette.selectedRing,
+        shapeInk(BoardShape.selectedRing, onLight: true),
+        reason: 'board shapes: e4 is light, so its ring is the light ink',
       );
       expect(
         shapeLayer(tester, 'ring-selected-e4'),
@@ -226,7 +227,7 @@ void main() {
         expect(
           (tester.widget<CustomPaint>(mark).painter! as CornerMarkPainter)
               .colour,
-          light ? Palette.lastMoveMarkOnLight : Palette.lastMoveMarkOnDark,
+          shapeInk(BoardShape.lastMoveMark, onLight: light),
         );
         expect(
           shapeLayer(tester, 'mark-last-$name'),
@@ -368,6 +369,125 @@ void main() {
         BoardShape.selectedRing,
         BoardShape.checkBadge,
       });
+    });
+
+    // The tints each shape can be drawn over. A move's target is never the
+    // moving piece's own square and never a king, so a dot or a capture
+    // ring sits on no tint or on the last move's; a king in check may also
+    // be the selected piece.
+    const under = <BoardShape, List<SquareTint>>{
+      BoardShape.selectedRing: [SquareTint.selected],
+      BoardShape.lastMoveMark: [SquareTint.lastMove],
+      BoardShape.moveDot: [SquareTint.none, SquareTint.lastMove],
+      BoardShape.captureRing: [SquareTint.none, SquareTint.lastMove],
+      BoardShape.checkBadge: [SquareTint.check, SquareTint.selected],
+    };
+
+    // Dark squares keep the design's inks; these stay below 3:1 until
+    // #151 is decided. Each is "<theme> <shape> on <tint>".
+    const darkGaps = {
+      'navy selectedRing on selected',
+      'navy moveDot on lastMove',
+      'navy captureRing on none',
+      'navy captureRing on lastMove',
+      'teal selectedRing on selected',
+      'teal moveDot on none',
+      'teal moveDot on lastMove',
+      'teal captureRing on none',
+      'teal captureRing on lastMove',
+      'violet moveDot on lastMove',
+      'violet captureRing on lastMove',
+      'bone selectedRing on selected',
+      'bone lastMoveMark on lastMove',
+      'bone moveDot on none',
+      'bone moveDot on lastMove',
+      'bone captureRing on none',
+      'bone captureRing on lastMove',
+    };
+
+    /// [shape]'s ink over [square] under [tint], as a WCAG ratio.
+    double shown(BoardShape shape, Color square, SquareTint tint, bool light) {
+      final background = composite(tintColour(tint), square);
+      return contrastRatio(
+        composite(shapeInk(shape, onLight: light), background),
+        background,
+      );
+    }
+
+    test('every shape shows 3:1 against what it is drawn on', () {
+      expect(under.keys.toSet(), BoardShape.values.toSet());
+      for (final tint in SquareTint.values) {
+        for (final shape in shapesFor(tint, SquareMark.none, inCheck: false)) {
+          expect(
+            under[shape],
+            contains(tint),
+            reason: 'board shapes: $shape is drawn over the $tint tint',
+          );
+        }
+      }
+      // The badge's "!" is white on its circle whatever the circle's
+      // contrast with the square.
+      final glyph = contrastRatio(
+        composite(Palette.checkBadgeInk, Palette.danger),
+        Palette.danger,
+      );
+      final low = <String>[];
+      final gapsRead = <String>[];
+      for (final theme in BoardTheme.values) {
+        for (final light in [true, false]) {
+          final square = light ? theme.light : theme.dark;
+          for (final MapEntry(key: shape, value: tints) in under.entries) {
+            for (final tint in tints) {
+              final ratio = shown(shape, square, tint, light);
+              final reads =
+                  ratio >= nonTextRatio ||
+                  (shape == BoardShape.checkBadge && glyph >= normalTextRatio);
+              final name = '${theme.name} ${shape.name} on ${tint.name}';
+              final gap = !light && darkGaps.contains(name);
+              if (!reads && !gap) {
+                low.add(
+                  '$name, ${light ? 'light' : 'dark'} square: '
+                  '${ratio.toStringAsFixed(2)}:1',
+                );
+              }
+              if (reads && gap) gapsRead.add(name);
+            }
+          }
+        }
+      }
+      expect(
+        low,
+        isEmpty,
+        reason:
+            'board shapes: a shape below 3:1 in greyscale\n  '
+            '${low.join('\n  ')}',
+      );
+      expect(
+        gapsRead,
+        isEmpty,
+        reason: 'board shapes: a listed dark-square gap now reads; unlist it',
+      );
+    });
+
+    test('the light-square ink is the nearest passing shade of teal', () {
+      final targets = <ContrastTarget>[
+        for (final theme in BoardTheme.values)
+          for (final MapEntry(key: shape, value: tints) in under.entries)
+            if (shape != BoardShape.checkBadge)
+              for (final tint in tints)
+                (
+                  background: composite(tintColour(tint), theme.light),
+                  minRatio: nonTextRatio,
+                  opacity: 1,
+                ),
+      ];
+      expect(
+        Palette.markInkOnLight,
+        shiftLightness(Palette.teal, targets, lighter: false),
+        reason:
+            'board shapes: markInkOnLight is teal darkened just to 3:1 on '
+            'every light square',
+      );
     });
 
     testWidgets('the painted shapes on the board match, state by state', (

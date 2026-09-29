@@ -51,6 +51,26 @@ Set<BoardShape> shapesFor(
   if (inCheck) BoardShape.checkBadge,
 };
 
+/// The fill laid over a square with [tint], under its shapes.
+Color tintColour(SquareTint tint) => switch (tint) {
+  SquareTint.selected => Palette.selectedTint,
+  SquareTint.check => Palette.checkTint,
+  SquareTint.lastMove => Palette.lastMoveTint,
+  SquareTint.none => const Color(0x00000000),
+};
+
+/// The colour [shape] is drawn in on a light square when [onLight], else
+/// on a dark one. The check badge's is its circle; its "!" is
+/// [Palette.checkBadgeInk].
+Color shapeInk(BoardShape shape, {required bool onLight}) => switch (shape) {
+  BoardShape.checkBadge => Palette.danger,
+  _ when onLight => Palette.markInkOnLight,
+  BoardShape.selectedRing => Palette.selectedRing,
+  BoardShape.lastMoveMark => Palette.lastMoveMarkOnDark,
+  BoardShape.moveDot => Palette.moveDot,
+  BoardShape.captureRing => Palette.captureRing,
+};
+
 /// The last move's corner mark: a right triangle whose legs lie along the
 /// square's left and bottom edges.
 class CornerMarkPainter extends CustomPainter {
@@ -241,7 +261,7 @@ class _BoardInteractionState extends State<BoardInteraction>
       if (tint != SquareTint.none)
         Positioned.fill(
           key: const ValueKey(#tint),
-          child: ColoredBox(key: Key('tint-$name'), color: _tintColour(tint)),
+          child: ColoredBox(key: Key('tint-$name'), color: tintColour(tint)),
         ),
       if (shapes.contains(BoardShape.lastMoveMark))
         Positioned(
@@ -253,9 +273,7 @@ class _BoardInteractionState extends State<BoardInteraction>
               key: Key('mark-last-$name'),
               size: Size.square(lastMoveMarkSize * scale),
               painter: CornerMarkPainter(
-                square.isLight
-                    ? Palette.lastMoveMarkOnLight
-                    : Palette.lastMoveMarkOnDark,
+                shapeInk(BoardShape.lastMoveMark, onLight: square.isLight),
               ),
             ),
           ),
@@ -266,7 +284,7 @@ class _BoardInteractionState extends State<BoardInteraction>
           child: _shape(
             _ring(
               'ring-capture-$name',
-              Palette.captureRing,
+              shapeInk(BoardShape.captureRing, onLight: square.isLight),
               captureRingWidth * scale,
             ),
           ),
@@ -278,9 +296,9 @@ class _BoardInteractionState extends State<BoardInteraction>
             SizedBox.square(
               key: Key('dot-$name'),
               dimension: dot,
-              child: const DecoratedBox(
+              child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: Palette.moveDot,
+                  color: shapeInk(BoardShape.moveDot, onLight: square.isLight),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -292,7 +310,7 @@ class _BoardInteractionState extends State<BoardInteraction>
           key: const ValueKey(#checkBadge),
           top: 0,
           right: 0,
-          child: _shape(_checkBadge(name, side)),
+          child: _shape(_checkBadge(square, side)),
         ),
     ];
   }
@@ -309,7 +327,7 @@ class _BoardInteractionState extends State<BoardInteraction>
       _shape(
         _ring(
           'ring-selected-${square.name}',
-          Palette.selectedRing,
+          shapeInk(BoardShape.selectedRing, onLight: square.isLight),
           selectedRingWidth * scale,
         ),
         key: const ValueKey(#selectedRing),
@@ -329,14 +347,14 @@ class _BoardInteractionState extends State<BoardInteraction>
     child: IgnorePointer(child: child),
   );
 
-  static Widget _checkBadge(String name, double side) {
+  static Widget _checkBadge(Square square, double side) {
     final diameter = side * checkBadgeDiameter;
     return SizedBox.square(
-      key: Key('badge-check-$name'),
+      key: Key('badge-check-${square.name}'),
       dimension: diameter,
       child: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: Palette.danger,
+        decoration: BoxDecoration(
+          color: shapeInk(BoardShape.checkBadge, onLight: square.isLight),
           shape: BoxShape.circle,
         ),
         child: Center(
@@ -355,13 +373,6 @@ class _BoardInteractionState extends State<BoardInteraction>
       ),
     );
   }
-
-  static Color _tintColour(SquareTint tint) => switch (tint) {
-    SquareTint.selected => Palette.selectedTint,
-    SquareTint.check => Palette.checkTint,
-    SquareTint.lastMove => Palette.lastMoveTint,
-    SquareTint.none => const Color(0x00000000),
-  };
 
   /// A CSS inset box-shadow ring: a border drawn inside the square.
   static Widget _ring(String key, Color colour, double width) => DecoratedBox(

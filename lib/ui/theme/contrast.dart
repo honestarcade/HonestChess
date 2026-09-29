@@ -17,6 +17,9 @@ const double normalTextRatio = 4.5;
 /// Large text (18 dp and up, or bold at 14 dp and up): WCAG 2.x AA.
 const double largeTextRatio = 3.0;
 
+/// A non-text mark against what it is drawn on: WCAG 2.x 1.4.11.
+const double nonTextRatio = 3.0;
+
 /// A board's light square against its dark square: the brand sheet's
 /// promise for every board pair.
 const double boardPairRatio = 4.0;

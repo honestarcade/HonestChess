@@ -166,7 +166,11 @@ void main() {
         find.byKey(const Key('ring-capture-f7')),
       );
       final side = (ring.decoration as BoxDecoration).border!.top;
-      expect(side.color, Palette.captureRing);
+      expect(
+        side.color,
+        shapeInk(BoardShape.captureRing, onLight: true),
+        reason: 'ring: f7 is light, so its ring is the light ink',
+      );
       final dot = tester.getSize(find.byKey(const Key('dot-h6')));
       expect(dot, const Size(14, 14), reason: 'dot: round(46 × 0.3)');
     });
