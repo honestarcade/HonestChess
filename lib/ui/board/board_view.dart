@@ -272,6 +272,8 @@ class BoardView extends StatelessWidget {
 /// One piece as the board draws it: [piece]'s glyph in [style] at
 /// [fontSize], in its side's colour with the design's outline or halo,
 /// whose widths scale by [scale]. [textKey] keys the glyph's [Text].
+/// [colour] and [shadows] replace the side's ink and outline, for a sample
+/// drawn off the board (Settings' piece styles).
 class PieceGlyph extends StatelessWidget {
   const PieceGlyph({
     super.key,
@@ -280,6 +282,8 @@ class PieceGlyph extends StatelessWidget {
     required this.fontSize,
     this.scale = 1,
     this.textKey,
+    this.colour,
+    this.shadows,
   });
 
   final Piece piece;
@@ -287,6 +291,8 @@ class PieceGlyph extends StatelessWidget {
   final double fontSize;
   final double scale;
   final Key? textKey;
+  final Color? colour;
+  final List<Shadow>? shadows;
 
   @override
   Widget build(BuildContext context) {
@@ -306,8 +312,9 @@ class PieceGlyph extends StatelessWidget {
           fontWeight: flat ? FontWeight.w600 : FontWeight.w400,
           fontSize: fontSize,
           height: 1,
-          color: white ? Palette.pieceWhite : Palette.pieceBlack,
-          shadows: white ? _whiteShadows(scale) : _blackShadows(scale),
+          color: colour ?? (white ? Palette.pieceWhite : Palette.pieceBlack),
+          shadows:
+              shadows ?? (white ? _whiteShadows(scale) : _blackShadows(scale)),
         ),
       ),
     );

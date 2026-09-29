@@ -1,7 +1,7 @@
-// The tool row under the board (#76): Takeback, Restart, Resign and New,
-// and New's temporary picker. The complements: a disabled tool does
-// nothing when tapped, a cancelled picker leaves the game as it was, and a
-// tool glyph is never left to a font the app does not bundle.
+// The tool row under the board (#76): Takeback, Restart, Resign and New.
+// The complements: a disabled tool does nothing when tapped, and a tool
+// glyph is never left to a font the app does not bundle. New's setup
+// screens are tested in test/ui/game_cards_navigation_test.dart (#92).
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -14,11 +14,10 @@ import 'package:honest_chess/ui/game/tool_row.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
 import '../../flutter_test_config.dart';
-import '../board/board_interaction_test.dart' show centre, dragTo, tap;
+import '../board/board_interaction_test.dart' show tap;
 import '../piece_font_test.dart' show cmapCodePoints;
 import 'computer_turns_test.dart' show asWhite, moves, pumpVs;
-import 'fake_computer.dart';
-import 'player_panel_test.dart' show FakeClock, clockOf, play, pumpGame, text;
+import 'player_panel_test.dart' show clockOf, play, pumpGame, text;
 
 Future<void> press(WidgetTester tester, Tool tool) async {
   await tester.tap(find.byKey(tool.key));
@@ -33,25 +32,6 @@ double opacity(WidgetTester tester, Tool tool) => tester
       find.ancestor(of: find.byKey(tool.key), matching: find.byType(Opacity)),
     )
     .opacity;
-
-/// Waits out the picker's entry or exit: the frame that starts it, its
-/// length, and the frame that removes it.
-Future<void> sheetMotion(WidgetTester tester, FakeClock clock) async {
-  await tester.pump();
-  await clock.advance(const Duration(milliseconds: 400));
-  await tester.pump();
-}
-
-/// Opens New's picker.
-Future<void> openPicker(WidgetTester tester, FakeClock clock) async {
-  await press(tester, Tool.newGame);
-  await sheetMotion(tester, clock);
-}
-
-Future<void> choose(WidgetTester tester, FakeClock clock, String key) async {
-  await tester.tap(find.byKey(Key(key)));
-  await sheetMotion(tester, clock);
-}
 
 void main() {
   group('the row', () {
@@ -341,125 +321,6 @@ void main() {
         const Win(Colour.black, GameEndReason.resignation),
       );
       expect(fakes.current.cancels, 1, reason: 'resign: search cancelled');
-    });
-  });
-
-  group('new', () {
-    testWidgets('the picker offers the two default games', (tester) async {
-      final h = await pumpGame(tester);
-      await openPicker(tester, h.clock);
-      expect(find.text('New game'), findsOneWidget);
-      expect(find.text('vs Computer'), findsOneWidget);
-      expect(find.text('CLUB · WHITE · RAPID 10+5'), findsOneWidget);
-      expect(find.text('Two players'), findsOneWidget);
-      expect(find.text('RAPID 10+5'), findsOneWidget);
-      expect(
-        find.bySemanticsLabel('vs Computer — Club · White · Rapid 10+5'),
-        findsOneWidget,
-      );
-      expect(find.bySemanticsLabel('Two players — Rapid 10+5'), findsOneWidget);
-    });
-
-    testWidgets('cancelling the picker changes nothing', (tester) async {
-      final h = await pumpGame(tester);
-      await play(tester, h.controller, 'e2e4');
-      await tap(tester, 'e7');
-      final before = h.controller.game;
-      await openPicker(tester, h.clock);
-      await tester.tapAt(const Offset(195, 60));
-      await sheetMotion(tester, h.clock);
-      expect(find.text('New game'), findsNothing, reason: 'picker: closed');
-      expect(identical(h.controller.game, before), isTrue);
-      expect(h.controller.state.selection, Square.parse('e7'));
-      await openPicker(tester, h.clock);
-      await tester.binding.handlePopRoute();
-      await sheetMotion(tester, h.clock);
-      expect(find.text('New game'), findsNothing, reason: 'picker: back');
-      expect(identical(h.controller.game, before), isTrue);
-    });
-
-    testWidgets('the clocks keep running while the picker is open', (
-      tester,
-    ) async {
-      final h = await pumpGame(tester, timeControl: Timed.rapid);
-      await play(tester, h.controller, 'e2e4');
-      await openPicker(tester, h.clock);
-      await h.clock.advance(const Duration(seconds: 5));
-      expect(
-        h.controller.remaining(Colour.black),
-        lessThan(const Duration(minutes: 10) - const Duration(seconds: 5)),
-      );
-    });
-
-    testWidgets('a game ending while the picker is open leaves it open', (
-      tester,
-    ) async {
-      final h = await pumpGame(tester, timeControl: Timed(1, 0));
-      await play(tester, h.controller, 'e2e4');
-      await openPicker(tester, h.clock);
-      await h.clock.advance(const Duration(minutes: 1));
-      await tester.pump();
-      expect(h.controller.state.over, isTrue, reason: 'test: black flagged');
-      expect(find.text('New game'), findsOneWidget, reason: 'picker: stays');
-      await choose(tester, h.clock, 'new-two-players');
-      expect(h.controller.state.over, isFalse, reason: 'new: a fresh game');
-    });
-
-    testWidgets('vs Computer starts Club, you White, Rapid 10+5', (
-      tester,
-    ) async {
-      final fakes = FakeComputers();
-      final h = await pumpGame(tester, computer: fakes);
-      await play(tester, h.controller, 'e2e4');
-      await openPicker(tester, h.clock);
-      await choose(tester, h.clock, 'new-vs-computer');
-      final c = h.controller;
-      final mode = c.game.mode as VsComputer;
-      expect((mode.playerColour, mode.step), (Colour.white, Strength.club));
-      expect(c.game.clock.control, Timed.rapid);
-      expect(moves(c), isEmpty);
-      expect(fakes.built, hasLength(1), reason: 'new: its own computer');
-      expect(fakes.current.seed, mode.seed);
-      expect(find.text('❚❚ vs Club'), findsOneWidget);
-      expect(text(tester, 'name-white'), 'You');
-      expect(text(tester, 'name-black'), 'Club');
-      expect(text(tester, 'sub-black'), 'COMPUTER · BLACK · RAPID 10+5');
-      await play(tester, c, 'd2d4');
-      fakes.current.last.move('d7d5');
-      await h.clock.advance(minThinkTime);
-      expect(moves(c), ['d2d4', 'd7d5'], reason: 'new: the computer answers');
-    });
-
-    testWidgets('Two players starts Rapid 10+5, fully playable', (
-      tester,
-    ) async {
-      final (h, fakes) = await pumpVs(tester, timeControl: const Untimed());
-      final c = h.controller;
-      await play(tester, c, 'e2e4');
-      await openPicker(tester, h.clock);
-      await choose(tester, h.clock, 'new-two-players');
-      expect(fakes.built.single.disposed, isTrue, reason: 'new: old computer');
-      expect(c.game.mode, const TwoPlayer());
-      expect(c.game.clock.control, Timed.rapid);
-      expect(find.text('❚❚ Two players'), findsOneWidget);
-      expect(text(tester, 'name-white'), 'White');
-      expect(text(tester, 'name-black'), 'Black');
-      expect(text(tester, 'sub-black'), 'PLAYER TWO · BLACK · RAPID 10+5');
-      expect(c.options.rotateEachTurn, isFalse, reason: 'new: rotate off');
-
-      // White by tap, Black by drag, and each side's clock runs in turn.
-      await tap(tester, 'e2');
-      await tap(tester, 'e4');
-      await h.clock.advance(const Duration(seconds: 4));
-      await dragTo(tester, 'e7', centre(tester, 'e5'));
-      await h.clock.advance(const Duration(seconds: 2));
-      await tap(tester, 'g1');
-      await tap(tester, 'f3');
-      expect(moves(c), ['e2e4', 'e7e5', 'g1f3']);
-      expect(c.remaining(Colour.black), isNot(const Duration(minutes: 10)));
-      expect(c.remaining(Colour.white), isNot(const Duration(minutes: 10)));
-      expect(c.clockRunning(Colour.black), isTrue);
-      expect(fakes.built, hasLength(1), reason: 'new: no computer here');
     });
   });
 }

@@ -1,36 +1,34 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:honest_chess/engine/engine.dart';
-import 'package:honest_chess/ui/board/board_options.dart';
+import 'package:honest_chess/data/app_loader.dart';
+import 'package:honest_chess/data/app_store.dart';
+import 'package:honest_chess/data/game_saves.dart';
+import 'package:honest_chess/data/settings_store.dart';
+import 'package:honest_chess/data/stats.dart';
+import 'package:honest_chess/data/stats_listener.dart';
+import 'package:honest_chess/platform/platform_channel.dart';
+import 'package:honest_chess/ui/app_scope.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
-import 'package:honest_chess/ui/game/defaults.dart';
-import 'package:honest_chess/ui/game/game_screen.dart';
+import 'package:honest_chess/ui/game/game_controller.dart';
+import 'package:honest_chess/ui/navigation.dart';
+import 'package:honest_chess/ui/screens/menu_screen.dart';
+import 'package:honest_chess/ui/screens/splash_screen.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
-// The launcher-icon guard reads this literal here; Palette.navy is the same
-// colour for everything else.
+// The launcher-icon guard reads this literal here; Palette.screenBg is the
+// same colour for everything else.
 const _navy = Color(0xFF05285F);
 
-/// Starts the app on a game against the computer. [strength] and [seed]
-/// replace the first game's step and seed, for the device test only.
-void main({Strength? strength, int? seed}) {
+/// Starts the app on the splash, then the menu. [seed] is every new game's computer seed
+/// and [store] replaces the device store, for the device test only: its
+/// memory store never shows a leftover saved game.
+void main({int? seed, AppStore? store}) {
   registerFontLicences();
-  runApp(
-    HonestChessApp(
-      firstGame: strength == null
-          ? vsComputerDefault
-          : (
-              mode: GameKind.vsComputer,
-              strength: strength,
-              colour: vsComputerDefault.colour,
-              timeControl: vsComputerDefault.timeControl,
-              rotate: false,
-            ),
-      seed: seed,
-    ),
-  );
+  runApp(HonestChessApp(seedOverride: seed, store: store));
 }
 
 /// The bundled fonts' OFL texts (assets/fonts/SOURCE.md), each shown on the
@@ -51,46 +49,161 @@ void registerFontLicences() {
   });
 }
 
-/// The app root. It holds the board options in memory with the design's
-/// defaults until M4's Settings saves them, and opens on [firstGame].
+/// The app's theme, shared by the root and test/support/app_harness.dart.
+ThemeData appTheme() => ThemeData(
+  brightness: Brightness.dark,
+  scaffoldBackgroundColor: _navy,
+  fontFamily: Fonts.outfit,
+);
+
+/// The app root. It owns the store, the settings, the statistics, the
+/// saved games and the game controller, and loads the saved data at launch
+/// behind the splash, which then hands over to the menu.
 class HonestChessApp extends StatefulWidget {
   const HonestChessApp({
     super.key,
     this.computerFactory = ComputerPlayerOpponent.new,
-    this.firstGame = vsComputerDefault,
-    this.seed,
+    this.seedOverride,
+    this.store,
+    this.platform,
+    this.skipSplash = false,
   });
+
+  /// The device store; null builds the production one over [platform].
+  final AppStore? store;
+
+  /// The Android bridge; null builds the production channel.
+  final PlatformChannel? platform;
 
   /// Builds the computer for each game against it; tests pass a fake.
   final ComputerFactory computerFactory;
 
-  final GameSetup firstGame;
+  /// Every new game's computer seed, so the seed saved is the one played;
+  /// fresh per game when null. For tests.
+  final int? seedOverride;
 
-  /// The first game's computer seed; fresh when null.
-  final int? seed;
+  /// For tests: load behind a plain navy frame and open straight on the
+  /// menu once loaded, with no splash, floor, hold or fade.
+  final bool skipSplash;
 
   @override
   State<HonestChessApp> createState() => HonestChessAppState();
 }
 
 class HonestChessAppState extends State<HonestChessApp> {
-  BoardOptions boardOptions = const BoardOptions();
+  /// The board options and setup choices; every change to the board options
+  /// reaches the controller and the board at once.
+  final settings = SettingsStore();
+
+  /// The navigating flag, observing the app's one navigator.
+  final navigation = NavigationGuard();
+
+  /// Random's colour is drawn from the platform's secure source.
+  final random = Random.secure();
+
+  /// Built once, never rebuilt: a test injecting only a platform gets a
+  /// store resolved through it.
+  late final PlatformChannel platform;
+  late final AppStore store;
+  late final GameController controller;
+  late final GameSaves saves;
+  late final StatsRecorder stats;
+  late final StatsListener _statsListener;
+  late final AppLoader _loader;
+
+  /// Leaving the app pauses the live game, whose pause is saved, and then
+  /// waits for the store to write it.
+  late final AppLifecycleListener _lifecycle;
+
+  /// Whether the launch load has finished; only [HonestChessApp.skipSplash]
+  /// waits for it before building the app.
+  bool _launched = false;
+
+  @override
+  void initState() {
+    super.initState();
+    platform = widget.platform ?? MethodChannelPlatform();
+    store = widget.store ?? AppStore.onDevice(platform);
+    controller = GameController.idle(
+      computerFactory: widget.computerFactory,
+      options: settings.board.value,
+      seed: widget.seedOverride,
+    );
+    settings.board.addListener(_boardChanged);
+    saves = GameSaves(store)..attach(controller.events);
+    stats = StatsRecorder(store: store);
+    // Before the launch load, so a finished game found there is counted.
+    _statsListener = StatsListener(
+      controller: controller,
+      recorder: stats,
+      saves: saves,
+    );
+    _lifecycle = AppLifecycleListener(onStateChange: _left);
+    _loader = AppLoader(
+      store: store,
+      settings: settings,
+      stats: stats,
+      saves: saves,
+    )..start();
+    _loader.done.then((_) {
+      if (mounted) setState(() => _launched = true);
+    });
+  }
+
+  void _boardChanged() => controller.options = settings.board.value;
+
+  Future<void> _left(AppLifecycleState state) async {
+    if (state != AppLifecycleState.inactive &&
+        state != AppLifecycleState.hidden) {
+      return;
+    }
+    // A clock already at zero ends the game on time rather than being
+    // saved at 0:00.
+    controller.checkFlag();
+    controller.autoPause();
+    await saves.flush();
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    _loader.dispose();
+    _statsListener.dispose();
+    stats.dispose();
+    saves.dispose();
+    settings.board.removeListener(_boardChanged);
+    settings.dispose();
+    controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Honest Chess',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: _navy,
-        fontFamily: Fonts.outfit,
-      ),
-      home: GameScreen(
-        options: boardOptions,
-        setup: widget.firstGame,
-        seed: widget.seed,
-        computerFactory: widget.computerFactory,
+    // Without the splash, a plain navy frame while the launch load runs.
+    if (widget.skipSplash && !_launched) return const ColoredBox(color: _navy);
+    return AppScope(
+      store: store,
+      platform: platform,
+      controller: controller,
+      saves: saves,
+      stats: stats,
+      settings: settings,
+      navigation: navigation,
+      random: random,
+      child: MaterialApp(
+        title: 'Honest Chess',
+        navigatorObservers: [navigation],
+        debugShowCheckedModeBanner: false,
+        theme: appTheme(),
+        // One system-bar style for every route; screens set none of their
+        // own.
+        builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+          value: appOverlayStyle,
+          child: child ?? const SizedBox.shrink(),
+        ),
+        home: widget.skipSplash
+            ? const MenuScreen()
+            : SplashScreen(loader: _loader),
       ),
     );
   }

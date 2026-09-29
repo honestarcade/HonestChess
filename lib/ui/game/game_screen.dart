@@ -1,13 +1,18 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:honest_chess/data/play_mode.dart';
+import 'package:honest_chess/data/recorded_state.dart';
+import 'package:honest_chess/data/stats.dart' show isAbandonable;
 import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_interaction.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/board/board_view.dart' show boardMargin;
 import 'package:honest_chess/ui/board/orientation.dart';
+import 'package:honest_chess/ui/app_scope.dart';
 import 'package:honest_chess/ui/board/promotion_sheet.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/defaults.dart';
@@ -16,8 +21,9 @@ import 'package:honest_chess/ui/game/labels.dart';
 import 'package:honest_chess/ui/game/pause_overlay.dart';
 import 'package:honest_chess/ui/game/player_panel.dart';
 import 'package:honest_chess/ui/game/result_overlay.dart';
-import 'package:honest_chess/ui/game/temporary_new_game.dart';
 import 'package:honest_chess/ui/game/tool_row.dart';
+import 'package:honest_chess/ui/navigation.dart';
+import 'package:honest_chess/ui/screens/how_to_play_screen.dart' show HowToTab;
 import 'package:honest_chess/ui/theme/palette.dart';
 
 /// The top bar's height.
@@ -51,6 +57,12 @@ String statusText(
   };
 }
 
+/// What Restart says when the game it replaced counted as a loss.
+const String restartLossText = 'Your previous game counted as a loss.';
+
+/// How long [restartLossText] shows.
+const Duration restartLossShown = Duration(seconds: 3);
+
 /// The pause pill's title: "vs Club", or "Two players".
 String gameTitle(GameMode mode) => switch (mode) {
   VsComputer(:final step) => 'vs ${step.label}',
@@ -59,6 +71,15 @@ String gameTitle(GameMode mode) => switch (mode) {
 
 /// The play screen: the top bar, the two player panels with their clocks
 /// and the playable board between them, over the design's radial gradient.
+///
+/// Android's back never leaves it by itself: on a live game it opens the
+/// pause card — or cancels an open promotion, or waits while the computer
+/// answers a draw offer — and on the pause card it resumes; on a finished
+/// game it shows a result card still waiting to appear, then does what
+/// View board does, and from the final position goes to the menu through
+/// `leaveToMenu`. While the app's navigating flag is set it does nothing.
+/// The screen reads the app's `AppScope` whenever a button or back leads
+/// off the board.
 class GameScreen extends StatefulWidget {
   const GameScreen({
     super.key,
@@ -76,7 +97,7 @@ class GameScreen extends StatefulWidget {
   final String? fen;
 
   /// A game to show instead of a new one from [setup]; its owner disposes
-  /// it.
+  /// it. While it is idle the screen is a plain navy frame.
   final GameController? controller;
 
   /// The game the screen starts; an untimed two-player game when null.
@@ -100,22 +121,38 @@ class GameScreenState extends State<GameScreen> {
   /// game; coming back leaves it paused.
   late final AppLifecycleListener _lifecycle;
 
-  /// Whether the new-game picker is open over the screen.
-  bool _picking = false;
+  late bool _idle = controller.isIdle;
+
+  final _result = GlobalKey<ResultOverlayState>();
+
+  /// Set once Main menu, or back from the final position, starts leaving
+  /// for the menu: from then on the screen takes no touches.
+  bool _leaving = false;
+
+  /// Whether [restartLossText] shows, and what hides it.
+  bool _lossShown = false;
+  Timer? _lossTimer;
 
   @override
   void initState() {
     super.initState();
     _lifecycle = AppLifecycleListener(onStateChange: _left);
+    controller.addListener(_idleChanged);
   }
 
+  void _idleChanged() {
+    if (_idle != controller.isIdle) setState(() => _idle = controller.isIdle);
+  }
+
+  /// The app root does the same and then saves; both are safe to run, in
+  /// either order, since a second pause changes nothing.
   void _left(AppLifecycleState state) {
     if (state != AppLifecycleState.inactive &&
         state != AppLifecycleState.hidden) {
       return;
     }
+    controller.checkFlag();
     controller.autoPause();
-    if (controller.state.paused) _closePicker();
   }
 
   GameController _newGame() {
@@ -136,31 +173,84 @@ class GameScreenState extends State<GameScreen> {
     );
   }
 
-  /// New's action until M4's setup screens: the temporary picker, and the
-  /// chosen game. Closing the picker without a choice changes nothing.
-  Future<void> _pickNewGame() async {
-    _picking = true;
-    final GameSetup? setup;
-    try {
-      setup = await TemporaryNewGamePicker.show(context);
-    } finally {
-      _picking = false;
+  bool get _navigating => AppScope.of(context).navigation.busy;
+
+  /// Android's back, as the class describes.
+  void _back() {
+    if (_leaving || _navigating) return;
+    if (controller.isIdle) {
+      _leave();
+      return;
     }
-    if (setup == null || !mounted) return;
-    controller.newGame(setup, seed: widget.seed);
+    final state = controller.state;
+    if (state.over) {
+      if (state.resultView == ResultView.board) {
+        _leave();
+      } else if (!(_result.currentState?.showNow() ?? false)) {
+        controller.viewBoard();
+      }
+    } else if (state.pendingPromotion != null) {
+      controller.cancelPromotion();
+    } else if (state.drawAsking) {
+      return;
+    } else if (state.paused) {
+      controller.resume();
+    } else {
+      controller.pause();
+    }
   }
 
-  /// The pause pill: pauses the game and opens the pause card.
-  void _pause() {
-    if (controller.pause()) _closePicker();
+  /// Main menu, and back from the final position.
+  Future<void> _leave() async {
+    if (_leaving || _navigating) return;
+    setState(() => _leaving = true);
+    final left = await leaveToMenu(context);
+    if (!left && mounted) setState(() => _leaving = false);
   }
 
-  /// A pause closes the new-game picker with nothing chosen, as it closes
-  /// the promotion card.
-  void _closePicker() {
-    if (!_picking || !mounted) return;
-    final screen = ModalRoute.of(context);
-    Navigator.of(context).popUntil((route) => route == screen);
+  /// A pause card button opening [open]'s screen over the board: the card,
+  /// cleared of a declined draw's message, is there on return.
+  void _fromPause(Future<bool> Function(BuildContext) open) {
+    if (_leaving || _navigating) return;
+    controller.keepPaused();
+    open(context).ignore();
+  }
+
+  void _seeStatistics() {
+    if (_leaving || _navigating || controller.isIdle) return;
+    openStats(context, openOn: PlayMode.of(controller.game.mode)).ignore();
+  }
+
+  /// New: the setup screen for this game's kind, the game paused first —
+  /// or, once it is over, its result card shown, so either card is there
+  /// on return.
+  void _new() {
+    if (_leaving || _navigating) return;
+    final game = controller.game;
+    if (game.isOver) {
+      if (!(_result.currentState?.showNow() ?? false)) {
+        controller.showResult();
+      }
+    } else {
+      controller.pause();
+    }
+    openSetup(context, PlayMode.of(game.mode)).ignore();
+  }
+
+  /// Restart, saying so for [restartLossShown] when the game it replaced
+  /// counted as a loss.
+  Future<void> _restart() async {
+    final game = controller.game;
+    final loss = isAbandonable(
+      game,
+      RecordedState.fromJson(controller.recorded, game),
+    );
+    if (!await controller.restart() || !loss || !mounted) return;
+    _lossTimer?.cancel();
+    _lossTimer = Timer(restartLossShown, () {
+      if (mounted) setState(() => _lossShown = false);
+    });
+    setState(() => _lossShown = true);
   }
 
   @override
@@ -172,19 +262,34 @@ class GameScreenState extends State<GameScreen> {
   @override
   void dispose() {
     _lifecycle.dispose();
+    _lossTimer?.cancel();
+    controller.removeListener(_idleChanged);
     if (widget.controller == null) controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _back();
+      },
+      child: IgnorePointer(
+        ignoring: _leaving,
+        child: _idle ? const ColoredBox(color: Palette.screenBg) : _screen(),
+      ),
+    );
+  }
+
+  Widget _screen() {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
         statusBarColor: Colors.transparent,
-        systemNavigationBarColor: Palette.navy,
+        systemNavigationBarColor: Palette.screenBg,
       ),
       child: Scaffold(
-        backgroundColor: Palette.navy,
+        backgroundColor: Palette.screenBg,
         body: DecoratedBox(
           decoration: const BoxDecoration(gradient: _screenGradient),
           child: SafeArea(
@@ -199,7 +304,8 @@ class GameScreenState extends State<GameScreen> {
                     Expanded(
                       child: _PanelsAndBoard(
                         controller: controller,
-                        onNew: _pickNewGame,
+                        onNew: _new,
+                        onRestart: () => _restart().ignore(),
                       ),
                     ),
                   ],
@@ -210,10 +316,32 @@ class GameScreenState extends State<GameScreen> {
                   right: 0,
                   top: 0,
                   height: topBarHeight,
-                  child: _TopBar(controller: controller, onPause: _pause),
+                  child: _TopBar(
+                    controller: controller,
+                    onPause: controller.pause,
+                  ),
                 ),
-                PauseOverlay(controller: controller),
-                ResultOverlay(controller: controller),
+                if (_lossShown)
+                  const Positioned(
+                    left: boardMargin,
+                    right: boardMargin,
+                    top: topBarHeight + barGap,
+                    child: _LossNotice(),
+                  ),
+                PauseOverlay(
+                  controller: controller,
+                  onRules: () => _fromPause(
+                    (context) => openHowTo(context, initialTab: HowToTab.rules),
+                  ),
+                  onSettings: () => _fromPause(openSettings),
+                  onMainMenu: _leave,
+                ),
+                ResultOverlay(
+                  key: _result,
+                  controller: controller,
+                  onSeeStatistics: _seeStatistics,
+                  onMainMenu: _leave,
+                ),
               ],
             ),
           ),
@@ -228,7 +356,7 @@ class GameScreenState extends State<GameScreen> {
 const _screenGradient = RadialGradient(
   center: Alignment.topCenter,
   radius: 1.2,
-  colors: [Palette.navyLight, Palette.navy, Palette.navyDeep],
+  colors: [Palette.gradientInner, Palette.screenBg, Palette.gradientOuter],
   stops: [0, 0.52, 1],
   transform: _Ellipse(),
 );
@@ -276,12 +404,12 @@ class _TopBar extends StatelessWidget {
         );
         final (fill, ink) = switch (game.status) {
           _ when game.isOver => (Palette.statusOverFill, Palette.teal),
-          _ when failed => (Palette.statusCheckFill, Palette.alarm),
+          _ when failed => (Palette.statusCheckFill, Palette.dangerText),
           Ongoing(inCheck: true) when !state.thinking => (
             Palette.statusCheckFill,
-            Palette.alarm,
+            Palette.dangerText,
           ),
-          _ => (Palette.statusFill, Palette.choiceLabel),
+          _ => (Palette.statusFill, Palette.textBody),
         };
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -373,10 +501,15 @@ class _TopBar extends StatelessWidget {
 /// The opponent's panel, the board and your panel, top to bottom, each
 /// following the board's orientation, then the tool row.
 class _PanelsAndBoard extends StatelessWidget {
-  const _PanelsAndBoard({required this.controller, required this.onNew});
+  const _PanelsAndBoard({
+    required this.controller,
+    required this.onNew,
+    required this.onRestart,
+  });
 
   final GameController controller;
   final VoidCallback onNew;
+  final VoidCallback onRestart;
 
   @override
   Widget build(BuildContext context) {
@@ -419,12 +552,52 @@ class _PanelsAndBoard extends StatelessWidget {
                 SizedBox(height: gap),
                 panel(bottom),
                 SizedBox(height: gap),
-                ToolRow(controller: controller, onNew: onNew),
+                ToolRow(
+                  controller: controller,
+                  onNew: onNew,
+                  onRestart: onRestart,
+                ),
               ],
             );
           },
         );
       },
+    );
+  }
+}
+
+/// [restartLossText] in a card over the opponent's panel, read out as it
+/// appears; it takes no touches.
+class _LossNotice extends StatelessWidget {
+  const _LossNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Semantics(
+        liveRegion: true,
+        container: true,
+        child: Container(
+          key: const Key('restart-loss'),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: const BoxDecoration(
+            color: Palette.cardSurface,
+            borderRadius: BorderRadius.all(Radius.circular(14)),
+            border: Border.fromBorderSide(BorderSide(color: Palette.cardEdge)),
+          ),
+          child: const Text(
+            restartLossText,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: Fonts.outfit,
+              fontWeight: FontWeight.w500,
+              fontSize: 13,
+              height: 1.2,
+              color: Color(0xFFFFFFFF),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -12,6 +12,9 @@ enum BoardTheme {
 
   final Color light;
   final Color dark;
+
+  /// The name Settings shows: NAVY, CLASSIC, FELT….
+  String get label => name.toUpperCase();
 }
 
 /// The design's three piece styles (`GLYPH`).
@@ -23,7 +26,10 @@ enum PieceStyle {
   outline,
 
   /// Upper-case letters in the monospaced face, for both colours.
-  flat,
+  flat;
+
+  /// The name Settings shows: NAVY, CLASSIC, FELT….
+  String get label => name.toUpperCase();
 }
 
 /// One band of a repeating stripe pattern: [width] design px of [colour].
@@ -72,11 +78,15 @@ enum BoardSurface {
 
   /// Null for [plain], which draws nothing over the squares.
   final StripePattern? pattern;
+
+  /// The name Settings shows: NAVY, CLASSIC, FELT….
+  String get label => name.toUpperCase();
 }
 
 /// How the board looks and behaves: the design's Settings rows that touch
-/// the board. Held in memory by the app root with the design's defaults
-/// (M4's Settings edits and saves it).
+/// the board, edited in Settings and kept by `SettingsStore`
+/// (lib/data/settings_store.dart), which holds its codec so this class
+/// stays free of persistence.
 @immutable
 final class BoardOptions {
   const BoardOptions({

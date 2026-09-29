@@ -575,3 +575,240 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** The pause card's private `_CardButton` became the public `CardButton` in pause_overlay.dart, reused for the result card's Rematch (filled teal) and View board (the design's secondary outline: `panelDim` fill, `choiceEdge` edge). New Palette tokens from the design's `isOver` card: `resultScrim` (.85), `resultCardEnd` (04213F), `resultEdge`, `resultBody`, `statFill`. #74's flag test now also waits out the card's rise before asserting no tickers remain.
   **Why:** This reuses the existing button instead of duplicating it. The card's rise is a ticker that #74's test could not have known about.
   **Issue:** #78
+
+## Ad-hoc — 2026-09-29
+
+- **Change:** CLAUDE.md invariant 1 is amended for Android's own backup. "All player data stays on the device" becomes "the app itself sends player data nowhere", and the invariant now says that Android's system backup, when the player has it on, may include the app's data in their Google account backup. That is the player's choice, and the app does not opt out. Its enforcement line adds `test/guards/platform_surface_test.dart`, and the annotation reads `#80 (merged)`.
+  **Why:** The owner approved it at /n8-plan M4 round one (2026-09-28): "all recs good", accepting the recommendation that Android's own backup stays allowed. The manifest keeps Android's default (no `allowBackup`, `fullBackupContent` or `dataExtractionRules`), and `docs/privacy.md` already says so. The old wording would have been false once the store writes real files that Android may back up.
+  **Affects:** M4: #80, and the texts reworded for backup in #84, #88, #89 and #90. M7: epic #11's "no data collected" data-safety answer and the store listing, to be checked against Android backup when M7 is planned.
+
+## /n8-exec M4 — 2026-09-29
+
+- **Decision:** The CI `mutations` job's `timeout-minutes` is raised again, from 45 to 60, at the start of M4.
+  **Why:** M3's PR run (PR #128, 2026-09-29) took 36.8 min for the same battery that took 29 min on M2's run. M4 adds roughly twenty mutations, which would pass 45 min. Splitting the battery across a job matrix would rename the required `mutations` check that the main ruleset names. Raising the limit keeps that check name, so it is the smaller CI change. It extends the readiness pass's pre-authorisation (2026-09-28), and the owner may veto it at verification.
+  **Issue:** #80
+- **Decision:** `AppStore` details the plan left open. A write merges only into a queued write that has not started; a delete never merges and drops the queued writes. A locked document answers `Absent` without touching the disk. A damaged file found by a read is not moved aside if a write or delete was queued during that read, though the notice is still raised. The size limit is checked from the file's length before any bytes are read. The read timeout applies to every resolver-built store, including one that fell back to memory, and never to `AppStore.memory()`. A `persistent` getter says whether the store reached the disk.
+  **Why:** Each follows the plan's rules (last value wins, a delete drops pending writes, and a quarantine moves nothing once newer content is queued) where the plan said nothing about these cases. The getter lets tests and later stories see the fallback without reaching into private state.
+  **Issue:** #80
+- **Decision:** Kotlin reads `url` from the call's arguments with safe casts (`arguments as? Map`), not `call.argument`, which throws when the arguments are not a map. `MethodChannelPlatform.appVersion` caches only a success, so a failed first read can be retried. The app's `ThemeData` moved into `appTheme()` in lib/main.dart, which the root and test/support/app_harness.dart share.
+  **Why:** "Any exception → false" has to cover a malformed call as well. Caching a failure would pin a passing timeout for the whole process. The plan asks for "the root's own theme through one shared function".
+  **Issue:** #80
+- **Decision:** The device test integration_test/platform_channel_test.dart also sends `openUrl` with no `url` and expects `false`.
+  **Why:** Kotlin's missing-argument branch is otherwise exercised only by review.
+  **Issue:** #80
+- **Decision:** While the controller is idle, `GameController.game` throws `StateError` (as `state` does) instead of being null; `isIdle` is the check. Every action is refused while idle, and `inputLocked` is true.
+  **Why:** The readiness pass's `game` of null would have made every M3 widget and test unwrap it, while the board is never built on an idle controller (the root waits for its launch game, and `GameScreen` shows the plain navy frame while idle). The meaning — no game, `isIdle` true — is unchanged.
+  **Issue:** #81
+- **Decision:** The events are sealed classes `GameStarted`, `GameMoved`, `GameTookBack`, `GamePaused`, `GameResumed`, `GameRestored`, `GameEnded` and `GameAbandoned(oldGame)` in lib/data/game_event.dart. A move that ends the game raises `GameMoved` and then `GameEnded`; resignation, an agreed draw and a flag raise only `GameEnded`. `GameAbandoned` comes only from `newGame`/`restart` over an unfinished game, never from `restore`.
+  **Why:** The engine already exports `Moved` (#68's `MoveResult`), so bare names would clash. GameSaves ignores a `GameMoved` whose game is over, so the end stages, not a save, handle a mate.
+  **Issue:** #81
+- **Decision:** `GameSaves(AppStore store, {TimeSource? time})` takes an optional time source for the games it decodes, and gains `removeEndStage` beside `addEndStage`.
+  **Why:** A decoded game keeps the time source it was loaded with, so a test's fake clock has to reach the decode for "the clocks read the same before and after". #82's listener removes its stage in `dispose()`.
+  **Issue:** #81
+- **Decision:** A slot is cleared when its `GameEnded` is handled on that mode's chain, not when the event arrives; `offered` and `load` therefore reflect an event once the chain reaches it (tests await `GameSaves.flush()`).
+  **Why:** Clearing at arrival could be undone by a save for the same mode still waiting on the chain, which would leave a finished game on offer.
+  **Issue:** #81
+- **Decision:** The app root's lifecycle listener lives in `HonestChessAppState`, because `AppScope` is an `InheritedWidget` with no state. On `inactive` or `hidden` it calls `checkFlag()`, then #77's `autoPause()` (not bare `pause()`, so a declined draw's message still stays up), then awaits `GameSaves.flush()`. `GameScreen` keeps its own listener, now also calling `checkFlag()` first, for closing the new-game picker and for screens used without the root (M3's tests). Running both is harmless, since a second pause changes nothing.
+  **Why:** It keeps #77's behaviour and tests intact while the save rides on the root.
+  **Issue:** #81
+- **Decision:** `HonestChessApp` gains `resumeSaved` (default true). `main` passes false when the device test's `strength` or `seed` override is given. Launch still runs `loadAll()` then, but starts the default game rather than restoring. `GameScreen` closes the temporary picker on `GameRestored`, and `restore` keeps the game's start position for a later Restart.
+  **Why:** The readiness pass requires the overrides to skip the saved game, and the root needed a flag it could read. The picker and start-position resets are the pass-2 `restore` rules applied to M3's screen.
+  **Issue:** #81
+- **Decision:** `GameSetup.fromGame` is not added. `restart()` already rebuilds from the game's mode (step and colour as resolved) and its time control, and the board already reads the live `BoardOptions.rotateEachTurn`.
+  **Why:** The pass-1 line describes behaviour the code already has; removing `GameSetup.rotate` is #86's.
+  **Issue:** #81
+- **Decision:** The root shows a bare `ColoredBox` in the app's navy until the launch load finishes, so `test/widget_test.dart` pumps one frame after `pumpWidget`, and `test/ui/app_scope_test.dart`'s production-channel case waits out #80's 5 s read timeout (no channel answers in a unit test).
+  **Why:** This is the pass-2 launch rule; the test changes follow from it and weaken nothing.
+  **Issue:** #81
+- **Decision:** `restart()` and `newGame()` return `Future<bool>`. When no replace stage is registered, the new game goes in within the call and the future is already complete. With stages, the frozen game is paused inside the engine's `Game`, with no event and no save. The old computer is stopped, and `checkFlag`, `pause`, `resume`, `autoPause`, `takeBack`, `resign`, `offerDraw`, `restore` and the computer's move are all refused until the new game is in place. `GameAbandoned` is raised just before the new game goes in, after the last stage.
+  **Why:** A controller that nothing listens to (M3's screens and tests) then behaves exactly as before. Pausing the `Game` holds the clock that the panels' ticker reads, which is the pass-2 "clock ticker stops" without a new clock state.
+  **Issue:** #82
+- **Decision:** `GameSaves.addEndStage` gains `{bool first = false}`, which the listener uses to put its recording stage ahead of any others. The plan's typed helpers live beside `RecordedState` in lib/data/recorded_state.dart: `isGameId`, `isQualifyingMove`, `hasQualifyingMove` and `RecordedState.fresh`. `RecordedState.fromJson` takes an optional `newId`, so a restored game with a damaged id draws from the controller's injected `newGameId`. The counting rules are methods of the immutable document (`withResult`, `withAbandon`, `reset`) over `ComputerStats`, `TwoPlayerStats` and `StepStats`. `StatsDocument.toJson` always writes all five steps and all five clocks, and their maps are always complete, so #90 reads `steps[step]!` / `clocks[clock]!` with no per-value getters. `whiteMoveCount(Game)` measures the longest game.
+  **Why:** "Recording first, then the delete" needs a stage ahead of any added earlier. The pass-2 names are kept exactly; the rest are the smallest additions they needed.
+  **Issue:** #82
+- **Decision:** `AppScope` gains a required `stats` (the `StatsRecorder`), and `HonestChessAppState.stats` exposes it. `pumpUnderScope` gains `stats:`, whose default is a recorder over the store with no listener, so harnessed screens record nothing. The root starts `stats.load()` before the launch load, and `_launch` awaits `newGame` before it shows the board.
+  **Why:** #90 reads the recorder through the scope. The harness keeps M3's screen tests synchronous, and `newGame` is now asynchronous whenever the listener is registered.
+  **Issue:** #82
+- **Decision:** With the device test's overrides (`resumeSaved: false`), launch starts a new game against the computer over any saved one. A saved, started, unfinished computer game is therefore counted as a loss, exactly as the displaced-saved-game rule says for #85's New.
+  **Why:** The rule has no launch exception in the plan. The overrides exist only for the device test, whose emulator starts with no saved game.
+  **Issue:** #82
+- **Decision:** The `settings` document's `board` section is keyed by `BoardOptions`' exact Dart field names (`legalMoveDots`, `lastMoveHighlight`, `takebackAllowed`, `autoQueen`, `rotateEachTurn`, `animations`, `flagCheck`), not the plan's illustrative `"dots"`.
+  **Why:** The plan's rule is "keyed by #71's field names"; its example elided the rest with "…", and one naming scheme keeps the codec a straight mapping. #84 reads and writes the same keys through `SettingsStore`, so nothing else depends on the spelling.
+  **Issue:** #83
+- **Decision:** The codec's public entry points are top-level `decodeBoard`/`encodeBoard`/`decodeSetup`/`encodeSetup` in lib/data/settings_store.dart. The store keeps the whole document as last read or written and rebuilds only the updated section on each write. `SettingsStore.load` and the saved games' load run together at launch, and the first game waits for both, so it takes the saved takeback rule. The root pushes each board change into the controller through a listener on `settings.board`, and the board route is a `ValueListenableBuilder` over it.
+  **Why:** Top-level functions let the tests check the codec without a store. Awaiting both before `newGame` is what "restores it at launch before the first board is built" needs, and it gives the first game the saved `takebackAllowed`.
+  **Issue:** #83
+- **Decision:** Palette tokens reuse the existing constants with the same value: `cardFill` = `panelDim` (white .05), `borderSoft` = `boardRing` (.12), `borderIdle` = `pillEdge` (.14), `borderStrong` = `choiceEdge` (.16), `tealFillSelected` = `panelLit` (teal .14), and `textChoice` = `toolInk` (#DCE9F8, added here for `OptionLook.setup`'s idle label, so #85 need not). Teal .12 is `accentFill` (no `tealFillSoft`). New values: `optionFill`, `textMuted`, `kicker`, `violet`, `violetText`, `violetFillSelected`. `Accent` sits in palette.dart.
+  **Why:** The plan says a token with exactly that value is reused. Aliases keep one colour per value while the names still read right at each call site.
+  **Issue:** #83
+- **Decision:** Settings sits in a `SafeArea`, with 12 dp top padding (the design's 56 less its 44 dp drawn status bar), 20 dp at the sides and 30 dp at the bottom, in a scrolling `ListView`. The header's back button has a 48×48 touch area with the 34 dp box drawn at its left edge. The rest of the touch area stands in for the design's 13 dp gap, so the title starts 14 dp after the box, 1 dp more than the design.
+  **Why:** This keeps the drawn layout at the design's numbers and still meets the 48 dp touch target. On 2026-09-29, fontTools found U+2039 in the cmap of all five bundled Outfit faces, so ‹ is drawn in Outfit with no U+FE0E. The header test reads each face's cmap to check this.
+  **Issue:** #83
+- **Decision:** `PieceGlyph` gains optional `colour` and `shadows` overrides, which the style samples use (#F7F5EF, `0 1px 2px rgba(0,0,0,.5)`). There is no separate TextStyle helper. The surface strips reuse `SurfacePainter` at `min(width, 480) / 390`. Test keys added: `settings-style-sample-<v>`, `settings-surface-strip-<v>`, `header-back`, `header-title`, `header-kicker`, `settings-list`.
+  **Why:** The widget already held the glyph mapping and the no-fallback style, so an override was the smallest change that keeps them in one place.
+  **Issue:** #83
+- **Decision:** M4's shared-conventions block (screen chrome, navigation, keys, palette token names, symbol rule) was restored to #84–#93 during execution. /n8-plan M4 drafted it, but the issues were filed without it; M3's issues likewise went out without their footer. #80–#83 were built from the design file instead. Where their names differ from the block, the code on the branch wins and later stories reconcile.
+  **Why:** #83's executor found that "the footer" cited by M4 stories existed nowhere; a planning miss, logged here honestly. M5's issues do carry theirs.
+  **Issue:** #83
+- **Decision:** `SettingRow`'s `onChanged` is a `VoidCallback`, not a `ValueChanged<bool>`: the row only reports a tap, and Settings flips the stored value (`updateBoard((o) => write(o, !read(o)))`). The row's own `key` sits on its outer `Semantics` (a `container`), over the one row-wide `GestureDetector`; `ToggleSwitch` exposes `knobKey`, `slideDuration`, `knobOn`/`knobOff` for tests.
+  **Why:** A bool argument would be the drawn value, which the plan says must not be the one negated; a bare callback cannot be misused that way. Without `container: true` the DISPLAY kicker merged into its single row's semantics node.
+  **Issue:** #84
+- **Decision:** Reconciled toward the shared M4 conventions where it was cheap: `ScreenHeader` takes a required `keyPrefix` (keys `<prefix>-back|-title|-kicker`; Settings' back is now `settings-back`, #83's tests updated), `Palette.navy` is renamed `screenBg`, and `textFaint` (#4E739F) is added for the version line. The other M3 tokens with canonical names (`navyLight`/`navyDeep`, `card`, `alarm`, `choiceLabel`, `byline`, `resultBody`, `resumeInk`) are left for the story that first uses them.
+  **Why:** The conventions block says code on the branch wins but later stories reconcile; these were the names this story touches.
+  **Issue:** #84
+- **Decision:** The Settings screen ignores the system text scale (`MediaQuery.withNoTextScaling`), per the shared conventions; row sizes are the design's px as dp without the `width / 390` scale, matching the three look sections #83 built.
+  **Why:** One screen with two sizing rules would look broken on wide phones; screen-wide scaling is a change to #83's sections, not in this story's AC.
+  **Issue:** #84
+- **Decision:** The version line is formatted by a public `versionLine(AppVersion?)` in settings_screen.dart; a thrown error from `appVersion()` reads "Version unavailable" like a null. The screen became a `StatefulWidget` so the future is made once per visit (in `didChangeDependencies`). #80's wrapper accepts any integer code, so the "code ≥ 1" check lives in `versionLine`.
+  **Why:** #89 formats the same line; one function keeps them identical.
+  **Issue:** #84
+- **Decision:** #83's `settings_look_test` now scrolls the list back to the top before tapping back.
+  **Why:** With the PLAY/DISPLAY groups the list outgrows an 844 dp view, and `ensureVisible` on a look choice scrolls the header out of the built range. The behaviour is unchanged; the test's reach was.
+  **Issue:** #84
+- **Decision:** `isAbandonable(PlayMode)` is now also a top-level `wouldAbandon(controller, saves, mode)` in lib/data/stats_listener.dart, and `StatsListener.isAbandonable` delegates to it. The setup screen calls it with the scope's controller and saves.
+  **Why:** The root keeps its `StatsListener` private, and `AppScope` does not carry it. The rule reads only the controller and the saved games, which are already in the scope, so exposing the function is smaller than adding the listener to the scope. #92's Restart message can call it the same way.
+  **Issue:** #85
+- **Decision:** Keep playing does not call `restore` when the controller already holds the unfinished computer game. It resumes that live game. Otherwise it saves any unfinished two-player game on the board (`GameSaves.save`), restores the saved computer game, and resumes it. From the menu it then goes through `openBoard`; with `fromBoard` it pops.
+  **Why:** The plan's pass 2 restores from the slot. The slot mirrors the live game as of its last event, so restoring would give the same game, but it would build a second computer and drop the live game's in-memory state for nothing.
+  **Issue:** #85
+- **Decision:** `NavigationGuard` (lib/ui/navigation.dart) holds busy for a pushed, replaced or popped route until its animation's status stops animating, with the 1 s fallback. It ignores status changes while a `ModalRoute` is `offstage`. `AppScope` gains required `navigation` and `random`. The root makes `Random.secure()` and registers the guard in `navigatorObservers`. `pumpUnderScope` builds a fresh guard, registers it ahead of the test's observers, and takes `random:` (default `Random(85)`). Test support gains `test/support/scripted_random.dart` `ScriptedRandom`.
+  **Why:** The route's animation is a proxy. On a push, `HeroController` holds the new route offstage for one frame, and the proxy reports "completed" during that frame. Without the offstage check, the flag released on the push's first frame. The test "a push holds the flag until its transition completes" caught this.
+  **Issue:** #85
+- **Decision:** `boardRoute()` (named `board`) builds `GameScreen` over the scope's controller and `settings.board`. `startGame` returns without pushing when `newGame` is refused. The production home is still M3's board until #91 makes the menu the root, so the screen is reached only in tests for now, as the plan says.
+  **Why:** One route builder keeps "at most one board" in a single place for #91, #92 and #93.
+  **Issue:** #85
+- **Decision:** Design differences: each stepper button has a 48 × 48 dp touch area over the design's 28 dp box. The area takes in the gaps around the value and 10 of the 11 dp right padding, so the row is 48 dp tall rather than the design's 46. Keep playing gets a 48 dp minimum height, which is taller than the design draws it. ⁇ is drawn as `⁇\u{FE0E}` with the platform fallback, because none of the bundled Outfit faces has U+2047, as the test's cmap read shows. Start game's pressed colour is the design's hover #31E7CB, added as `Palette.tealPressed`.
+  **Why:** The shared conventions ask for 48 dp hit areas and for the symbol rule.
+  **Issue:** #85
+- **Decision:** Palette tokens: M3's tokens this screen uses were renamed to the canonical names across lib/ and test/: `alarm` → `dangerText`, `choiceLabel` → `textBody`, `byline` → `textDim`, `resumeInk` → `onTeal`. Values are unchanged.
+  **Why:** The shared M4 conventions ask the first story that uses a value to rename M3's token.
+  **Issue:** #85
+- **Decision:** The setup screen uses the design's px as dp without the `width / 390` scale. It sits in a `SafeArea` with 12/20/30 dp padding in a `CustomScrollView`, and a `SliverFillRemaining` pins the buttons at the bottom when the cards fit, as Settings (#83/#84) does.
+  **Why:** This keeps one sizing rule across M4's screens (#84's decision).
+  **Issue:** #85
+- **Decision:** `GameSetup.rotate` is removed, along with `twoPlayerSetup({rotate})`'s parameter. Its callers and the tests that built setup records drop the field. The two-player screen's rotate row writes `BoardOptions.rotateEachTurn` through `SettingsStore.updateBoard`, the switch Settings shows.
+  **Why:** The acceptance criteria say rotate is never stored per game.
+  **Issue:** #86
+- **Decision:** Pressed feedback for outlined elements: `ScreenHeader` gains `accent:` (default teal), and its ‹ now shows the accent's border while pressed on every screen. The time picker's − / + buttons show the accent's border while pressed and enabled. This is tracked with a `Listener`, so both a tap and a hold show it. The ‹ box gets the key `<prefix>-back-box`. (Rule 2: the shared conventions ask for a pressed border on outlined elements, and #83/#85 had not drawn one on these two.)
+  **Why:** This follows the plan's pass-2 line. Teal screens now get the same feedback the violet screen needs.
+  **Issue:** #86
+- **Decision:** Design differences on Two players: the house-rules text is reworded as the acceptance criteria give it, and its first sentence reads "Takeback is off in Settings." when takeback is off. The rotate row uses Settings' `SettingRow` with the design's 13/15 padding and 14 radius (new optional `padding`/`radius` parameters). The layout follows #85's: `SafeArea` with 12/20/30 dp padding, and Start game pinned by `SliverFillRemaining`.
+  **Why:** The design's "Draw needs both taps" does not match what M3 built (a one-tap agreed draw from the pause card), and this keeps one sizing rule across M4's screens.
+  **Issue:** #86
+- **Decision:** How to play's texts depart from the design's `RULES` and `GESTURES` where the design no longer matches the app: DRAWS adds threefold repetition and says each draw ends the game automatically; THE CLOCK says the clocks start after White's first move and the increment applies from then on; TAP says "one of its squares", dotted only when legal-move dots are on; UNDO reads "Takes back the last move — against the computer, its reply too."; the design's HOLD PAUSE becomes PAUSE (the pill is a tap); DRAG is added before UNDO. THE GOAL, CHECK, TAKEBACK, TAP AGAIN, TAP KING and all six piece texts are the design's verbatim. `test/ui/content/rules_text_test.dart` holds the corrections table and checks every other entry against the design file.
+  **Why:** The acceptance criteria give these corrections; the design's text predates what M2/M3 built.
+  **Issue:** #87
+- **Decision:** The piece cards' two drawing departures from the design: the glyphs are black in the board's `Palette.pieceBlack` (#12181F) where the card markup says #10161F, and the flat style's letters are in the board's Plex Mono 600 where the card uses Outfit 400. Both come from reusing the board's `PieceGlyph` (with `colour:`/`shadows: []`), which #83 had already made public in `board_view.dart` with those overrides, so the plan's fallback (extracting it into a file of its own with a `glyphRatio` getter) was not needed.
+  **Why:** The plan asks for the board's own glyph widget so the cards follow the chosen style exactly; the widget the plan wanted pulled out already existed in reusable form.
+  **Issue:** #87
+- **Decision:** How to play scales the design's sizes by `min(width, 480) / 390` (text, cards, glyph at `21 * scale`, pill), as this story's plan says, unlike #84–#86's unscaled screens; the shared `ScreenHeader` stays unscaled and the top padding stays the siblings' 12 dp below the safe area. `SegmentedTabs` takes a `scale` (default 1) and exposes `overhang(scale)`, which the screen subtracts from its 13 dp gaps above and below the pill. On the 390 dp design frame both rules give identical sizes.
+  **Why:** The story's Claude's Discretion lines are settled decisions and specify the scale; the difference only shows on screens wider than 390 dp.
+  **Issue:** #87
+- **Decision:** Palette: M3's `resultBody` is renamed to the canonical `textLead` (#BBD2EC, now also the gesture text); new `textPale`, `tealTint` (teal .11), `tealRing` (teal .34), and `pieceCardSquare` as an alias of `kingChipLight` (#F1EFE7, the identical value).
+  **Why:** The shared M4 conventions give each value one role name, and the first story that uses a canonical value renames M3's token.
+  **Issue:** #87
+- **Decision:** About Honest Arcade draws the studio mark from `assets/brand/STUDIO-MARK.svg` (corners at `M 3 21 … A 7 7 …`, stroke 6) filling the design's 120 dp box, instead of the design screen's own inset drawing (`M 11 25 …`, stroke 8, spanning 50 of 64 units). The corners therefore reach about 28% further out and the strokes are thinner than in the design's screen. `lib/ui/brand/honest_mark.dart` holds the SVGs' path strings verbatim (`HonestMark.arcade`, and `HonestMark.chess` with the launcher's rook for #89/#91/#93), rendered through `lib/ui/brand/svg_path.dart`, a parser for absolute M/L/H/V/A/Z only (no SVG package, invariant 2); `test/ui/brand/honest_mark_test.dart` holds the strings to the brand files.
+  **Why:** The plan asks every in-app mark to match the launcher icon and native launch screen, the geometry the brand README records as chosen for every studio app; the design differences are logged here as `ArtSource/design/README.md` asks.
+  **Issue:** #88
+- **Decision:** The "No accounts, no sign-in" promise reads "Your progress is kept on your device, and this app never sends it anywhere." in place of the design's text; the other six promises, both paragraphs, the Support card and the chips are the design's verbatim.
+  **Why:** The acceptance criteria give this wording, which stays true under Android's system backup (#80's invariant amendment).
+  **Issue:** #88
+- **Decision:** The text links' 48 dp touch height is centred on their 9.5 × 1.7 line; the extra height is taken out of the 15 dp gap above and the 30 dp bottom padding, so the drawn position moves by under 1 dp (the gap cannot go below 0). The Support card's 135° wash is a `LinearGradient` from centre-left to centre-right under `GradientRotation(π/4)`, whose gradient line is the card's width rather than CSS's (w + h)/√2 — a barely visible difference in a faint wash.
+  **Why:** The plan asks for an invisible 48 dp hit area that keeps the design's spacing and names `GradientRotation`; both approximations were chosen as the simplest that do.
+  **Issue:** #88
+- **Decision:** Palette: M3's `navyLight`/`navyDeep` are renamed to the canonical `gradientInner`/`gradientOuter`, and `card` to `cardSurface` (the board's gradient and the promotion, pause, result and temporary-picker cards updated). New tokens `textBright`, `skyBlue`, `blueFillChip`, `linkUnderline`, `supportBorder`, `supportWashStart`, `supportWashEnd`; the "No browser found" message's 1 dp white .1 border reuses `cardEdge` (identical value), so no `ringFaint` was added. `appOverlayStyle` (const, in palette.dart) is set once by an `AnnotatedRegion` in `MaterialApp.builder`; the board's own copy of the same value is left as it is, as the plan says.
+  **Why:** The shared M4 conventions give each value one role name, renamed by the first story using it; the plan settles the overlay style's placement.
+  **Issue:** #88
+- **Decision:** About the App's seven chips are `appPromiseChips` in `lib/ui/content/about_content.dart`, not the plan's `promiseChips`, which #88 had already given to About Honest Arcade's three chips; the MADE BY link text is `arcadeLinkText` beside #88's `githubLinkText`, which both screens share.
+  **Why:** The shared M4 conventions say code already on the branch wins where names differ; renaming #88's constant would have touched a finished story for no gain.
+  **Issue:** #89
+- **Decision:** Design differences on About the App: the version line drops the design's "3.6 MB" and reads "OFFLINE" alone until a version name is known; the first and last features are reworded as the acceptance criteria give them; SOURCE ON GITHUB opens this app's repository (`appSourceUrl`) rather than the design's studio profile; the MADE BY row is a `Wrap`, so a narrow screen folds it instead of overflowing.
+  **Why:** The acceptance criteria settle the first three; the design's single flex row has no wrapping rule and would overflow below its natural width.
+  **Issue:** #89
+- **Decision:** Palette: new `tealPanelFill` (teal .10) and `tealPanelRing` (teal .32); the plan's `chipFill` (white .07) reuses the identical `statusFill` and `tealOutline` (teal .40) the identical `accentEdge`. The panel's inset ring is a plain 1 dp `Border`, which Flutter draws inside the box as the design's inset shadow is. The button's and the links' 48 dp touch heights are centred on their drawn boxes, taking the extra from the gaps and padding around them, as #88's links do; the seven chips lay out as a two-column grid of `IntrinsicHeight` rows, so a pair shares its height as CSS grid rows do.
+  **Why:** The conventions reuse a token only when its value is identical and add the rest under the plan's names; the touch-height approach is #88's.
+  **Issue:** #89
+- **Decision:** The double-tap test calls the Promises button's `onTap` twice in one frame rather than tapping twice through the tester.
+  **Why:** A second real tap during the push is absorbed by the Navigator's transition, so the test stayed green with `NavigationGuard.run` removed (checked locally 2026-09-29 by editing the screen and running `flutter test test/ui/about_app_test.dart`); two direct calls fail without the guard.
+  **Issue:** #89
+- **Decision:** Statistics reads the mode played last from a new `GameSaves.lastPlayed` getter (the last save this session, else `meta`'s), passed to `openingTab(openOn, lastPlayed)` in `lib/ui/content/stats_view.dart`.
+  **Why:** #81's `GameSaves` kept the value private; the acceptance criteria need it for the default tab, and reading `meta` again from the store would miss a save made this session. (Rule 2)
+  **Issue:** #90
+- **Decision:** The Statistics screen scales by min(width, 480)/390 like #87–#89 (the header unscaled), and its buttons are drawn at the design's size — Reset statistics 41 dp, the confirmation's Cancel and Reset 39 dp at 390 wide — inside a 48 dp touch slot centred on each, the extra taken from the gaps around them, as #88's and #89's links do.
+  **Why:** The shared conventions ask invisible hit areas to grow to 48 dp without changing the drawn layout; #77's `CardButton` grows the drawn button instead, so it was not reused.
+  **Issue:** #90
+- **Decision:** Design differences on Statistics: the confirmation's body is reworded as the acceptance criteria give it; the WIN RATE caption with no games is "— won" and the two-player shares "—% of games"; the Two players tab shows WHITE WINS and BLACK WINS in place of the design's WIN RATE and CURRENT STREAK, and its DRAWS caption is a share; empty rows are drawn with their labels ("0 / 0 · —", "0 games") where the design's wiped state drops the rows; a fifth clock row, Custom, follows the design's four in the fifth bar colour.
+  **Why:** The acceptance criteria and the planner's discretion lines settle each; the design's wiped state has no rows to keep in place after a reset.
+  **Issue:** #90
+- **Decision:** Palette: new `brandBlue` (#0076F1), `barRed` (#C6483D), `barTrack` (white .09), `danger` (#E05A4E), `dangerPressed` (#C94A3F), `cancelEdge` (white .20) and `confirmShadow` (black .50); the Reset statistics button's fill and edge reuse the identical `resignFill` (red .12) and `resignEdge` (red .50), and WIN RATE's wash the identical `accentFill` (teal .12). The reset failure is caught for any error from `resetAll()`, not only `StatsResetFailed`, since either leaves the statistics unchanged.
+  **Why:** The conventions reuse a token only when its value is identical; a failure the screen did not catch would leave both buttons disabled for good.
+  **Issue:** #90
+- **Decision:** `main({int? seed, AppStore? store})` and `HonestChessApp(seedOverride:)` replace #75's `main({Strength? strength, int? seed})` and the root's `firstGame`/`seed`/`resumeSaved`; the seed reaches games started from the setup screens through a new `GameController.idle(seed:)`, which `newGame` uses when it is given no seed of its own.
+  **Why:** The planner's discretion puts the override on `HonestChessApp`; carrying it on the controller the root already owns leaves `AppScope`, the harness and #85's `startGame` unchanged.
+  **Issue:** #91
+- **Decision:** Every screen's route is built in `lib/ui/navigation.dart` (`computerSetupRoute`, `twoPlayerSetupRoute`, `statsRoute`, `howToPlayRoute`, `settingsRoute`, `aboutAppRoute`, `aboutArcadeRoute`, named `csetup`…`aboutstudio`), with `openScreen(context, route)` pushing through the navigating flag, `goBack(context)` as `ScreenHeader`'s default ‹ and `continueGame(context)` for Continue; #88's and #89's `AboutArcadeScreen.route()` / `AboutAppScreen.route()` statics are removed in favour of the first two builders.
+  **Why:** The planner's discretion names `navigation.dart` as the home of the routes; one builder per screen keeps the `RouteSettings` names in one place.
+  **Issue:** #91
+- **Decision:** The menu scales by min(width, 480)/390 like #87–#90; the four screen buttons (44 dp drawn), the damaged-data banner's Dismiss and, on narrow phones, Continue get 48 dp touch slots centred on the drawn box, the extra taken from the gaps around them. The header mark is #88's `HonestMark.chess` (the launcher's corners and rook) rather than the design's menu SVG, whose corners sit further in.
+  **Why:** The shared conventions ask hit areas to grow without changing the drawn layout; the planner's discretion names `HonestMark.chess` for the header.
+  **Issue:** #91
+- **Decision:** Palette: new `tealBarEdge` (teal .35) and `tealBarPressed` (teal .18) for the About Honest Arcade bar, whose idle fill reuses the identical `tealPanelFill` (teal .10); the banner reuses the identical `resignFill` (red .12) and `resignEdge` (red .50); the cards' mini-board art adds `computerArtBlue`, `twoArtWashStart`, `twoArtWashEnd`, `twoArtLight`, `twoArtDark`, `artInkDark` and `artInkLight`, with `onTeal` and `textChoice` for the identical #04213F and #DCE9F8. `ScreenGradient.menu` is the design's `110% 90% at 24% 12%`.
+  **Why:** The conventions reuse a token only when its value is identical.
+  **Issue:** #91
+- **Decision:** #84's app-level Settings tests (`test/ui/settings_options_test.dart`) moved to the new `pumpBoard` harness helper, which wires the harness's `SettingsStore` to its controller as the root does; #83's app-level test (`test/ui/settings_look_test.dart`) and `test/widget_test.dart` go through the menu. widget_test's "the device test's overrides skip the saved game" is dropped with `resumeSaved`; its seed check moved to the menu → vs Computer → Start game test.
+  **Why:** The planner's discretion sends only widget_test and #83's test through the menu and the rest to `pumpBoard`; #84's tests need the board options wired to the game, which the harness did not do.
+  **Issue:** #91
+- **Decision:** The double-tap tests run each pair twice: as the plan's two `tester.tap` calls, and by calling both tap handlers in one frame. Only the second fails when the navigating flag is removed (checked by hand, 2026-09-29, by replacing `openScreen`'s and `continueGame`'s `navigation.run` with a direct push).
+  **Why:** #89's note found that a second `tester.tap` during a push is absorbed by the Navigator, so the plan's form alone passes without the guard.
+  **Issue:** #91
+- **Decision:** Back on a board still resumes a paused game (#77's pause-card `PopScope`) and otherwise pops to the menu with the game running; the menu tests therefore never assert the board's back beyond "back from the board reaches the menu" on a running game.
+  **Why:** The board's back is #92's, per the acceptance criteria.
+  **Issue:** #91
+- **Decision:** `TemporaryNewGamePicker` is removed: `lib/ui/game/temporary_new_game.dart` is deleted with its tests (`test/ui/game/tool_row_test.dart`'s `new` group, `test/ui/game/pause_overlay_test.dart`'s picker case), its `newGameChoices` and its `new-vs-computer` / `new-two-players` keys, and GameScreen's picker bookkeeping (`_picking`, the `GameRestored` subscription). No palette token was the picker's alone (`choiceFill` and `choiceEdge` still draw the promotion sheet, the stats screen and View board), and `defaults.dart` keeps `vsComputerDefault` and `twoPlayerDefault` for `SetupChoices.initial`. `test/guards/references_test.dart` gains `removedPaths`, so this ledger may keep naming the deleted file.
+  **Why:** The acceptance criteria: New opens the real setup screens, and nothing in `lib/` references the picker.
+  **Issue:** #92
+- **Decision:** M3's DESCOPED card buttons are restored: the pause card's Rules · Settings row and Main menu, and the result card's See statistics and Main menu. #77's and #78's tests that asserted them absent now assert them present, in the design's order.
+  **Why:** Their screens exist now (#83–#91), which M3's DESCOPED line waited for.
+  **Issue:** #92
+- **Decision:** #78's back rule in view-board mode is amended: back on the final position goes to the menu, where #78 brought the card back; tapping the result bar still brings the card back. Back on the result card still does what View board does.
+  **Why:** Owner, /n8-plan M4 round two: "good to go", accepting the recommendation.
+  **Issue:** #92
+- **Decision:** Design difference: the result card's resignation body stays "Resignation ends the game at once." (#78's wording), not the design's "The position is kept in your statistics.".
+  **Why:** Statistics keep results, not positions, so the design's sentence would be untrue.
+  **Issue:** #92
+- **Decision:** The board has one `PopScope` (`canPop: false`, in `GameScreen`) that dispatches Android's back: promotion card → cancel, draw being answered → nothing, pause card → resume, live game → pause, result card waiting out its delay → shown at once, result card → View board, final position (or an idle controller) → `leaveToMenu`; nothing while the navigating flag is set or the screen is leaving. The promotion sheet's, pause card's and result card's own `PopScope`s are removed.
+  **Why:** A route calls every `PopScope`'s handler on one back press, so the layers' handlers and the board's would each have acted on it.
+  **Issue:** #92
+- **Decision:** `GameController` gains `keepPaused()` (clears a declined draw's message and cancels its 2 s resume timer; the pause card's Rules, Settings and Main menu call it) and `leave()` (stops the computer for `leaveToMenu`). `resume()` builds a new computer, with the game's own step and seed, when `leave()` left none (Rule 2).
+  **Why:** Without the rebuild, Keep playing from the menu on the live computer game (#85's `_keepPlaying` resumes it in place) would resume a game whose computer never moves.
+  **Issue:** #92
+- **Decision:** Restart's "Your previous game counted as a loss." shows for 3 s as a card over the opponent's panel (key `restart-loss`, a live region, taking no touches), not a SnackBar; it is decided by #82's `isAbandonable` on the live game before the restart, not `wouldAbandon(…, PlayMode.computer)`. Design difference: the design has no such message.
+  **Why:** A floating SnackBar would sit over the tool row for 3 s. `wouldAbandon` for the computer mode reads the saved computer game when the board holds a two-player game, which Restart never abandons.
+  **Issue:** #92
+- **Decision:** New on a finished game (view-board mode or during the 600 ms delay) shows the result card at the tap, behind the setup screen it pushes, rather than on return; the card has therefore already entered when back reveals it.
+  **Why:** "On return the result card shows" holds either way, and showing it at the tap needs no route-return hook on the board.
+  **Issue:** #92
+- **Decision:** The restored buttons are one widget, `CardLinkButton` in `pause_overlay.dart`, drawn at the design's heights (Rules/Settings 41, pause Main menu 39, See statistics 41.5, result Main menu 37). Hit areas reach 4.5 dp (`cardHalfGap`) into each neighbouring 9 dp gap, and each Main menu takes the rest of its 48 dp from the card's bottom padding, which shrinks by the same amount. A tap focuses the button, so focus returns to it when the opened screen closes. The pause card now takes the result card's 440 dp cap and scrolls (`pause-scroll`).
+  **Why:** The planner's discretion (pass 2) on hit areas and focus.
+  **Issue:** #92
+- **Decision:** M3's screen harnesses (`pumpGame` in `test/ui/game/player_panel_test.dart`, `pumpScreen` in `test/ui/promotion_sheet_test.dart`) now pump `GameScreen` through `pumpUnderScope`, and `test/ui/menu_navigation_test.dart` leaves a live board by back then the pause card's Main menu.
+  **Why:** The screen reads `AppScope` whenever back or a card button leads off the board, and back on a live board now pauses instead of popping.
+  **Issue:** #92
+- **Decision:** Design differences on the splash: the bar follows real progress over five load steps (`settings`, `stats`, `game-computer`, `game-two`, `meta`, one fifth each) instead of the prototype's 9%-per-80 ms ticks and 350 ms hand-off; the splash shows for at least 0.6 s from its first frame, holds READY for 250 ms while in view, then the menu fades in over 300 ms; the first frame is flat #05285F and the radial gradient fades in over 150 ms; the cut from the native launch screen's centred mark to the splash's larger, higher mark is not animated (the design has no native stage, and animating it would need Android's splash-exit API in native code).
+  **Why:** The plan's discretion lines; the design README asks for every deliberate difference to be logged.
+  **Issue:** #93
+- **Decision:** The splash's mark is #88's `HonestMark.chess` (the launcher's corners-and-rook group, as the menu draws it) at 132 dp, not the design splash SVG's own geometry (corners inset to 10–54 with a 7-wide stroke, the rook unscaled), which the design's menu mark shares.
+  **Why:** The plan names #88's mark, and the menu (#91) already draws that mark for the same design geometry, so the app has one mark.
+  **Issue:** #93
+- **Decision:** `AppLoader` (`lib/data/app_loader.dart`) replaces the root's `_launch`; the root always builds `AppScope` and `MaterialApp` with the splash as `home`, which `pushReplacement`s itself with an unnamed `PageRouteBuilder` menu route. `skipSplash: true` keeps #91's plain navy frame and opens with `MenuScreen` as `home`. Only `test/widget_test.dart` and #91's menu-on-launch test in `test/ui/menu_navigation_test.dart` go through the splash; the rest of that file and `test/ui/settings_look_test.dart` pass `skipSplash: true`, and `test/ui/app_scope_test.dart` is unchanged (it never waits for the menu).
+  **Why:** `MaterialApp.home` is read once, so the splash must be the first route and replace itself; the menu stays the first route after the replacement, so `popUntil(isFirst)` is unchanged.
+  **Issue:** #93
+- **Decision:** "The menu appears" in `test/ui/splash_test.dart` finds the menu with `skipOffstage: false`: the hero controller builds a pushed page offstage for its first frame, so an onstage finder sees the menu one frame (not one millisecond) later.
+  **Why:** The plan defines "appears" as the menu route being in the tree, at any opacity; the 849/851 ms and t + 249/251 ms instants then hold as planned.
+  **Issue:** #93
+- **Decision:** The splash counts as out of view on `detached` as well as `hidden` and `paused`, and back in view only on `resumed`.
+  **Why:** The plan names `hidden` and `paused`; `detached` is no more visible than they are, and `inactive` on the way back leaves the READY hold waiting for `resumed`, as the plan asks.
+  **Issue:** #93
+- **Decision (Rule 3):** `integration_test/app_smoke_test.dart` now waits for the menu with its own 30 s poll, settles the menu's fade, and settles the setup screen's push before tapping Start game. On emulator sudoku-dev (2026-09-29, this story's run) Start was tapped about 100 ms into the setup screen's push, while that transition still held the navigating flag, so the tap was ignored and the board never came.
+  **Why:** The device test must tap only once the navigating flag is free, as the widget tests already do.
+  **Issue:** #93

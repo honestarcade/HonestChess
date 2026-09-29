@@ -184,7 +184,7 @@ void main() {
       final (h, fakes, request) = await thinking(tester);
       final c = h.controller;
       final old = fakes.current;
-      expect(c.restart(), isTrue);
+      expect(await c.restart(), isTrue);
       expect(old.cancels, 1);
       expect(old.disposed, isTrue, reason: 'cancel: one computer per game');
       expect(fakes.built, hasLength(2));

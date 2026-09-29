@@ -23,6 +23,17 @@ const createdLater = {
       'nothing in an app: tools/rename_app.py deletes it',
 };
 
+/// The ledger: an append-only history, so it may still name what a later
+/// story deleted.
+const ledgerPath = '.n8/decisions.md';
+
+/// Paths deleted from the tree that [ledgerPath] may still name, and what
+/// removed each. Anywhere else, a removed path dangles like any other.
+const Map<String, String> removedPaths = {
+  'lib/ui/game/temporary_new_game.dart':
+      '#92 removed it on 2026-09-29; the setup screens replaced it',
+};
+
 final _repoPath = RegExp(
   r'(?<![\w./$-])(?:tools|test|lib|android|\.github|\.n8)/[\w./-]*\w(?![\w\\])',
 );
@@ -39,9 +50,18 @@ String claimText(String path, String text) {
 }
 
 /// The references in [text] that name nothing in [existing]. A bare `.dart`
-/// name matches any existing file with that base name.
-List<String> danglingReferences(String text, Set<String> existing) {
-  final baseNames = {for (final p in existing) p.split('/').last};
+/// name matches any existing file with that base name. A path in [removed],
+/// or its base name, is allowed as well.
+List<String> danglingReferences(
+  String text,
+  Set<String> existing, {
+  Iterable<String> removed = const [],
+}) {
+  final baseNames = {
+    for (final p in existing) p.split('/').last,
+    for (final p in removed) p.split('/').last,
+  };
+  final allowed = removed.toSet();
   final dirs = {
     for (final p in existing)
       for (var i = p.indexOf('/'); i > 0; i = p.indexOf('/', i + 1))
@@ -51,6 +71,7 @@ List<String> danglingReferences(String text, Set<String> existing) {
   for (final m in _repoPath.allMatches(text)) {
     final ref = m.group(0)!.replaceFirst(RegExp(r'[./]+$'), '');
     if (!existing.contains(ref) &&
+        !allowed.contains(ref) &&
         !dirs.contains(ref) &&
         !createdLater.containsKey(ref)) {
       dangling.add(ref);
@@ -103,6 +124,22 @@ const fixture = 'tools/thing.sh';
         'gone_test.dart',
       ]);
     });
+
+    test('a removed path is history only in the ledger', () {
+      const removed = ['lib/ui/old_picker.dart'];
+      const text = 'lib/ui/old_picker.dart was deleted; old_picker.dart too.';
+      String? readAs(String path) {
+        final dangling = danglingReferences(
+          claimText(path, text),
+          existing,
+          removed: path == ledgerPath ? removed : const [],
+        );
+        return dangling.isEmpty ? null : dangling.join(', ');
+      }
+
+      expect(readAs(ledgerPath), isNull);
+      expect(readAs('README.md'), 'lib/ui/old_picker.dart, old_picker.dart');
+    });
   });
 
   test('every file the repository names exists', () {
@@ -114,7 +151,8 @@ const fixture = 'tools/thing.sh';
         continue;
       }
       final text = claimText(path, readFile(path));
-      for (final ref in danglingReferences(text, existing)) {
+      final removed = path == ledgerPath ? removedPaths.keys : const <String>[];
+      for (final ref in danglingReferences(text, existing, removed: removed)) {
         offenders.add('$path names $ref');
       }
     }

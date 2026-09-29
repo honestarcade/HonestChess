@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:honest_chess/ui/board/board_view.dart' show boardMargin;
 import 'package:honest_chess/ui/game/game_controller.dart';
-import 'package:honest_chess/ui/game/pause_overlay.dart' show CardButton;
+import 'package:honest_chess/ui/game/pause_overlay.dart';
 import 'package:honest_chess/ui/game/result_text.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
@@ -27,26 +27,33 @@ const double resultBarHeight = 56;
 const double resultInset = 26, resultMaxWidth = 440;
 
 /// The finished game's result: the design's card over a scrim — who won
-/// and why, the rule in a sentence, the game's numbers, Rematch and View
-/// board — or, after View board, a slim bar over the top of the screen
-/// with the result and Rematch, the final position frozen below it and the
-/// tool row still live. The design's See statistics and Main menu buttons
-/// are left out until M4 provides their screens.
+/// and why, the rule in a sentence, the game's numbers, Rematch, View
+/// board, See statistics ([onSeeStatistics]) and Main menu ([onMainMenu])
+/// — or, after View board, a slim bar over the top of the screen with the
+/// result and Rematch, the final position frozen below it and the tool row
+/// still live.
 ///
-/// A tap on the scrim, or Android's back, does what View board does; a tap
-/// on the bar, or back again, brings the card back. The last layer of the
-/// play screen: while the game goes on it draws nothing and takes no
-/// touches.
+/// A tap on the scrim does what View board does; a tap on the bar brings
+/// the card back. Android's back is the play screen's to handle. The last
+/// layer of the play screen: while the game goes on it draws nothing and
+/// takes no touches.
 class ResultOverlay extends StatefulWidget {
-  const ResultOverlay({super.key, required this.controller});
+  const ResultOverlay({
+    super.key,
+    required this.controller,
+    required this.onSeeStatistics,
+    required this.onMainMenu,
+  });
 
   final GameController controller;
+  final VoidCallback onSeeStatistics;
+  final VoidCallback onMainMenu;
 
   @override
-  State<ResultOverlay> createState() => _ResultOverlayState();
+  State<ResultOverlay> createState() => ResultOverlayState();
 }
 
-class _ResultOverlayState extends State<ResultOverlay>
+class ResultOverlayState extends State<ResultOverlay>
     with SingleTickerProviderStateMixin {
   late final AnimationController _show = AnimationController(
     vsync: this,
@@ -135,6 +142,17 @@ class _ResultOverlayState extends State<ResultOverlay>
     }
   }
 
+  /// Shows the card now when it is still waiting out [resultDelay] — the
+  /// wait is cancelled and the card enters as it would have — and answers
+  /// whether it was waiting.
+  bool showNow() {
+    final delay = _delay;
+    if (delay == null) return false;
+    delay.cancel();
+    setState(_appear);
+    return true;
+  }
+
   void _appear() {
     _delay = null;
     if (_still) {
@@ -149,34 +167,27 @@ class _ResultOverlayState extends State<ResultOverlay>
     _still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     final state = _controller.state;
     final view = state.resultView;
-    return PopScope(
-      canPop: view == null,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        if (!_controller.viewBoard()) _controller.showResult();
-      },
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (!_show.isDismissed)
-            IgnorePointer(
-              ignoring: view != ResultView.card,
-              child: FadeTransition(
-                key: const Key('result-overlay'),
-                opacity: _eased,
-                child: _layer(),
-              ),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (!_show.isDismissed)
+          IgnorePointer(
+            ignoring: view != ResultView.card,
+            child: FadeTransition(
+              key: const Key('result-overlay'),
+              opacity: _eased,
+              child: _layer(),
             ),
-          if (view == ResultView.board)
-            Positioned(
-              left: boardMargin,
-              right: boardMargin,
-              top: 0,
-              height: resultBarHeight,
-              child: _bar(),
-            ),
-        ],
-      ),
+          ),
+        if (view == ResultView.board)
+          Positioned(
+            left: boardMargin,
+            right: boardMargin,
+            top: 0,
+            height: resultBarHeight,
+            child: _bar(),
+          ),
+      ],
     );
   }
 
@@ -186,7 +197,7 @@ class _ResultOverlayState extends State<ResultOverlay>
   }
 
   static Color _kicker(ResultText text) =>
-      text.lost ? Palette.alarm : Palette.teal;
+      text.lost ? Palette.dangerText : Palette.teal;
 
   Widget _layer() {
     return Stack(
@@ -257,7 +268,7 @@ class _ResultOverlayState extends State<ResultOverlay>
             // CSS 170°: from just left of top to just right of bottom.
             begin: Alignment(-0.17, -1),
             end: Alignment(0.17, 1),
-            colors: [Palette.card, Palette.resultCardEnd],
+            colors: [Palette.cardSurface, Palette.resultCardEnd],
           ),
           borderRadius: BorderRadius.all(Radius.circular(20)),
           border: Border.fromBorderSide(BorderSide(color: Palette.resultEdge)),
@@ -270,7 +281,7 @@ class _ResultOverlayState extends State<ResultOverlay>
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.fromLTRB(24, 24, 24, 24 - _menuReachBelow),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -323,7 +334,7 @@ class _ResultOverlayState extends State<ResultOverlay>
                   fontWeight: FontWeight.w400,
                   fontSize: 12.5,
                   height: 1.55,
-                  color: Palette.resultBody,
+                  color: Palette.textLead,
                 ),
               ),
               const SizedBox(height: 18),
@@ -336,7 +347,7 @@ class _ResultOverlayState extends State<ResultOverlay>
                 label: 'Rematch',
                 fill: Palette.teal,
                 edge: null,
-                ink: Palette.resumeInk,
+                ink: Palette.onTeal,
                 weight: FontWeight.w600,
                 fontSize: 15,
                 padding: 15,
@@ -354,12 +365,51 @@ class _ResultOverlayState extends State<ResultOverlay>
                 padding: 13,
                 onTap: _controller.viewBoard,
               ),
+              const SizedBox(height: cardHalfGap),
+              CardLinkButton(
+                id: 'result-see-statistics',
+                label: 'See statistics',
+                look: _statsLook,
+                reachAbove: cardHalfGap,
+                reachBelow: cardHalfGap,
+                onTap: widget.onSeeStatistics,
+              ),
+              CardLinkButton(
+                id: 'result-main-menu',
+                label: 'Main menu',
+                look: _menuLook,
+                reachAbove: cardHalfGap,
+                reachBelow: _menuReachBelow,
+                onTap: widget.onMainMenu,
+              ),
             ],
           ),
         ),
       ),
     );
   }
+
+  /// The design's See statistics: the secondary outline, as View board.
+  static const _statsLook = CardLinkLook(
+    fill: Palette.cardFill,
+    edge: Palette.borderStrong,
+    ink: Color(0xFFFFFFFF),
+    fontSize: 13.5,
+    padding: 13,
+  );
+
+  /// The design's Main menu: a text button.
+  static const _menuLook = CardLinkLook(
+    ink: Palette.textDim,
+    fontSize: 13,
+    padding: 12,
+  );
+
+  /// Main menu's hit area below its drawn button, taken from the card's
+  /// bottom padding.
+  static final double _menuReachBelow = _menuLook.reachBelow(
+    above: cardHalfGap,
+  );
 
   Widget _bar() {
     final text = _text;
@@ -369,7 +419,7 @@ class _ResultOverlayState extends State<ResultOverlay>
       container: true,
       explicitChildNodes: true,
       child: Material(
-        color: Palette.card,
+        color: Palette.cardSurface,
         shape: const RoundedRectangleBorder(
           borderRadius: radius,
           side: BorderSide(color: Palette.cardEdge),
@@ -451,7 +501,7 @@ class _ResultOverlayState extends State<ResultOverlay>
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
                             height: 1,
-                            color: Palette.resumeInk,
+                            color: Palette.onTeal,
                           ),
                         ),
                       ),
@@ -499,7 +549,7 @@ class _StatTile extends StatelessWidget {
                   fontSize: 9,
                   height: 1,
                   letterSpacing: 9 * .14,
-                  color: Palette.byline,
+                  color: Palette.textDim,
                 ),
               ),
               const SizedBox(height: 7),
