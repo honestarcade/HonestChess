@@ -2,9 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
-import 'package:honest_chess/ui/board/board_view.dart';
+import 'package:honest_chess/ui/game/game_screen.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
 // The launcher-icon guard reads this literal here; Palette.navy is the same
@@ -56,34 +55,7 @@ class HonestChessAppState extends State<HonestChessApp> {
         scaffoldBackgroundColor: _navy,
         fontFamily: Fonts.outfit,
       ),
-      home: BoardPreviewScreen(options: boardOptions),
-    );
-  }
-}
-
-/// The start position on the board, until the play screen (#72) replaces it.
-class BoardPreviewScreen extends StatelessWidget {
-  const BoardPreviewScreen({super.key, required this.options});
-
-  final BoardOptions options;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light.copyWith(
-        statusBarColor: Colors.transparent,
-        systemNavigationBarColor: _navy,
-      ),
-      child: Scaffold(
-        backgroundColor: _navy,
-        body: SafeArea(
-          child: BoardView(
-            position: Position.initial(),
-            bottom: Colour.white,
-            options: options,
-          ),
-        ),
-      ),
+      home: GameScreen(options: boardOptions),
     );
   }
 }

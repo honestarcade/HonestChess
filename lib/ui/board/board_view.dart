@@ -40,23 +40,60 @@ String pieceGlyph(Piece piece, PieceStyle style) => switch (style) {
 const _filled = ['♟', '♞', '♝', '♜', '♛', '♚'];
 const _hollow = ['♙', '♘', '♗', '♖', '♕', '♔'];
 
+/// Layers drawn on [square] under its coordinates and piece; [side] is the
+/// square's size and [scale] the board's scale from the design. Each layer
+/// needs a key of its own among the square's layers.
+typedef SquareDecorator = List<Widget> Function(
+  Square square,
+  double side,
+  double scale,
+);
+
+/// Wraps the square-sized widget holding [square]'s [piece].
+typedef PieceWrapper = Widget Function(
+  Square square,
+  Piece piece,
+  Widget child,
+  double side,
+);
+
+/// Wraps everything drawn on [square] above the board's colours.
+typedef SquareWrapper = Widget Function(Square square, Widget child);
+
+/// What a screen reader says for [square]: its name and what stands on it.
+String squareLabel(Square square, Piece? piece) => piece == null
+    ? '${square.name}, empty'
+    : '${square.name}, ${piece.colour.name} ${piece.kind.name}';
+
 /// The chessboard as the design draws it: [position]'s pieces on squares in
 /// [options]' theme, surface and piece style, with [bottom]'s side at the
 /// bottom and coordinates on the left-hand file and the bottom rank.
 ///
-/// Every square is a child keyed `sq-<name>` and every piece `piece-<name>`
-/// (e.g. `sq-e4`), so the play screen and its tests can find them.
+/// Every square is a child keyed `sq-<name>`, the layer above it that takes
+/// taps `cell-<name>`, and every piece `piece-<name>` (e.g. `sq-e4`), so the
+/// play screen and its tests can find them.
+///
+/// The board knows nothing of a game. The play screen's highlights and
+/// gestures come in through three hooks, each called per square:
+/// [decorate] adds layers under the coordinates and the piece, [wrapPiece]
+/// wraps the square's piece and [wrapSquare] the whole square.
 class BoardView extends StatelessWidget {
   const BoardView({
     super.key,
     required this.position,
     required this.bottom,
     this.options = const BoardOptions(),
+    this.decorate,
+    this.wrapPiece,
+    this.wrapSquare,
   });
 
   final Position position;
   final Colour bottom;
   final BoardOptions options;
+  final SquareDecorator? decorate;
+  final PieceWrapper? wrapPiece;
+  final SquareWrapper? wrapSquare;
 
   @override
   Widget build(BuildContext context) {
@@ -111,40 +148,56 @@ class BoardView extends StatelessWidget {
           ),
         ),
       );
+      Widget? pieceLayer;
+      if (piece != null) {
+        pieceLayer = Center(child: _piece(square, piece, side, scale));
+        final wrap = wrapPiece;
+        if (wrap != null) pieceLayer = wrap(square, piece, pieceLayer, side);
+      }
+      // Every layer is keyed, so layers coming and going around the piece
+      // never make it a new widget: a drag in progress lives in there.
+      Widget cell = Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          ...?decorate?.call(square, side, scale),
+          if (column == 0)
+            Positioned(
+              key: const ValueKey(#rankLabel),
+              left: 2 * scale,
+              top: 1 * scale,
+              child: _coordinate(
+                'rank-${square.name}',
+                '${square.rank + 1}',
+                isLight,
+                scale,
+              ),
+            ),
+          if (row == 7)
+            Positioned(
+              key: const ValueKey(#fileLabel),
+              right: 2 * scale,
+              bottom: 1 * scale,
+              child: _coordinate(
+                'file-${square.name}',
+                square.name[0],
+                isLight,
+                scale,
+              ),
+            ),
+          if (pieceLayer != null)
+            Positioned.fill(key: const ValueKey(#piece), child: pieceLayer),
+        ],
+      );
+      cell = Semantics(
+        container: true,
+        label: squareLabel(square, piece),
+        child: wrapSquare?.call(square, cell) ?? cell,
+      );
       overlays.add(
         Positioned.fromRect(
+          key: Key('cell-${square.name}'),
           rect: rect,
-          child: Stack(
-            clipBehavior: Clip.hardEdge,
-            children: [
-              if (column == 0)
-                Positioned(
-                  left: 2 * scale,
-                  top: 1 * scale,
-                  child: _coordinate(
-                    'rank-${square.name}',
-                    '${square.rank + 1}',
-                    isLight,
-                    scale,
-                  ),
-                ),
-              if (row == 7)
-                Positioned(
-                  right: 2 * scale,
-                  bottom: 1 * scale,
-                  child: _coordinate(
-                    'file-${square.name}',
-                    square.name[0],
-                    isLight,
-                    scale,
-                  ),
-                ),
-              if (piece != null)
-                Positioned.fill(
-                  child: Center(child: _piece(square, piece, side, scale)),
-                ),
-            ],
-          ),
+          child: cell,
         ),
       );
     }
@@ -187,16 +240,19 @@ class BoardView extends StatelessWidget {
       : (7 - square.file, square.rank);
 
   Widget _coordinate(String key, String text, bool onLight, double scale) {
-    return Text(
-      text,
-      key: Key(key),
-      textScaler: TextScaler.noScaling,
-      style: TextStyle(
-        fontFamily: Fonts.plexMono,
-        fontWeight: FontWeight.w600,
-        fontSize: 8 * scale,
-        height: 1,
-        color: onLight ? Palette.coordOnLight : Palette.coordOnDark,
+    // The square's own label already names it.
+    return ExcludeSemantics(
+      child: Text(
+        text,
+        key: Key(key),
+        textScaler: TextScaler.noScaling,
+        style: TextStyle(
+          fontFamily: Fonts.plexMono,
+          fontWeight: FontWeight.w600,
+          fontSize: 8 * scale,
+          height: 1,
+          color: onLight ? Palette.coordOnLight : Palette.coordOnDark,
+        ),
       ),
     );
   }

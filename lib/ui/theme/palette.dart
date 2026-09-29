@@ -23,6 +23,16 @@ abstract final class Palette {
   /// Coordinate labels, per the colour of the square they sit on.
   static const coordOnDark = Color(0x80FFFFFF); // rgba(255,255,255,.5)
   static const coordOnLight = Color(0x6B000000); // rgba(0,0,0,.42)
+
+  /// Square highlights (`renderVals`' `hl`, `ring` and `dot`): the selected
+  /// square's tint and ring, a king in check, the last move's two squares,
+  /// a capture target's ring and a quiet target's dot.
+  static const selectedTint = Color(0x6B00D6B4); // rgba(0,214,180,.42)
+  static const selectedRing = teal;
+  static const checkTint = Color(0x80E05A4E); // rgba(224,90,78,.5)
+  static const lastMoveTint = Color(0x3300D6B4); // rgba(0,214,180,.2)
+  static const captureRing = Color(0x9900D6B4); // rgba(0,214,180,.6)
+  static const moveDot = Color(0x9E00D6B4); // rgba(0,214,180,.62)
 }
 
 /// The app's font families, as pubspec.yaml declares them.
