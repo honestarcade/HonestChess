@@ -575,3 +575,9 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** The pause card's private `_CardButton` became the public `CardButton` in pause_overlay.dart, reused for the result card's Rematch (filled teal) and View board (the design's secondary outline: `panelDim` fill, `choiceEdge` edge). New Palette tokens from the design's `isOver` card: `resultScrim` (.85), `resultCardEnd` (04213F), `resultEdge`, `resultBody`, `statFill`. #74's flag test now also waits out the card's rise before asserting no tickers remain.
   **Why:** This reuses the existing button instead of duplicating it. The card's rise is a ticker that #74's test could not have known about.
   **Issue:** #78
+
+## /n8-exec M4 — 2026-09-29
+
+- **Decision:** The CI `mutations` job's `timeout-minutes` is raised again, from 45 to 60, at the start of M4.
+  **Why:** M3's PR run (PR #128, 2026-09-29) took 36.8 min for the same battery that took 29 min on M2's run. M4 adds roughly twenty mutations, which would pass 45 min. Splitting the battery across a job matrix would rename the required `mutations` check that the main ruleset names. Raising the limit keeps that check name, so it is the smaller CI change. It extends the readiness pass's pre-authorisation (2026-09-28), and the owner may veto it at verification.
+  **Issue:** #80
