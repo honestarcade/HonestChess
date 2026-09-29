@@ -6,6 +6,8 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.SoundPool
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import io.flutter.FlutterInjector
 import io.flutter.plugin.common.BinaryMessenger
@@ -25,7 +27,8 @@ private const val MUSIC = "music"
  * `load` takes {clip name: Flutter asset key} and answers how many opened;
  * the clip named `music` opens in a looping MediaPlayer, the rest in a
  * SoundPool. `play` takes a clip name and ignores one that has not finished
- * loading; `musicStart` answers whether the loop started (it never starts
+ * loading; `musicStart` answers whether the loop started, a second after
+ * the latest effect at the earliest (it never starts
  * while another app is playing audio, and never takes audio focus, so it
  * never interrupts the player's own audio — owner, round one); `musicPause`
  * holds the position; `musicStop` resets it; `release` frees everything.
@@ -40,6 +43,9 @@ class SoundBridge(private val context: Context) : MethodChannel.MethodCallHandle
     private val ids = mutableMapOf<String, Int>()
     private val ready = mutableSetOf<Int>()
     private var lastEffectAt = 0L
+    private val main = Handler(Looper.getMainLooper())
+    private var waitingStart: Runnable? = null
+    private var waitingResult: MethodChannel.Result? = null
 
     /** Listens on the sound channel of [messenger]. */
     fun attach(messenger: BinaryMessenger) {
@@ -64,7 +70,7 @@ class SoundBridge(private val context: Context) : MethodChannel.MethodCallHandle
                 }
                 result.success(null)
             }
-            "musicStart" -> result.success(musicStart())
+            "musicStart" -> musicStart(result)
             "musicPause" -> {
                 pauseMusic()
                 result.success(null)
@@ -132,17 +138,44 @@ class SoundBridge(private val context: Context) : MethodChannel.MethodCallHandle
     }
 
     /**
-     * Starts the loop unless another app is playing audio. One of this
-     * app's own effects in the last second would read as "music active",
-     * so the check waits until a second after it — never skipped.
+     * Answers [result] with whether the loop started. One of this app's own
+     * effects in the last second would read as "music active", so the check
+     * waits until a second after the latest one — never skipped. The wait
+     * is posted, not slept: this runs on the main thread, which must keep
+     * taking touches and drawing (#145). A newer start, a pause, a stop or
+     * a release ends a waiting start, which answers false.
      */
-    private fun musicStart(): Boolean {
-        val player = music ?: return false
-        if (musicDead) return false
+    private fun musicStart(result: MethodChannel.Result) {
+        endWaitingStart()
+        waitingResult = result
+        startAfterEffects()
+    }
+
+    private fun startAfterEffects() {
         val since = SystemClock.uptimeMillis() - lastEffectAt
         if (since < 1000L) {
-            Thread.sleep(1000L - since)
+            val retry = Runnable { startAfterEffects() }
+            waitingStart = retry
+            main.postDelayed(retry, 1000L - since)
+            return
         }
+        waitingStart = null
+        val result = waitingResult ?: return
+        waitingResult = null
+        result.success(startNow())
+    }
+
+    private fun endWaitingStart() {
+        waitingStart?.let { main.removeCallbacks(it) }
+        waitingStart = null
+        waitingResult?.success(false)
+        waitingResult = null
+    }
+
+    /** Starts the loop unless another app is playing audio. */
+    private fun startNow(): Boolean {
+        val player = music ?: return false
+        if (musicDead) return false
         val manager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         if (player.isPlaying) return true
         if (manager != null && manager.isMusicActive) return false
@@ -157,6 +190,7 @@ class SoundBridge(private val context: Context) : MethodChannel.MethodCallHandle
 
     /** Holds the loop where it is; the activity calls this in onPause too. */
     fun pauseMusic() {
+        endWaitingStart()
         val player = music ?: return
         try {
             if (player.isPlaying) player.pause()
@@ -166,6 +200,7 @@ class SoundBridge(private val context: Context) : MethodChannel.MethodCallHandle
     }
 
     private fun stopMusic() {
+        endWaitingStart()
         val player = music ?: return
         try {
             if (player.isPlaying) player.pause()
@@ -177,6 +212,7 @@ class SoundBridge(private val context: Context) : MethodChannel.MethodCallHandle
 
     /** Frees the pool and the loop; safe to call twice. */
     fun release() {
+        endWaitingStart()
         pool?.release()
         pool = null
         ids.clear()
