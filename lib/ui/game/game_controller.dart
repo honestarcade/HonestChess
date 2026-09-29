@@ -40,6 +40,10 @@ enum DrawOffer {
   over,
 }
 
+/// How a finished game is shown: the result [card] over the board, or
+/// the final [board] under a slim result bar.
+enum ResultView { card, board }
+
 /// What the play screen draws, derived from the [Game] and the display
 /// options. It holds only the highlights that should show: an option that
 /// is off has already been applied.
@@ -58,6 +62,7 @@ final class GameViewState {
     required this.drawAsking,
     required this.drawDeclined,
     required this.over,
+    required this.resultView,
   });
 
   final Position position;
@@ -95,6 +100,9 @@ final class GameViewState {
 
   /// The game has ended.
   final bool over;
+
+  /// How the result is shown; null while the game goes on.
+  final ResultView? resultView;
 
   SquareTint tintAt(Square square) => tints[square.index];
   SquareMark markAt(Square square) => marks[square.index];
@@ -156,6 +164,7 @@ class GameController extends ChangeNotifier {
   int? _declinedAtPly;
   Square? _selection;
   PendingPromotion? _pendingPromotion;
+  ResultView? _resultView;
   late List<Move> _legal;
   late GameViewState _state;
 
@@ -412,6 +421,22 @@ class GameController extends ChangeNotifier {
     return _game.status == const Draw(GameEndReason.agreement);
   }
 
+  /// View board: hides the result card, leaving the final position under
+  /// the result bar. Refused unless the card is up.
+  bool viewBoard() => _showAs(ResultView.card, ResultView.board);
+
+  /// Brings the result card back from the result bar. Refused unless the
+  /// bar is up.
+  bool showResult() => _showAs(ResultView.board, ResultView.card);
+
+  bool _showAs(ResultView from, ResultView to) {
+    if (_resultView != from) return false;
+    _resultView = to;
+    _state = _viewState();
+    notifyListeners();
+    return true;
+  }
+
   /// Leaves the pause and everything a draw offer left on its card.
   void _endPause() {
     _paused = false;
@@ -468,6 +493,7 @@ class GameController extends ChangeNotifier {
     );
     _endPause();
     _declinedAtPly = null;
+    _resultView = null;
     _turns = _turnsFor(mode);
     _refresh();
     notifyListeners();
@@ -554,6 +580,8 @@ class GameController extends ChangeNotifier {
   void _refresh() {
     _selection = null;
     _pendingPromotion = null;
+    // A finished game opens on its card; a re-opened one drops the result.
+    _resultView = _game.isOver ? (_resultView ?? ResultView.card) : null;
     _legal = _game.isOver ? const [] : legalMoves(_game.position);
     final declined = _declinedAtPly;
     // A takeback to before the declined offer's move frees the offer.
@@ -596,6 +624,7 @@ class GameController extends ChangeNotifier {
       drawAsking: _drawAsking,
       drawDeclined: _drawDeclined,
       over: _game.isOver,
+      resultView: _resultView,
     );
   }
 }

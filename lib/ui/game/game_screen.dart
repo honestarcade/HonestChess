@@ -15,6 +15,7 @@ import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/labels.dart';
 import 'package:honest_chess/ui/game/pause_overlay.dart';
 import 'package:honest_chess/ui/game/player_panel.dart';
+import 'package:honest_chess/ui/game/result_overlay.dart';
 import 'package:honest_chess/ui/game/temporary_new_game.dart';
 import 'package:honest_chess/ui/game/tool_row.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
@@ -212,6 +213,7 @@ class GameScreenState extends State<GameScreen> {
                   child: _TopBar(controller: controller, onPause: _pause),
                 ),
                 PauseOverlay(controller: controller),
+                ResultOverlay(controller: controller),
               ],
             ),
           ),
@@ -262,6 +264,10 @@ class _TopBar extends StatelessWidget {
       builder: (context, _) {
         final game = controller.game;
         final state = controller.state;
+        // The result bar takes the top bar's place.
+        if (state.resultView == ResultView.board) {
+          return const SizedBox.shrink();
+        }
         final failed = state.computerFailed && !game.isOver;
         final text = statusText(
           game,

@@ -14,6 +14,7 @@ import 'package:honest_chess/ui/board/promotion_sheet.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/game_screen.dart';
+import 'package:honest_chess/ui/game/result_overlay.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
 import 'fake_computer.dart';
@@ -361,7 +362,10 @@ void main() {
       expect(text(tester, 'status-text'), 'FLAG FALL');
       expect(textColour(tester, 'status-text'), Palette.teal);
       // Resign turning disabled at the flag gives up its focus, which asks
-      // for one more frame; a frame is not a tick.
+      // for one more frame, and the result card (#78) rises in, ending a
+      // frame after its length; neither is the clock's tick.
+      await tester.pump();
+      await tester.pump(resultRiseDuration + const Duration(milliseconds: 16));
       await tester.pump();
       expect(tickers, 0, reason: 'clock-tick: an ended game ticks no more');
     });

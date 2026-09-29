@@ -560,3 +560,18 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** #69's recorded Stockfish run is committed as `.n8/memory/engine-strength.md`: Master ≈ 2207 (95% interval 2125–2289), above the 1800–2000 target, so no follow-up issue was filed. Two caveats were added by hand. Master played with no clock enforced (0.87 s per move) against Stockfish's 5 s + 0.1 s. The Mac was busy with M3 builds during the run, which can only have slowed Stockfish.
   **Why:** The AC asks for the estimate to be stated honestly against the target; both conditions push the number up, so the record says so.
   **Issue:** #69
+- **Decision:** In view-board mode the slim result bar takes the top bar's place (pill and status chip), not the tool row's; the tool row stays under the board.
+  **Why:** The plan contradicts itself. One #78 line says the bar "replaces the tool row". But #78's test plan ("Takeback hiding the bar (#76's tool)") and #76's discretion (after the game ends, Takeback re-opens the game, Restart and New work) both need the tool row live under the bar. Once the game is over the pill is disabled and the chip only repeats the ending, so the bar loses nothing by sitting there. The bar is 56 dp inside the 64 dp top area (52 dp bar plus 12 dp gap), inset 8 dp like the panels.
+  **Issue:** #78
+- **Decision:** `describeResult(result, mode, you)`: `you` is your colour against the computer, and the side to move at the end between two players (`resultYou(game)`). It names the side that resigned in a drawn resignation.
+  **Why:** `Draw(resignationNoMatingMaterial)` carries no side. The controller always resigns for exactly that side (#75/#76), so the pure function can name it without a new engine field.
+  **Issue:** #78
+- **Decision:** Card state is `GameViewState.resultView` (`ResultView {card, board}`, null while the game goes on), set in `_refresh()` and cleared by any new game, restart or takeback. `GameController.viewBoard()` and `showResult()` move between the two. The 600 ms delay, the `hc-rise` (350 ms, 8 dp) and the 150 ms fade live in the widget (`ResultOverlay`, the Stack's top layer), which reads `MediaQuery.disableAnimations`. A takeback during the delay cancels the widget's timer. Android back always toggles while the game is over; during the delay it goes straight to the bar.
+  **Why:** The plan puts the card-or-bar state on `GameViewState`. The delay and the motion depend on the system animation setting, which only the widget tree can read.
+  **Issue:** #78
+- **Decision:** TIME LEFT reads "0:00" for a side whose flag fell, not the clocks' "0:00.0". Otherwise it uses `clockText`. Its spoken form is `clockSemantics('Time left', ms)`. The two-player CLOCK tile names the control as the design's `tName` does ("Rapid 10+5", "Untimed", "15+10"). Stat values scale down to fit their tile.
+  **Why:** The discretion lines ask for exactly "0:00" and the design's names. "Classical 30+0" at 18 px is about as wide as a tile.
+  **Issue:** #78
+- **Decision:** The pause card's private `_CardButton` became the public `CardButton` in pause_overlay.dart, reused for the result card's Rematch (filled teal) and View board (the design's secondary outline: `panelDim` fill, `choiceEdge` edge). New Palette tokens from the design's `isOver` card: `resultScrim` (.85), `resultCardEnd` (04213F), `resultEdge`, `resultBody`, `statFill`. #74's flag test now also waits out the card's rise before asserting no tickers remain.
+  **Why:** This reuses the existing button instead of duplicating it. The card's rise is a ticker that #74's test could not have known about.
+  **Issue:** #78

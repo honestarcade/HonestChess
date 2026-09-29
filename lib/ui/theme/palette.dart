@@ -81,6 +81,16 @@ abstract final class Palette {
   static const drawEdge = Color(0x2EFFFFFF); // rgba(255,255,255,.18)
   static const resignFill = Color(0x1FE05A4E); // rgba(224,90,78,.12)
   static const resignEdge = checkTint;
+
+  /// The result card (`isOver`): its darker scrim, the far stop of its
+  /// 170° gradient from [card], its teal inset edge, its body text, and a
+  /// stat tile's fill. The View board button is the design's secondary
+  /// outline: [panelDim] fill, [choiceEdge] edge.
+  static const resultScrim = Color(0xD9030E20); // rgba(3,14,32,.85)
+  static const resultCardEnd = Color(0xFF04213F);
+  static const resultEdge = Color(0x4D00D6B4); // rgba(0,214,180,.3)
+  static const resultBody = Color(0xFFBBD2EC);
+  static const statFill = choiceFill;
 }
 
 /// The app's font families, as pubspec.yaml declares them.

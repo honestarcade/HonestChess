@@ -239,7 +239,7 @@ class _PauseOverlayState extends State<PauseOverlay>
                       ),
               ),
               const SizedBox(height: 18),
-              _CardButton(
+              CardButton(
                 buttonKey: const Key('pause-resume'),
                 label: 'Resume',
                 fill: Palette.teal,
@@ -252,7 +252,7 @@ class _PauseOverlayState extends State<PauseOverlay>
                 onTap: asking ? null : _controller.resume,
               ),
               const SizedBox(height: 9),
-              _CardButton(
+              CardButton(
                 buttonKey: const Key('pause-draw'),
                 label: drawLabel(game.mode),
                 fill: Palette.drawFill,
@@ -278,7 +278,7 @@ class _PauseOverlayState extends State<PauseOverlay>
                 ),
               ],
               const SizedBox(height: 9),
-              _CardButton(
+              CardButton(
                 buttonKey: const Key('pause-resign'),
                 label: 'Resign',
                 fill: Palette.resignFill,
@@ -294,10 +294,12 @@ class _PauseOverlayState extends State<PauseOverlay>
   }
 }
 
-/// One of the card's full-width buttons, dimmed while it cannot be
-/// pressed; [busy] shows a spinner beside the label.
-class _CardButton extends StatelessWidget {
-  const _CardButton({
+/// A card's full-width button — the pause card's and the result card's —
+/// dimmed while it cannot be pressed; [busy] shows a spinner beside the
+/// label.
+class CardButton extends StatelessWidget {
+  const CardButton({
+    super.key,
     required this.buttonKey,
     required this.label,
     required this.fill,
