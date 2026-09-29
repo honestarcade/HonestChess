@@ -1065,7 +1065,7 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
   The suite asserts the floors with no system bars, where the numbers hold, and reports the sizes with bars in. AC 2 is left unticked, and the question is on #104.
   **Why:** Choosing between a redesign of the play screen and a lower floor is the owner's call. Guessing either way changes the design or the owner's number.
   **Issue:** #104
-- **Decision:** `test/a11y/flutter_test_config.dart` replaces the root config for this folder only, because flutter_test uses the nearest config. It runs the root config's font loading and turns motion off through `FakeAccessibilityFeatures(disableAnimations: true)`, reset after each test. #102's and #103's tests in this folder pass under it unchanged. The `A11yCase` table gained `controls` and five states the plan lists that it lacked:
+- **Decision:** `test/a11y/flutter_test_config.dart` replaces the root config for this folder only, because flutter_test uses the nearest config. It runs the root config's font loading and turns motion off through `FakeAccessibilityFeatures(disableAnimations: true)`, reset after each test. #102's and #103's tests in this folder pass under it unchanged. The `A11yCase` table gained `controls` and six states the plan lists that it lacked:
   - two players, turned round with Black at the bottom;
   - the pause card after a declined draw (held by `autoPause`, so its 2 s timer cannot outlive the case);
   - result cards after a loss (resignation) and after a draw (agreed between two players);
