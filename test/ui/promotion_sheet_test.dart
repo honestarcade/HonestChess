@@ -1,20 +1,26 @@
 // The promotion sheet (#73) on the play screen: each of the four pieces,
 // by tap and by drag, capturing or not; cancelling by the scrim and by
 // Android's back leaves the position and the turn as they were; auto-queen
-// never shows the sheet.
+// never shows the sheet; and nothing under the card, on the board or in the
+// tool row, responds while it is open.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:honest_chess/engine/engine.dart';
+import 'package:honest_chess/engine/engine.dart' hide play;
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/board/board_view.dart';
 import 'package:honest_chess/ui/board/promotion_sheet.dart';
+import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/game_screen.dart';
+import 'package:honest_chess/ui/game/tool_row.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
 import '../support/app_harness.dart';
 import 'board/board_interaction_test.dart' show dragTo, centre, tap;
+import 'game/computer_turns_test.dart' show asWhite, moves;
+import 'game/fake_computer.dart';
+import 'game/player_panel_test.dart' show play, pumpGame;
 
 /// White pawn on e7, one step from promoting; a black rook on d8 to take.
 const _white = '3r3k/4P3/8/8/8/8/8/K7 w - - 0 1';
@@ -217,6 +223,59 @@ void main() {
       await expectUntouched(tester, c);
       expect(find.byKey(const Key('piece-e7')), findsOneWidget);
     });
+  });
+
+  group('the tool row under the card', () {
+    // Against the computer, a move each already played, so every tool is
+    // live: Takeback would undo two plies, Restart would reseed, Resign
+    // would end the game and New would pause it for the setup screen.
+    for (final tool in Tool.values) {
+      testWidgets('${tool.name} under the scrim only cancels', (tester) async {
+        final fakes = FakeComputers();
+        final h = await pumpGame(
+          tester,
+          mode: asWhite,
+          fen: _white,
+          computer: fakes,
+        );
+        final c = h.controller;
+        await play(tester, c, 'a1a2');
+        fakes.current.last.move('h8h7');
+        await h.clock.advance(minThinkTime);
+        expect(moves(c), ['a1a2', 'h8h7'], reason: 'test: a move each');
+        await tapMove(tester, 'e7', 'e8');
+        expect(card, findsOneWidget, reason: 'test: the card is open');
+
+        await tester.tap(find.byKey(tool.key), warnIfMissed: false);
+        await tester.pumpAndSettle();
+        expect(
+          c.state.pendingPromotion,
+          isNull,
+          reason: 'promo-tools: ${tool.name} under the scrim cancels',
+        );
+        expect(moves(c), [
+          'a1a2',
+          'h8h7',
+        ], reason: 'promo-tools: ${tool.name} under the scrim plays nothing');
+        expect(
+          c.game.mode,
+          asWhite,
+          reason: 'promo-tools: ${tool.name} keeps the mode and the seed',
+        );
+        expect(
+          c.game.isOver,
+          isFalse,
+          reason: 'promo-tools: ${tool.name} under the scrim ends nothing',
+        );
+        expect(
+          c.state.paused,
+          isFalse,
+          reason: 'promo-tools: ${tool.name} under the scrim pauses nothing',
+        );
+        expect(kindOn(c, 'e7'), PieceKind.pawn);
+        expect(find.byType(GameScreen), findsOneWidget);
+      });
+    }
   });
 
   testWidgets('auto-queen: no sheet, the pawn becomes a queen', (tester) async {

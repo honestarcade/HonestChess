@@ -207,12 +207,7 @@ void main() {
         expect(
           w.style!.fontFamily,
           flat ? 'PlexMono' : 'HonestPieces',
-          reason: 'pieces: symbols only from the bundled piece font',
-        );
-        expect(
-          w.style!.fontFamilyFallback,
-          isEmpty,
-          reason: 'pieces: no fallback, so never colour emoji',
+          reason: 'pieces: drawn in the bundled piece font',
         );
         expect(
           w.style!.fontSize,

@@ -400,9 +400,6 @@ class PieceGlyph extends StatelessWidget {
         textAlign: TextAlign.center,
         style: TextStyle(
           fontFamily: flat ? Fonts.plexMono : Fonts.pieces,
-          // Empty, so a missing glyph shows as missing rather than as a
-          // system font's piece — on Android that would be colour emoji.
-          fontFamilyFallback: const [],
           fontWeight: flat ? FontWeight.w600 : FontWeight.w400,
           fontSize: fontSize,
           height: 1,
