@@ -1086,3 +1086,5 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** (planner call) At text scale 1.3, with the bars in, the floors are the smallest squares the suite measured on 2026-09-29 (`flutter test test/a11y/guidelines_test.dart`): 36 dp at 360 × 640 and 24 dp at 320 × 568 (View board). The layout is unchanged; 390 × 844 has no floor.
   **Why:** The owner accepted the current layout. The plan (pass 2) only reported the 1.3 sizes; holding them as floors means the board cannot shrink further without a failing test.
   **Issue:** #104
+
+## /n8-exec M2 (verification fix pass) — 2026-09-29
