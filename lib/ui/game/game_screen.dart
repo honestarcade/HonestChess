@@ -13,6 +13,7 @@ import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/defaults.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/labels.dart';
+import 'package:honest_chess/ui/game/pause_overlay.dart';
 import 'package:honest_chess/ui/game/player_panel.dart';
 import 'package:honest_chess/ui/game/temporary_new_game.dart';
 import 'package:honest_chess/ui/game/tool_row.dart';
@@ -94,6 +95,28 @@ class GameScreen extends StatefulWidget {
 class GameScreenState extends State<GameScreen> {
   late final GameController controller = widget.controller ?? _newGame();
 
+  /// Leaving the app — another app, a call, the screen off — pauses the
+  /// game; coming back leaves it paused.
+  late final AppLifecycleListener _lifecycle;
+
+  /// Whether the new-game picker is open over the screen.
+  bool _picking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle = AppLifecycleListener(onStateChange: _left);
+  }
+
+  void _left(AppLifecycleState state) {
+    if (state != AppLifecycleState.inactive &&
+        state != AppLifecycleState.hidden) {
+      return;
+    }
+    controller.autoPause();
+    if (controller.state.paused) _closePicker();
+  }
+
   GameController _newGame() {
     final setup = widget.setup;
     if (setup == null) {
@@ -115,9 +138,28 @@ class GameScreenState extends State<GameScreen> {
   /// New's action until M4's setup screens: the temporary picker, and the
   /// chosen game. Closing the picker without a choice changes nothing.
   Future<void> _pickNewGame() async {
-    final setup = await TemporaryNewGamePicker.show(context);
+    _picking = true;
+    final GameSetup? setup;
+    try {
+      setup = await TemporaryNewGamePicker.show(context);
+    } finally {
+      _picking = false;
+    }
     if (setup == null || !mounted) return;
     controller.newGame(setup, seed: widget.seed);
+  }
+
+  /// The pause pill: pauses the game and opens the pause card.
+  void _pause() {
+    if (controller.pause()) _closePicker();
+  }
+
+  /// A pause closes the new-game picker with nothing chosen, as it closes
+  /// the promotion card.
+  void _closePicker() {
+    if (!_picking || !mounted) return;
+    final screen = ModalRoute.of(context);
+    Navigator.of(context).popUntil((route) => route == screen);
   }
 
   @override
@@ -128,6 +170,7 @@ class GameScreenState extends State<GameScreen> {
 
   @override
   void dispose() {
+    _lifecycle.dispose();
     if (widget.controller == null) controller.dispose();
     super.dispose();
   }
@@ -166,8 +209,9 @@ class GameScreenState extends State<GameScreen> {
                   right: 0,
                   top: 0,
                   height: topBarHeight,
-                  child: _TopBar(controller: controller),
+                  child: _TopBar(controller: controller, onPause: _pause),
                 ),
+                PauseOverlay(controller: controller),
               ],
             ),
           ),
@@ -206,9 +250,10 @@ class _Ellipse extends GradientTransform {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.controller});
+  const _TopBar({required this.controller, required this.onPause});
 
   final GameController controller;
+  final VoidCallback onPause;
 
   @override
   Widget build(BuildContext context) {
@@ -238,33 +283,37 @@ class _TopBar extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                // Pause arrives with #77's overlay; until then the pill is
-                // shown but does nothing.
                 child: Semantics(
                   button: true,
-                  enabled: false,
-                  child: Container(
-                    key: const Key('pause-pill'),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 11,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Palette.pillFill,
-                      borderRadius: const BorderRadius.all(Radius.circular(10)),
-                      border: Border.all(color: Palette.pillEdge),
-                    ),
-                    child: Text(
-                      '❚❚ ${gameTitle(game.mode)}',
-                      maxLines: 1,
-                      softWrap: false,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: Fonts.outfit,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 11.5,
-                        height: 1,
-                        color: Palette.pieceWhite,
+                  enabled: !game.isOver,
+                  label: 'Pause',
+                  child: GestureDetector(
+                    onTap: game.isOver ? null : onPause,
+                    child: Container(
+                      key: const Key('pause-pill'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 11,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Palette.pillFill,
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(10),
+                        ),
+                        border: Border.all(color: Palette.pillEdge),
+                      ),
+                      child: Text(
+                        '❚❚ ${gameTitle(game.mode)}',
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: Fonts.outfit,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 11.5,
+                          height: 1,
+                          color: Palette.pieceWhite,
+                        ),
                       ),
                     ),
                   ),

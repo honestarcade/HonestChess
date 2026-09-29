@@ -542,3 +542,18 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** #74's "a clock at zero ends the game" test pumps one more frame before asserting no ticker is left.
   **Why:** Resign turning disabled at the flag releases its focus node, which schedules one rebuild frame — a frame, not a ticking clock; the assertion still catches a clock that keeps ticking.
   **Issue:** #76
+- **Decision:** `GameController` gains `offerDraw()` → `Future<bool>` (only while paused; two-player agrees at once; vs computer asks `ComputerOpponent.acceptsDraw` on the paused game, whose search the pause already cancelled, so Resume's re-request covers "re-request on decline"), `drawOffer` → `DrawOffer { open, tooEarly, afterNextMove, asking, over }`, `autoPause()`, const `drawDeclineShown` (2 s), and `GameViewState.drawAsking`/`drawDeclined`. `resume()` and `resign()` are refused while the computer answers; resign and an agreed draw clear the pause, so the card closes as the game ends. A vs-computer game built without a computer factory refuses the offer.
+  **Why:** The plan puts pause state in the controller; one enum gives the card both its enabled state and its hint.
+  **Issue:** #77
+- **Decision:** The one-offer lockout re-enables once the ply count passes the declined offer's ply — any move, the computer's reply included, so an offer declined on the computer's turn is open again after its move — and a takeback below that ply clears it.
+  **Why:** The plan's literal rule ("once the ply count passes it"); "one per move of yours" and it agree whenever the offer was made on your turn, the usual case.
+  **Issue:** #77
+- **Decision:** A decline that lands while the app is away (auto-paused during `acceptsDraw`) shows its message with no 2 s timer; the card stays up until you press Resume. Making a new offer clears the away state.
+  **Why:** The plan says the decline "shows on return" and returning never auto-resumes; a timer running in the background would resume play unseen.
+  **Issue:** #77
+- **Decision:** Card layout: the decline line (Outfit 13, `choiceLabel`, live region) sits between the meta line and the buttons; the hint caption 6 dp under the draw button; disabled buttons at 0.4 opacity as the tool row's; the spinner (16 dp, 2 dp stroke) sits left of the draw label. The overlay is the Stack's top layer (over the top bar), fades in and out over 200 ms, and its `PopScope` blocks back only while it is open. New Palette tokens `resumeInk` (04213F), `drawFill`, `drawEdge`, `resignFill`, `resignEdge` from the design's pause card.
+  **Why:** The design gives no place for either line; these keep the card's order (title, meta, buttons) and reuse #73/#76's styles.
+  **Issue:** #77
+- **Decision:** The pause pill is a `GestureDetector` (semantics "Pause", disabled once over). Pausing closes #76's picker by popping to the screen's own route (the picker completes with null); an auto-pause's pop plays its exit once frames resume on return. `FakeComputer.acceptsDraw` is now scripted (`draws`, `FakeDraw.accept/decline/fail`) instead of always declining.
+  **Why:** The picker is a modal route, not a layer; the plan's fake-computer seam.
+  **Issue:** #77

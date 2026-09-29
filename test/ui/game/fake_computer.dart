@@ -29,6 +29,20 @@ class FakeRequest {
   void fail() => completer.completeError(const ComputerError('fake'));
 }
 
+/// One acceptsDraw call: the game the offer was made in and its answer.
+class FakeDraw {
+  FakeDraw(this.game);
+
+  final Game game;
+  final completer = Completer<bool>();
+
+  void accept() => completer.complete(true);
+
+  void decline() => completer.complete(false);
+
+  void fail() => completer.completeError(const ComputerError('fake'));
+}
+
 /// The fake computer. With [instant] set, each request is answered at once
 /// with the first legal move; otherwise the test answers [requests].
 class FakeComputer implements ComputerOpponent {
@@ -39,6 +53,7 @@ class FakeComputer implements ComputerOpponent {
   final bool instant;
 
   final requests = <FakeRequest>[];
+  final draws = <FakeDraw>[];
   var cancels = 0;
   var disposed = false;
 
@@ -53,7 +68,11 @@ class FakeComputer implements ComputerOpponent {
   }
 
   @override
-  Future<bool> acceptsDraw(Game game) async => false;
+  Future<bool> acceptsDraw(Game game) {
+    final draw = FakeDraw(game);
+    draws.add(draw);
+    return draw.completer.future;
+  }
 
   @override
   Future<void> cancel() async {

@@ -73,6 +73,14 @@ abstract final class Palette {
   static const accentFill = Color(0x1F00D6B4); // rgba(0,214,180,.12)
   static const accentEdge = panelLitEdge;
   static const accentInk = teal;
+
+  /// The pause card's buttons: Resume's ink on teal, the draw button's
+  /// fill and edge, and Resign's red fill and edge (its ink is [alarm]).
+  static const resumeInk = Color(0xFF04213F);
+  static const drawFill = panelDim;
+  static const drawEdge = Color(0x2EFFFFFF); // rgba(255,255,255,.18)
+  static const resignFill = Color(0x1FE05A4E); // rgba(224,90,78,.12)
+  static const resignEdge = checkTint;
 }
 
 /// The app's font families, as pubspec.yaml declares them.
