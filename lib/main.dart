@@ -2,7 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:honest_chess/data/app_store.dart';
 import 'package:honest_chess/engine/engine.dart';
+import 'package:honest_chess/platform/platform_channel.dart';
+import 'package:honest_chess/ui/app_scope.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/defaults.dart';
@@ -51,6 +54,13 @@ void registerFontLicences() {
   });
 }
 
+/// The app's theme, shared by the root and test/support/app_harness.dart.
+ThemeData appTheme() => ThemeData(
+  brightness: Brightness.dark,
+  scaffoldBackgroundColor: _navy,
+  fontFamily: Fonts.outfit,
+);
+
 /// The app root. It holds the board options in memory with the design's
 /// defaults until M4's Settings saves them, and opens on [firstGame].
 class HonestChessApp extends StatefulWidget {
@@ -59,7 +69,15 @@ class HonestChessApp extends StatefulWidget {
     this.computerFactory = ComputerPlayerOpponent.new,
     this.firstGame = vsComputerDefault,
     this.seed,
+    this.store,
+    this.platform,
   });
+
+  /// The device store; null builds the production one over [platform].
+  final AppStore? store;
+
+  /// The Android bridge; null builds the production channel.
+  final PlatformChannel? platform;
 
   /// Builds the computer for each game against it; tests pass a fake.
   final ComputerFactory computerFactory;
@@ -76,21 +94,33 @@ class HonestChessApp extends StatefulWidget {
 class HonestChessAppState extends State<HonestChessApp> {
   BoardOptions boardOptions = const BoardOptions();
 
+  /// Built once, never rebuilt: a test injecting only a platform gets a
+  /// store resolved through it.
+  late final PlatformChannel platform;
+  late final AppStore store;
+
+  @override
+  void initState() {
+    super.initState();
+    platform = widget.platform ?? MethodChannelPlatform();
+    store = widget.store ?? AppStore.onDevice(platform);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Honest Chess',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: _navy,
-        fontFamily: Fonts.outfit,
-      ),
-      home: GameScreen(
-        options: boardOptions,
-        setup: widget.firstGame,
-        seed: widget.seed,
-        computerFactory: widget.computerFactory,
+    return AppScope(
+      store: store,
+      platform: platform,
+      child: MaterialApp(
+        title: 'Honest Chess',
+        debugShowCheckedModeBanner: false,
+        theme: appTheme(),
+        home: GameScreen(
+          options: boardOptions,
+          setup: widget.firstGame,
+          seed: widget.seed,
+          computerFactory: widget.computerFactory,
+        ),
       ),
     );
   }

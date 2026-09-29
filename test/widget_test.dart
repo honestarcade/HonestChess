@@ -2,13 +2,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:honest_chess/data/app_store.dart';
 import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/main.dart';
+import 'package:honest_chess/ui/app_scope.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/board/board_view.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/game_screen.dart';
 
+import 'support/fake_platform_channel.dart';
 import 'ui/game/fake_computer.dart';
 import 'ui/game/player_panel_test.dart' show text;
 
@@ -20,7 +23,15 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final fakes = FakeComputers();
-    await tester.pumpWidget(HonestChessApp(computerFactory: fakes.call));
+    final store = AppStore.memory();
+    final platform = FakePlatformChannel();
+    await tester.pumpWidget(
+      HonestChessApp(
+        computerFactory: fakes.call,
+        store: store,
+        platform: platform,
+      ),
+    );
 
     final board = tester.widget<BoardView>(find.byType(BoardView));
     expect(
@@ -60,6 +71,18 @@ void main() {
       reason: 'app: the root holds the board options',
     );
 
+    final scope = AppScope.of(tester.element(find.byType(GameScreen)));
+    expect(
+      scope.store,
+      same(store),
+      reason: 'app: the injected store is the scope\'s',
+    );
+    expect(
+      scope.platform,
+      same(platform),
+      reason: 'app: the injected platform is the scope\'s',
+    );
+
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
     expect(scaffold.backgroundColor, const Color(0xFF05285F));
 
@@ -81,7 +104,12 @@ void main() {
     addTearDown(tester.view.reset);
     final fakes = FakeComputers();
     await tester.pumpWidget(
-      HonestChessApp(computerFactory: fakes.call, seed: 42),
+      HonestChessApp(
+        computerFactory: fakes.call,
+        seed: 42,
+        store: AppStore.memory(),
+        platform: FakePlatformChannel(),
+      ),
     );
     expect(fakes.current.seed, 42, reason: 'app: the seed override is used');
     await tester.tap(find.byKey(const Key('cell-e2')));

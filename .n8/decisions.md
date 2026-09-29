@@ -576,8 +576,23 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
   **Why:** This reuses the existing button instead of duplicating it. The card's rise is a ticker that #74's test could not have known about.
   **Issue:** #78
 
+## Ad-hoc — 2026-09-29
+
+- **Change:** CLAUDE.md invariant 1 is amended for Android's own backup. "All player data stays on the device" becomes "the app itself sends player data nowhere", and the invariant now says that Android's system backup, when the player has it on, may include the app's data in their Google account backup. That is the player's choice, and the app does not opt out. Its enforcement line adds `test/guards/platform_surface_test.dart`, and the annotation reads `#80 (merged)`.
+  **Why:** The owner approved it at /n8-plan M4 round one (2026-09-28): "all recs good", accepting the recommendation that Android's own backup stays allowed. The manifest keeps Android's default (no `allowBackup`, `fullBackupContent` or `dataExtractionRules`), and `docs/privacy.md` already says so. The old wording would have been false once the store writes real files that Android may back up.
+  **Affects:** M4: #80, and the texts reworded for backup in #84, #88, #89 and #90. M7: epic #11's "no data collected" data-safety answer and the store listing, to be checked against Android backup when M7 is planned.
+
 ## /n8-exec M4 — 2026-09-29
 
 - **Decision:** The CI `mutations` job's `timeout-minutes` is raised again, from 45 to 60, at the start of M4.
   **Why:** M3's PR run (PR #128, 2026-09-29) took 36.8 min for the same battery that took 29 min on M2's run. M4 adds roughly twenty mutations, which would pass 45 min. Splitting the battery across a job matrix would rename the required `mutations` check that the main ruleset names. Raising the limit keeps that check name, so it is the smaller CI change. It extends the readiness pass's pre-authorisation (2026-09-28), and the owner may veto it at verification.
+  **Issue:** #80
+- **Decision:** `AppStore` details the plan left open. A write merges only into a queued write that has not started; a delete never merges and drops the queued writes. A locked document answers `Absent` without touching the disk. A damaged file found by a read is not moved aside if a write or delete was queued during that read, though the notice is still raised. The size limit is checked from the file's length before any bytes are read. The read timeout applies to every resolver-built store, including one that fell back to memory, and never to `AppStore.memory()`. A `persistent` getter says whether the store reached the disk.
+  **Why:** Each follows the plan's rules (last value wins, a delete drops pending writes, and a quarantine moves nothing once newer content is queued) where the plan said nothing about these cases. The getter lets tests and later stories see the fallback without reaching into private state.
+  **Issue:** #80
+- **Decision:** Kotlin reads `url` from the call's arguments with safe casts (`arguments as? Map`), not `call.argument`, which throws when the arguments are not a map. `MethodChannelPlatform.appVersion` caches only a success, so a failed first read can be retried. The app's `ThemeData` moved into `appTheme()` in lib/main.dart, which the root and test/support/app_harness.dart share.
+  **Why:** "Any exception → false" has to cover a malformed call as well. Caching a failure would pin a passing timeout for the whole process. The plan asks for "the root's own theme through one shared function".
+  **Issue:** #80
+- **Decision:** The device test integration_test/platform_channel_test.dart also sends `openUrl` with no `url` and expects `false`.
+  **Why:** Kotlin's missing-argument branch is otherwise exercised only by review.
   **Issue:** #80
