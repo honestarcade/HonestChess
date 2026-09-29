@@ -144,6 +144,7 @@ class GameController extends ChangeNotifier {
     this._computer,
     this._newGameId = newGameId,
   }) : _options = options,
+       _seedOverride = null,
        _fen = fen,
        _now = now,
        _current = Game.start(
@@ -164,14 +165,18 @@ class GameController extends ChangeNotifier {
   /// action is refused.
   ///
   /// [newGameId] draws each game's statistics id (default [newGameId]);
-  /// tests pass a counter.
+  /// tests pass a counter. [seed], when set, is every new game's computer
+  /// seed where [newGame] is given none — the device test's fixed seed.
   GameController.idle({
     this._now,
     ComputerFactory? computerFactory,
     this._options = const BoardOptions(),
     this._newGameId = newGameId,
-  }) : _computer = computerFactory;
+    int? seed,
+  }) : _computer = computerFactory,
+       _seedOverride = seed;
 
+  final int? _seedOverride;
   String? _fen;
   final String Function() _newGameId;
   final TimeSource? _now;
@@ -572,7 +577,8 @@ class GameController extends ChangeNotifier {
   }
 
   /// Starts a new game from [setup] at the standard start position; against
-  /// the computer the seed is [seed], or a fresh one. The takeback option
+  /// the computer the seed is [seed], else the controller's own override,
+  /// else a fresh one. The takeback option
   /// applies from here.
   ///
   /// The game it replaces is frozen at once — its search cancelled, its
@@ -583,7 +589,11 @@ class GameController extends ChangeNotifier {
   /// nothing, while another replacement is running.
   Future<bool> newGame(GameSetup setup, {int? seed}) {
     if (_replacing) return Future.value(false);
-    return _replace(modeFor(setup, seed: seed), setup.timeControl, fen: null);
+    return _replace(
+      modeFor(setup, seed: seed ?? _seedOverride),
+      setup.timeControl,
+      fen: null,
+    );
   }
 
   Future<bool> _replace(GameMode mode, TimeControl timeControl, {String? fen}) {

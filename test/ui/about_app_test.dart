@@ -11,6 +11,7 @@ import 'package:honest_chess/platform/platform_channel.dart';
 import 'package:honest_chess/ui/brand/honest_mark.dart';
 import 'package:honest_chess/ui/brand/links.dart';
 import 'package:honest_chess/ui/content/about_content.dart';
+import 'package:honest_chess/ui/navigation.dart';
 import 'package:honest_chess/ui/screens/about_app_screen.dart';
 import 'package:honest_chess/ui/screens/about_arcade_screen.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
@@ -37,9 +38,7 @@ Future<AppHarness> _pump(
     platform: platform,
   );
   unawaited(
-    tester
-        .state<NavigatorState>(find.byType(Navigator))
-        .push(AboutAppScreen.route()),
+    tester.state<NavigatorState>(find.byType(Navigator)).push(aboutAppRoute()),
   );
   await tester.pumpAndSettle();
   return harness;

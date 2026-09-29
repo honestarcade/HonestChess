@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../navigation.dart';
 import '../theme/palette.dart';
 
 /// The back button's character, drawn in Outfit, which has it (the header
@@ -8,7 +9,8 @@ const backGlyph = '‹';
 
 /// The design's screen header: the ‹ back button and the title, with an
 /// optional upper-case [kicker] line under the title in [kickerColor].
-/// Back pops the route, returning to wherever the screen was opened from;
+/// Back is [goBack], the phone's back button's own path, returning to
+/// wherever the screen was opened from;
 /// while pressed its border is the [accent]'s.
 /// Its parts are keyed `<keyPrefix>-back`, `-title` and `-kicker`, the
 /// prefix being the screen's id (`settings`, `csetup`…).
@@ -39,7 +41,7 @@ class ScreenHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kicker = this.kicker;
-    final back = onBack ?? () => Navigator.maybePop(context);
+    final back = onBack ?? () => goBack(context);
     return Row(
       children: [
         _BackButton(keyPrefix: keyPrefix, onBack: back, accent: accent),

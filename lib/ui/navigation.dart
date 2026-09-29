@@ -2,13 +2,32 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../data/play_mode.dart';
 import 'app_scope.dart';
 import 'board/board_options.dart';
 import 'game/defaults.dart';
 import 'game/game_screen.dart';
+import 'screens/about_app_screen.dart';
+import 'screens/about_arcade_screen.dart';
+import 'screens/computer_setup_screen.dart';
+import 'screens/how_to_play_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/stats_screen.dart';
+import 'screens/two_player_setup_screen.dart';
 
 /// The board route's name: every board is pushed by [openBoard] under it.
 const boardRouteName = 'board';
+
+/// The pushed screens' route names, the design's screen ids. The menu is
+/// the navigator's first route and is recognised by `isFirst`, never by a
+/// name.
+const computerSetupRouteName = 'csetup';
+const twoPlayerSetupRouteName = 'psetup';
+const statsRouteName = 'stats';
+const howToPlayRouteName = 'howto';
+const settingsRouteName = 'settings';
+const aboutAppRouteName = 'aboutapp';
+const aboutArcadeRouteName = 'aboutstudio';
 
 /// How long a route transition may hold [NavigationGuard.busy] when its
 /// animation never reports that it finished.
@@ -86,6 +105,49 @@ final class _Hold {
   final AnimationStatusListener status;
 }
 
+Route<void> _screenRoute(String name, Widget screen) => MaterialPageRoute<void>(
+  settings: RouteSettings(name: name),
+  builder: (_) => screen,
+);
+
+Route<void> computerSetupRoute({bool fromBoard = false}) => _screenRoute(
+  computerSetupRouteName,
+  ComputerSetupScreen(fromBoard: fromBoard),
+);
+
+Route<void> twoPlayerSetupRoute() =>
+    _screenRoute(twoPlayerSetupRouteName, const TwoPlayerSetupScreen());
+
+Route<void> statsRoute({PlayMode? openOn}) =>
+    _screenRoute(statsRouteName, StatsScreen(openOn: openOn));
+
+Route<void> howToPlayRoute({HowToTab initialTab = HowToTab.pieces}) =>
+    _screenRoute(howToPlayRouteName, HowToPlayScreen(initialTab: initialTab));
+
+Route<void> settingsRoute() =>
+    _screenRoute(settingsRouteName, const SettingsScreen());
+
+Route<void> aboutAppRoute() =>
+    _screenRoute(aboutAppRouteName, const AboutAppScreen());
+
+Route<void> aboutArcadeRoute() =>
+    _screenRoute(aboutArcadeRouteName, const AboutArcadeScreen());
+
+/// Pushes [route] through the scope's navigating flag, so a second tap
+/// while a transition runs opens nothing. Completes with whether it was
+/// pushed.
+Future<bool> openScreen(BuildContext context, Route<void> route) {
+  final navigator = Navigator.of(context);
+  return AppScope.of(context).navigation.run(() {
+    unawaited(navigator.push(route));
+  });
+}
+
+/// ‹'s action on every screen: the navigator's own pop, the same path the
+/// phone's back takes, so a route's `PopScope` is respected by both. It is
+/// never held by the navigating flag.
+Future<bool> goBack(BuildContext context) => Navigator.maybePop(context);
+
 /// The board route: the game screen over the scope's controller, drawn with
 /// the scope's board options.
 Route<void> boardRoute() => MaterialPageRoute<void>(
@@ -113,6 +175,32 @@ Future<void> startGame(BuildContext context, GameSetup setup) async {
 /// Shows the controller's game: pushes the board above the first route,
 /// removing everything between, so there is never more than one board.
 void openBoard(BuildContext context) => _pushBoard(Navigator.of(context));
+
+/// Continue: restores the game [GameSaves.offered] names, from the saved
+/// copy held in memory (never the controller's live game object), paused
+/// and with its `recorded` state, and shows it with [openBoard] — all under
+/// the navigating flag. Completes with whether the board was pushed.
+Future<bool> continueGame(BuildContext context) {
+  final navigator = Navigator.of(context);
+  final scope = AppScope.of(context);
+  var pushed = false;
+  return scope.navigation
+      .run(() {
+        final mode = scope.saves.offered?.mode;
+        final game = mode == null ? null : scope.saves.load(mode);
+        assert(game != null, 'Continue showed with no saved game behind it');
+        if (game == null ||
+            !scope.controller.restore(
+              game,
+              recorded: scope.saves.recorded(mode!),
+            )) {
+          return;
+        }
+        _pushBoard(navigator);
+        pushed = true;
+      })
+      .then((_) => pushed);
+}
 
 void _pushBoard(NavigatorState navigator) {
   if (!navigator.mounted) return;

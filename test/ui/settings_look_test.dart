@@ -293,8 +293,8 @@ void main() {
     }
   });
 
-  testWidgets('the app opens on the saved look; a change reaches the board '
-      'behind the pause card and is saved', (tester) async {
+  testWidgets('a game started from the menu is in the saved look; a change '
+      'reaches the board behind the pause card and is saved', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -318,6 +318,20 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.tap(find.byKey(const Key('menu-vs-computer')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('csetup-start')),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.byKey(const Key('csetup-start')));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+    }
+    // A running clock never lets the transition settle.
+    await tester.pump(const Duration(milliseconds: 500));
     expect(_look(tester), (
       a1: BoardTheme.teal.dark,
       knight: '♘\u{FE0E}',

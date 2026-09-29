@@ -743,3 +743,24 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** Palette: new `brandBlue` (#0076F1), `barRed` (#C6483D), `barTrack` (white .09), `danger` (#E05A4E), `dangerPressed` (#C94A3F), `cancelEdge` (white .20) and `confirmShadow` (black .50); the Reset statistics button's fill and edge reuse the identical `resignFill` (red .12) and `resignEdge` (red .50), and WIN RATE's wash the identical `accentFill` (teal .12). The reset failure is caught for any error from `resetAll()`, not only `StatsResetFailed`, since either leaves the statistics unchanged.
   **Why:** The conventions reuse a token only when its value is identical; a failure the screen did not catch would leave both buttons disabled for good.
   **Issue:** #90
+- **Decision:** `main({int? seed, AppStore? store})` and `HonestChessApp(seedOverride:)` replace #75's `main({Strength? strength, int? seed})` and the root's `firstGame`/`seed`/`resumeSaved`; the seed reaches games started from the setup screens through a new `GameController.idle(seed:)`, which `newGame` uses when it is given no seed of its own.
+  **Why:** The planner's discretion puts the override on `HonestChessApp`; carrying it on the controller the root already owns leaves `AppScope`, the harness and #85's `startGame` unchanged.
+  **Issue:** #91
+- **Decision:** Every screen's route is built in `lib/ui/navigation.dart` (`computerSetupRoute`, `twoPlayerSetupRoute`, `statsRoute`, `howToPlayRoute`, `settingsRoute`, `aboutAppRoute`, `aboutArcadeRoute`, named `csetup`…`aboutstudio`), with `openScreen(context, route)` pushing through the navigating flag, `goBack(context)` as `ScreenHeader`'s default ‹ and `continueGame(context)` for Continue; #88's and #89's `AboutArcadeScreen.route()` / `AboutAppScreen.route()` statics are removed in favour of the first two builders.
+  **Why:** The planner's discretion names `navigation.dart` as the home of the routes; one builder per screen keeps the `RouteSettings` names in one place.
+  **Issue:** #91
+- **Decision:** The menu scales by min(width, 480)/390 like #87–#90; the four screen buttons (44 dp drawn), the damaged-data banner's Dismiss and, on narrow phones, Continue get 48 dp touch slots centred on the drawn box, the extra taken from the gaps around them. The header mark is #88's `HonestMark.chess` (the launcher's corners and rook) rather than the design's menu SVG, whose corners sit further in.
+  **Why:** The shared conventions ask hit areas to grow without changing the drawn layout; the planner's discretion names `HonestMark.chess` for the header.
+  **Issue:** #91
+- **Decision:** Palette: new `tealBarEdge` (teal .35) and `tealBarPressed` (teal .18) for the About Honest Arcade bar, whose idle fill reuses the identical `tealPanelFill` (teal .10); the banner reuses the identical `resignFill` (red .12) and `resignEdge` (red .50); the cards' mini-board art adds `computerArtBlue`, `twoArtWashStart`, `twoArtWashEnd`, `twoArtLight`, `twoArtDark`, `artInkDark` and `artInkLight`, with `onTeal` and `textChoice` for the identical #04213F and #DCE9F8. `ScreenGradient.menu` is the design's `110% 90% at 24% 12%`.
+  **Why:** The conventions reuse a token only when its value is identical.
+  **Issue:** #91
+- **Decision:** #84's app-level Settings tests (`test/ui/settings_options_test.dart`) moved to the new `pumpBoard` harness helper, which wires the harness's `SettingsStore` to its controller as the root does; #83's app-level test (`test/ui/settings_look_test.dart`) and `test/widget_test.dart` go through the menu. widget_test's "the device test's overrides skip the saved game" is dropped with `resumeSaved`; its seed check moved to the menu → vs Computer → Start game test.
+  **Why:** The planner's discretion sends only widget_test and #83's test through the menu and the rest to `pumpBoard`; #84's tests need the board options wired to the game, which the harness did not do.
+  **Issue:** #91
+- **Decision:** The double-tap tests run each pair twice: as the plan's two `tester.tap` calls, and by calling both tap handlers in one frame. Only the second fails when the navigating flag is removed (checked by hand, 2026-09-29, by replacing `openScreen`'s and `continueGame`'s `navigation.run` with a direct push).
+  **Why:** #89's note found that a second `tester.tap` during a push is absorbed by the Navigator, so the plan's form alone passes without the guard.
+  **Issue:** #91
+- **Decision:** Back on a board still resumes a paused game (#77's pause-card `PopScope`) and otherwise pops to the menu with the game running; the menu tests therefore never assert the board's back beyond "back from the board reaches the menu" on a running game.
+  **Why:** The board's back is #92's, per the acceptance criteria.
+  **Issue:** #91

@@ -163,6 +163,24 @@ abstract final class Palette {
   static const dangerPressed = Color(0xFFC94A3F);
   static const cancelEdge = Color(0x33FFFFFF); // rgba(255,255,255,.2)
   static const confirmShadow = Color(0x80000000); // rgba(0,0,0,.5)
+
+  /// The menu's About Honest Arcade bar: its edge and its fill while
+  /// pressed (its idle fill is [tealPanelFill]). Its damaged-data banner
+  /// takes [resignFill] and [resignEdge], the same red washes.
+  static const tealBarEdge = Color(0x5900D6B4); // rgba(0,214,180,.35)
+  static const tealBarPressed = Color(0x2E00D6B4); // rgba(0,214,180,.18)
+
+  /// The menu cards' mini-board art, fixed as drawn: the vs Computer
+  /// card's 150° wash and squares ([onTeal] is the wash's far end,
+  /// [textChoice] the light squares), the Two players card's, and the
+  /// glyphs' two inks.
+  static const computerArtBlue = Color(0xFF0F3E86);
+  static const twoArtWashStart = Color(0xFF3B1F7A);
+  static const twoArtWashEnd = Color(0xFF1B0E3C);
+  static const twoArtLight = Color(0xFFE4DAFB);
+  static const twoArtDark = Color(0xFF3B2076);
+  static const artInkDark = Color(0xFF10161F);
+  static const artInkLight = Color(0xFFF7F5EF);
 }
 
 /// The system bars on every route, set once at the app root: light icons

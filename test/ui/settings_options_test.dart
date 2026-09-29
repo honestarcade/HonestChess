@@ -7,7 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:honest_chess/data/app_store.dart';
 import 'package:honest_chess/data/settings_store.dart';
 import 'package:honest_chess/engine/engine.dart';
-import 'package:honest_chess/main.dart';
 import 'package:honest_chess/platform/platform_channel.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/game/defaults.dart';
@@ -124,23 +123,16 @@ Future<BoardOptions> _saved(AppStore store) async {
 String _version(WidgetTester tester) =>
     tester.widget<Text>(find.byKey(const Key('settings-version'))).data!;
 
-/// The app on an untimed two-player game, with Settings pushed over the
-/// board.
-Future<HonestChessAppState> _launchAndOpenSettings(WidgetTester tester) async {
+/// An untimed two-player game's board, with Settings pushed over it.
+Future<AppHarness> _boardAndSettings(WidgetTester tester) async {
   _tallView(tester);
-  await tester.pumpWidget(
-    HonestChessApp(
-      computerFactory: FakeComputers().call,
-      store: AppStore.memory(),
-      platform: FakePlatformChannel(),
-      firstGame: _untimedTwo,
-      resumeSaved: false,
-    ),
+  final harness = await pumpBoard(
+    tester,
+    setup: _untimedTwo,
+    computerFactory: FakeComputers().call,
   );
-  await tester.pump();
-  await tester.pump();
   await _openSettings(tester);
-  return tester.state<HonestChessAppState>(find.byType(HonestChessApp));
+  return harness;
 }
 
 Future<void> _openSettings(WidgetTester tester) async {
@@ -331,7 +323,7 @@ void main() {
   testWidgets('with dots off a selected piece shows no dot; on, it does', (
     tester,
   ) async {
-    final root = await _launchAndOpenSettings(tester);
+    final root = await _boardAndSettings(tester);
     await _back(tester);
     await tester.tap(find.byKey(const Key('cell-e2')));
     await tester.pump();
@@ -360,7 +352,7 @@ void main() {
   });
 
   testWidgets('check flag and last move apply at once', (tester) async {
-    final root = await _launchAndOpenSettings(tester);
+    final root = await _boardAndSettings(tester);
     final c = root.controller;
     for (final uci in ['f2f3', 'e7e5', 'g2g4', 'd8h4']) {
       _move(c, uci);
@@ -385,7 +377,7 @@ void main() {
   testWidgets('takeback off applies from the next game, and back on too', (
     tester,
   ) async {
-    final root = await _launchAndOpenSettings(tester);
+    final root = await _boardAndSettings(tester);
     final c = root.controller;
     const row = 'settings-toggle-takeback';
     expect(

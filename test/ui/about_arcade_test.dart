@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:honest_chess/ui/brand/honest_mark.dart';
+import 'package:honest_chess/ui/navigation.dart';
 import 'package:honest_chess/ui/screens/about_arcade_screen.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 import 'package:honest_chess/ui/widgets/external_link.dart';
@@ -274,7 +275,7 @@ void main() {
   ) async {
     await pumpUnderScope(tester, const Scaffold(body: Text('home')));
     final navigator = tester.state<NavigatorState>(find.byType(Navigator));
-    navigator.push(AboutArcadeScreen.route());
+    navigator.push(aboutArcadeRoute());
     await tester.pumpAndSettle();
     expect(find.byType(AboutArcadeScreen), findsOneWidget);
     await tester.tap(_key('aboutstudio-back'));

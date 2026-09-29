@@ -13,8 +13,8 @@ import 'package:honest_chess/ui/app_scope.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/board/board_view.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
-import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/game_screen.dart';
+import 'package:honest_chess/ui/screens/menu_screen.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
 import 'support/fake_platform_channel.dart';
@@ -22,54 +22,94 @@ import 'ui/game/fake_computer.dart';
 import 'ui/game/pause_overlay_test.dart' show comeBack, leave;
 import 'ui/game/player_panel_test.dart' show text;
 
+/// Pumps the app on [store] past its launch load, on a 390 × 844 phone.
+Future<HonestChessAppState> _launch(
+  WidgetTester tester,
+  AppStore store, {
+  FakeComputers? fakes,
+  int? seedOverride,
+  FakePlatformChannel? platform,
+}) async {
+  tester.view.physicalSize = const Size(390, 844);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(
+    HonestChessApp(
+      key: UniqueKey(),
+      computerFactory: (fakes ?? FakeComputers()).call,
+      seedOverride: seedOverride,
+      store: store,
+      platform: platform ?? FakePlatformChannel(),
+    ),
+  );
+  // The first frame is the loading frame; the launch load runs then.
+  await tester.pump();
+  return tester.state<HonestChessAppState>(find.byType(HonestChessApp));
+}
+
+/// Taps [key], scrolled into view on a lazily built screen, and waits out
+/// the awaited writes and the route transition, which a running clock never
+/// lets settle.
+Future<void> _tapThrough(WidgetTester tester, String key) async {
+  final finder = find.byKey(Key(key));
+  if (finder.evaluate().isEmpty) {
+    await tester.scrollUntilVisible(
+      finder,
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+  }
+  await tester.ensureVisible(finder);
+  await tester.pump();
+  await tester.tap(finder);
+  for (var i = 0; i < 5; i++) {
+    await tester.pump();
+  }
+  await tester.pump(const Duration(milliseconds: 500));
+}
+
 void main() {
-  testWidgets('the app opens on a game against Club: you White, Rapid 10+5', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    final fakes = FakeComputers();
+  testWidgets('the app opens on the menu: the wordmark, the kicker, no '
+      'Continue on an empty store, and every entry', (tester) async {
     final store = AppStore.memory();
     final platform = FakePlatformChannel();
-    await tester.pumpWidget(
-      HonestChessApp(
-        computerFactory: fakes.call,
-        store: store,
-        platform: platform,
-      ),
-    );
-    // The first frame is the loading frame; the saved games are read then.
-    await tester.pump();
+    await _launch(tester, store, platform: platform);
 
-    final board = tester.widget<BoardView>(find.byType(BoardView));
     expect(
-      board.position.toFen(),
-      'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-      reason: 'app: the play screen starts from the start position',
+      find.byType(GameScreen, skipOffstage: false),
+      findsNothing,
+      reason: 'app: no board at launch',
     );
-    expect(board.bottom, Colour.white, reason: 'app: White at the bottom');
-    expect(board.options, const BoardOptions(), reason: 'app: design defaults');
-
-    final game = tester
-        .state<GameScreenState>(find.byType(GameScreen))
-        .controller
-        .game;
-    expect(game.mode, isA<VsComputer>(), reason: 'app: against the computer');
-    final mode = game.mode as VsComputer;
-    expect((mode.step, mode.playerColour), (Strength.club, Colour.white));
-    expect(game.clock.control, Timed.rapid);
     expect(
-      (fakes.current.strength, fakes.current.seed),
-      (Strength.club, mode.seed),
-      reason: 'app: the computer is built for this game',
+      tester
+          .widget<RichText>(
+            find.descendant(
+              of: find.byKey(const Key('menu-wordmark')),
+              matching: find.byType(RichText),
+            ),
+          )
+          .text
+          .toPlainText(),
+      'HonestChess',
+      reason: 'app: the wordmark',
     );
-    expect(fakes.current.requests, isEmpty, reason: 'app: your move first');
-
-    expect(text(tester, 'name-black'), 'Club');
-    expect(text(tester, 'sub-white'), contains('YOU · WHITE'));
-    expect(text(tester, 'sub-white'), contains('RAPID 10+5'));
-    expect(text(tester, 'status-text'), 'WHITE TO MOVE');
+    expect(find.text('BY HONEST ARCADE · NO ADS'), findsOneWidget);
+    expect(
+      find.byKey(const Key('menu-continue')),
+      findsNothing,
+      reason: 'app: nothing to continue on an empty store',
+    );
+    for (final key in [
+      'menu-vs-computer',
+      'menu-two-players',
+      'menu-statistics',
+      'menu-how-to-play',
+      'menu-settings',
+      'menu-about-app',
+      'menu-about-arcade',
+    ]) {
+      expect(find.byKey(Key(key)), findsOneWidget, reason: 'app: $key');
+    }
 
     final state = tester.state<HonestChessAppState>(
       find.byType(HonestChessApp),
@@ -80,7 +120,7 @@ void main() {
       reason: 'app: the root holds the board options',
     );
 
-    final scope = AppScope.of(tester.element(find.byType(GameScreen)));
+    final scope = AppScope.of(tester.element(find.byType(MenuScreen)));
     expect(
       scope.store,
       same(store),
@@ -118,70 +158,66 @@ void main() {
     );
   });
 
-  testWidgets('from launch: play e2-e4 and the computer replies', (
+  testWidgets('menu → vs Computer → Start game: Club, you White, Rapid '
+      '10+5 on the seed override; e2-e4 and the computer replies', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
     final fakes = FakeComputers();
-    await tester.pumpWidget(
-      HonestChessApp(
-        computerFactory: fakes.call,
-        seed: 42,
-        store: AppStore.memory(),
-        platform: FakePlatformChannel(),
-      ),
+    final root = await _launch(
+      tester,
+      AppStore.memory(),
+      fakes: fakes,
+      seedOverride: 42,
     );
-    await tester.pump();
-    expect(fakes.current.seed, 42, reason: 'app: the seed override is used');
+    await _tapThrough(tester, 'menu-vs-computer');
+    await _tapThrough(tester, 'csetup-start');
+
+    final board = tester.widget<BoardView>(find.byType(BoardView));
+    expect(
+      board.position.toFen(),
+      'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      reason: 'app: the play screen starts from the start position',
+    );
+    expect(board.bottom, Colour.white, reason: 'app: White at the bottom');
+    expect(board.options, const BoardOptions(), reason: 'app: design defaults');
+
+    final game = root.controller.game;
+    final mode = game.mode as VsComputer;
+    expect((mode.step, mode.playerColour), (Strength.club, Colour.white));
+    expect(game.clock.control, Timed.rapid);
+    expect(
+      (fakes.current.strength, fakes.current.seed, mode.seed),
+      (Strength.club, 42, 42),
+      reason: 'app: the seed override is the game\'s seed',
+    );
+    expect(fakes.current.requests, isEmpty, reason: 'app: your move first');
+    expect(text(tester, 'name-black'), 'Club');
+    expect(text(tester, 'sub-white'), contains('YOU · WHITE'));
+    expect(text(tester, 'sub-white'), contains('RAPID 10+5'));
+    expect(text(tester, 'status-text'), 'WHITE TO MOVE');
+
     await tester.tap(find.byKey(const Key('cell-e2')));
     await tester.pump();
     await tester.tap(find.byKey(const Key('cell-e4')));
     await tester.pump();
     fakes.current.last.move('e7e5');
     await tester.pump(minThinkTime);
-    final screen = tester.state<GameScreenState>(find.byType(GameScreen));
-    expect(screen.controller.game.moves.map((m) => m.toUci()), [
+    expect(root.controller.game.moves.map((m) => m.toUci()), [
       'e2e4',
       'e7e5',
-    ], reason: 'app: the computer answers on the home board');
+    ], reason: 'app: the computer answers');
     // The running clock keeps a ticker alive; leaving stops it.
     await tester.pumpWidget(const SizedBox());
   });
 
   group('saved games', () {
-    Future<(GameController, FakeComputers)> launch(
-      WidgetTester tester,
-      AppStore store, {
-      bool resumeSaved = true,
-      int? seed,
-    }) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      final fakes = FakeComputers();
-      await tester.pumpWidget(
-        HonestChessApp(
-          key: UniqueKey(),
-          computerFactory: fakes.call,
-          store: store,
-          platform: FakePlatformChannel(),
-          resumeSaved: resumeSaved,
-          seed: seed,
-        ),
-      );
-      await tester.pump();
-      final root = tester.state<HonestChessAppState>(
-        find.byType(HonestChessApp),
-      );
-      return (root.controller, fakes);
-    }
-
-    testWidgets('leaving saves the paused game; the next launch opens on it, '
-        'paused', (tester) async {
+    testWidgets('leaving saves the paused game; the next launch offers it '
+        'on the menu, and Continue opens it paused', (tester) async {
       final store = AppStore.memory();
-      final (first, fakes) = await launch(tester, store);
+      final fakes = FakeComputers();
+      final first = await _launch(tester, store, fakes: fakes);
+      await _tapThrough(tester, 'menu-vs-computer');
+      await _tapThrough(tester, 'csetup-start');
       expect(
         store.rawText(StoreDoc.gameComputer),
         isNotNull,
@@ -193,23 +229,30 @@ void main() {
       await tester.pump();
       fakes.current.last.move('e7e5');
       await tester.pump(minThinkTime);
-      final seed = (first.game.mode as VsComputer).seed;
+      final controller = first.controller;
+      final seed = (controller.game.mode as VsComputer).seed;
 
       await leave(tester, AppLifecycleState.hidden);
-      expect(first.state.paused, isTrue, reason: 'app: leaving pauses');
-      final root = tester.state<HonestChessAppState>(
-        find.byType(HonestChessApp),
-      );
-      await root.saves.flush();
-      expect(root.saves.load(PlayMode.computer)?.moves, first.game.moves);
+      expect(controller.state.paused, isTrue, reason: 'app: leaving pauses');
+      await first.saves.flush();
+      expect(first.saves.load(PlayMode.computer)?.moves, controller.game.moves);
       await tester.pumpWidget(const SizedBox());
       await comeBack(tester);
 
-      final (second, again) = await launch(tester, store);
-      expect(second.game.moves.map((m) => m.toUci()), ['e2e4', 'e7e5']);
-      expect(second.state.paused, isTrue, reason: 'app: restored paused');
+      final again = FakeComputers();
+      final second = await _launch(tester, store, fakes: again);
+      expect(
+        find.byType(GameScreen, skipOffstage: false),
+        findsNothing,
+        reason: 'app: the next launch opens on the menu',
+      );
+      expect(find.byKey(const Key('menu-continue')), findsOneWidget);
+      await _tapThrough(tester, 'menu-continue');
+      final resumed = second.controller;
+      expect(resumed.game.moves.map((m) => m.toUci()), ['e2e4', 'e7e5']);
+      expect(resumed.state.paused, isTrue, reason: 'app: restored paused');
       expect(find.byKey(const Key('pause-card')), findsOneWidget);
-      expect((second.game.mode as VsComputer).seed, seed);
+      expect((resumed.game.mode as VsComputer).seed, seed);
       expect(again.current.seed, seed, reason: 'app: same computer seed');
       await tester.pump(const Duration(seconds: 1));
       expect(
@@ -217,26 +260,6 @@ void main() {
         isEmpty,
         reason: 'app: nothing is asked of the computer while paused',
       );
-      await tester.pumpWidget(const SizedBox());
-    });
-
-    testWidgets('the device test\'s overrides skip the saved game', (
-      tester,
-    ) async {
-      final store = AppStore.memory();
-      final (first, _) = await launch(tester, store);
-      first.move(Square.parse('d2'), Square.parse('d4'));
-      await tester.pumpWidget(const SizedBox());
-
-      final (second, fakes) = await launch(
-        tester,
-        store,
-        resumeSaved: false,
-        seed: 2026,
-      );
-      expect(second.game.moves, isEmpty);
-      expect(second.state.paused, isFalse);
-      expect(fakes.current.seed, 2026);
       await tester.pumpWidget(const SizedBox());
     });
 
@@ -268,11 +291,8 @@ void main() {
             },
           }),
         );
-      await launch(tester, store);
+      final root = await _launch(tester, store);
       await tester.pump();
-      final root = tester.state<HonestChessAppState>(
-        find.byType(HonestChessApp),
-      );
       await root.saves.flush();
       await root.stats.idle;
       expect(root.stats.isLoaded, isTrue);
@@ -282,8 +302,13 @@ void main() {
         reason: 'app: the listener is wired before the launch load',
       );
       expect(
-        AppScope.of(tester.element(find.byType(GameScreen))).stats,
+        AppScope.of(tester.element(find.byType(MenuScreen))).stats,
         same(root.stats),
+      );
+      expect(
+        find.byKey(const Key('menu-continue')),
+        findsNothing,
+        reason: 'app: a finished game is never offered',
       );
       await tester.pumpWidget(const SizedBox());
     });

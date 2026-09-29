@@ -9,41 +9,24 @@ import 'package:honest_chess/data/game_saves.dart';
 import 'package:honest_chess/data/settings_store.dart';
 import 'package:honest_chess/data/stats.dart';
 import 'package:honest_chess/data/stats_listener.dart';
-import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/platform/platform_channel.dart';
 import 'package:honest_chess/ui/app_scope.dart';
-import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
-import 'package:honest_chess/ui/game/defaults.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
-import 'package:honest_chess/ui/game/game_screen.dart';
 import 'package:honest_chess/ui/navigation.dart';
+import 'package:honest_chess/ui/screens/menu_screen.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
 // The launcher-icon guard reads this literal here; Palette.screenBg is the
 // same colour for everything else.
 const _navy = Color(0xFF05285F);
 
-/// Starts the app on the saved game, or a new game against the computer.
-/// [strength] and [seed] replace the new game's step and seed, for the
-/// device test only: either one skips the saved game, so the test never
-/// lands on a paused leftover.
-void main({Strength? strength, int? seed}) {
+/// Starts the app on the menu. [seed] is every new game's computer seed
+/// and [store] replaces the device store, for the device test only: its
+/// memory store never shows a leftover saved game.
+void main({int? seed, AppStore? store}) {
   registerFontLicences();
-  runApp(
-    HonestChessApp(
-      resumeSaved: strength == null && seed == null,
-      firstGame: strength == null
-          ? vsComputerDefault
-          : (
-              mode: GameKind.vsComputer,
-              strength: strength,
-              colour: vsComputerDefault.colour,
-              timeControl: vsComputerDefault.timeControl,
-            ),
-      seed: seed,
-    ),
-  );
+  runApp(HonestChessApp(seedOverride: seed, store: store));
 }
 
 /// The bundled fonts' OFL texts (assets/fonts/SOURCE.md), each shown on the
@@ -71,19 +54,16 @@ ThemeData appTheme() => ThemeData(
   fontFamily: Fonts.outfit,
 );
 
-/// The app root. It owns the settings, the game controller and the saved
-/// games; it reads the settings and the saved games before the first board
-/// and opens on the saved game Continue would offer — paused — or, with
-/// none, on a new [firstGame].
+/// The app root. It owns the store, the settings, the statistics, the
+/// saved games and the game controller, reads the first three at launch
+/// under a plain navy frame, and then opens on the menu.
 class HonestChessApp extends StatefulWidget {
   const HonestChessApp({
     super.key,
     this.computerFactory = ComputerPlayerOpponent.new,
-    this.firstGame = vsComputerDefault,
-    this.seed,
+    this.seedOverride,
     this.store,
     this.platform,
-    this.resumeSaved = true,
   });
 
   /// The device store; null builds the production one over [platform].
@@ -95,14 +75,9 @@ class HonestChessApp extends StatefulWidget {
   /// Builds the computer for each game against it; tests pass a fake.
   final ComputerFactory computerFactory;
 
-  final GameSetup firstGame;
-
-  /// The first game's computer seed; fresh when null.
-  final int? seed;
-
-  /// Whether launch opens on a saved game when there is one; false always
-  /// starts [firstGame].
-  final bool resumeSaved;
+  /// Every new game's computer seed, so the seed saved is the one played;
+  /// fresh per game when null. For tests.
+  final int? seedOverride;
 
   @override
   State<HonestChessApp> createState() => HonestChessAppState();
@@ -132,7 +107,7 @@ class HonestChessAppState extends State<HonestChessApp> {
   /// waits for the store to write it.
   late final AppLifecycleListener _lifecycle;
 
-  /// Whether the saved games have been read and a game is on the board.
+  /// Whether the launch load has finished and the menu can show.
   bool _launched = false;
 
   @override
@@ -143,6 +118,7 @@ class HonestChessAppState extends State<HonestChessApp> {
     controller = GameController.idle(
       computerFactory: widget.computerFactory,
       options: settings.board.value,
+      seed: widget.seedOverride,
     );
     settings.board.addListener(_boardChanged);
     saves = GameSaves(store)..attach(controller.events);
@@ -159,25 +135,25 @@ class HonestChessAppState extends State<HonestChessApp> {
 
   void _boardChanged() => controller.options = settings.board.value;
 
+  /// Reads the settings, the statistics and the saved games together. A
+  /// read that throws is logged and leaves its part on its defaults, so the
+  /// menu always appears; a damaged document raises the store's notice
+  /// instead, which the menu shows.
   Future<void> _launch() async {
-    stats.load().ignore();
-    // Read before the first game, which takes its takeback rule from them.
-    final settingsLoaded = settings.load(store);
-    try {
-      await saves.loadAll();
-    } on Object catch (e) {
-      // The app starts without the saved games rather than not at all.
-      debugPrint('launch: the saved games could not be read: $e');
+    Future<void> guarded(String part, Future<void> Function() load) async {
+      try {
+        await load();
+      } on Object catch (e) {
+        debugPrint('launch: the $part could not be read: $e');
+      }
     }
-    await settingsLoaded;
+
+    await Future.wait([
+      guarded('settings', () => settings.load(store)),
+      guarded('statistics', stats.load),
+      guarded('saved games', saves.loadAll),
+    ]);
     if (!mounted) return;
-    final offered = widget.resumeSaved ? saves.offered : null;
-    final game = offered == null ? null : saves.load(offered.mode);
-    if (game == null ||
-        !controller.restore(game, recorded: saves.recorded(offered!.mode))) {
-      await controller.newGame(widget.firstGame, seed: widget.seed);
-      if (!mounted) return;
-    }
     setState(() => _launched = true);
   }
 
@@ -207,7 +183,8 @@ class HonestChessAppState extends State<HonestChessApp> {
 
   @override
   Widget build(BuildContext context) {
-    // A plain navy frame while the saved games load.
+    // A plain navy frame while the launch load runs: no navigator yet, so
+    // back then leaves the app.
     if (!_launched) return const ColoredBox(color: _navy);
     return AppScope(
       store: store,
@@ -229,15 +206,7 @@ class HonestChessAppState extends State<HonestChessApp> {
           value: appOverlayStyle,
           child: child ?? const SizedBox.shrink(),
         ),
-        home: ValueListenableBuilder<BoardOptions>(
-          valueListenable: settings.board,
-          builder: (context, options, _) => GameScreen(
-            options: options,
-            controller: controller,
-            seed: widget.seed,
-            computerFactory: widget.computerFactory,
-          ),
-        ),
+        home: const MenuScreen(),
       ),
     );
   }

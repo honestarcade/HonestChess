@@ -8,10 +8,11 @@ import '../board/board_view.dart' show designWidth;
 import '../brand/honest_mark.dart';
 import '../brand/links.dart';
 import '../content/about_content.dart';
+import '../navigation.dart';
+import 'about_arcade_screen.dart' show aboutScaleCapWidth;
 import '../theme/palette.dart';
 import '../widgets/external_link.dart';
 import '../widgets/screen_header.dart';
-import 'about_arcade_screen.dart';
 
 /// The version line's text when no version name is known: the design's
 /// "3.6 MB" is left out, since no fixed size would stay true.
@@ -24,10 +25,6 @@ const _minTouch = 48.0;
 /// at a glance, and links to the studio and this app's source.
 class AboutAppScreen extends StatefulWidget {
   const AboutAppScreen({super.key});
-
-  /// The route the menu pushes.
-  static Route<void> route() =>
-      MaterialPageRoute<void>(builder: (_) => const AboutAppScreen());
 
   @override
   State<AboutAppScreen> createState() => _AboutAppScreenState();
@@ -469,7 +466,7 @@ class _PromisesButtonState extends State<_PromisesButton> {
     final navigator = Navigator.of(context);
     unawaited(
       AppScope.of(context).navigation.run(() {
-        unawaited(navigator.push(AboutArcadeScreen.route()));
+        unawaited(navigator.push(aboutArcadeRoute()));
       }),
     );
   }

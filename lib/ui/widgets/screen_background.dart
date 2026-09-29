@@ -30,6 +30,17 @@ class ScreenGradient {
     ],
   );
 
+  /// The menu's: `110% 90% at 24% 12%`.
+  static const menu = ScreenGradient(
+    centre: Offset(0.24, 0.12),
+    radii: Size(1.10, 0.90),
+    stops: [
+      (Palette.gradientInner, 0),
+      (Palette.screenBg, .58),
+      (Palette.gradientOuter, 1),
+    ],
+  );
+
   /// The gradient over [rect]: a circle of radius rx × width about the
   /// centre, squashed vertically into the ellipse by a transform.
   RadialGradient over(Rect rect) {

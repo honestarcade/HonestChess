@@ -25,10 +25,6 @@ const _minTouch = 48.0;
 class AboutArcadeScreen extends StatelessWidget {
   const AboutArcadeScreen({super.key});
 
-  /// The route the menu and About the App push.
-  static Route<void> route() =>
-      MaterialPageRoute<void>(builder: (_) => const AboutArcadeScreen());
-
   @override
   Widget build(BuildContext context) {
     // Screen text ignores the system text scale, as the board does, until

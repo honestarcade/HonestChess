@@ -5,10 +5,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:honest_chess/data/app_store.dart';
 import 'package:honest_chess/data/game_saves.dart';
+import 'package:honest_chess/data/recorded_state.dart';
 import 'package:honest_chess/data/settings_store.dart';
 import 'package:honest_chess/data/stats.dart';
 import 'package:honest_chess/main.dart' show appTheme;
+import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/app_scope.dart';
+import 'package:honest_chess/ui/game/computer_turns.dart';
+import 'package:honest_chess/ui/game/defaults.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/navigation.dart';
 
@@ -108,4 +112,58 @@ Future<AppHarness> pumpUnderScope(
     ),
   );
   return harness;
+}
+
+/// The board of a new game from [setup], pushed over a stand-in first
+/// route under the harness's scope the way the app shows a board: the
+/// controller starts the game, then `navigation.dart`'s board route is
+/// pushed. The harness's [SettingsStore] is wired to the controller's board
+/// options as the app root wires its own. [computerFactory] builds the
+/// computer (by default none, so it never moves).
+Future<AppHarness> pumpBoard(
+  WidgetTester tester, {
+  GameSetup setup = vsComputerDefault,
+  ComputerFactory? computerFactory,
+  AppStore? store,
+  FakePlatformChannel? platform,
+}) async {
+  final controller = GameController.idle(computerFactory: computerFactory);
+  final settings = SettingsStore();
+  void boardChanged() => controller.options = settings.board.value;
+  settings.board.addListener(boardChanged);
+  addTearDown(() async {
+    await tester.pumpWidget(const SizedBox());
+    settings.board.removeListener(boardChanged);
+    settings.dispose();
+    controller.dispose();
+  });
+  final harness = await pumpUnderScope(
+    tester,
+    const Scaffold(body: SizedBox.expand(key: Key('stand-in'))),
+    store: store,
+    platform: platform,
+    controller: controller,
+    settings: settings,
+  );
+  await controller.newGame(setup);
+  openBoard(tester.element(find.byKey(const Key('stand-in'))));
+  // A running clock never lets the transition settle; the route's own
+  // duration does.
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 500));
+  return harness;
+}
+
+/// Writes [game] to [store] as the app saves it — through [GameSaves]' own
+/// save path, so its document and `meta.lastPlayed` are the real format —
+/// with a fresh `recorded` state unless [recorded] is given.
+Future<void> seedSavedGame(
+  AppStore store,
+  Game game, {
+  Map<String, Object?>? recorded,
+}) async {
+  final saves = GameSaves(store);
+  await saves.save(game, recorded ?? RecordedState.fresh().toJson());
+  await saves.flush();
+  saves.dispose();
 }
