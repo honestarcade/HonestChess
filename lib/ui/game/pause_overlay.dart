@@ -1,8 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/labels.dart';
+import 'package:honest_chess/ui/game/result_overlay.dart' show resultMaxWidth;
 import 'package:honest_chess/ui/theme/palette.dart';
 
 /// How long the pause card and its scrim take to fade in, and out.
@@ -45,18 +48,29 @@ const Color _hintInk = Color(0x80FFFFFF);
 
 /// The design's Paused card over a scrim that also covers the top bar,
 /// shown while [controller] is paused and the game goes on. The board stays
-/// visible behind it. Resume — or a tap on the scrim, or Android's back —
-/// restarts the clocks; the draw button offers a draw; Resign resigns.
-/// The design's Rules, Settings and Main menu buttons are left out until
-/// M4 provides their screens. While the computer considers a draw, every
-/// way off the card is shut.
+/// visible behind it. Resume — or a tap on the scrim — restarts the
+/// clocks; the draw button offers a draw; Resign resigns; Rules, Settings
+/// and Main menu call [onRules], [onSettings] and [onMainMenu]. While the
+/// computer considers a draw, every way off the card is shut. Android's
+/// back is the play screen's to handle.
 ///
 /// A layer of the play screen, like the promotion sheet: with the game
-/// unpaused it draws nothing and takes no touches.
+/// unpaused it draws nothing and takes no touches. The card is at most
+/// [resultMaxWidth] wide, as the result card, and scrolls on a short
+/// screen.
 class PauseOverlay extends StatefulWidget {
-  const PauseOverlay({super.key, required this.controller});
+  const PauseOverlay({
+    super.key,
+    required this.controller,
+    required this.onRules,
+    required this.onSettings,
+    required this.onMainMenu,
+  });
 
   final GameController controller;
+  final VoidCallback onRules;
+  final VoidCallback onSettings;
+  final VoidCallback onMainMenu;
 
   @override
   State<PauseOverlay> createState() => _PauseOverlayState();
@@ -119,42 +133,41 @@ class _PauseOverlayState extends State<PauseOverlay>
   Widget build(BuildContext context) {
     final open = _open;
     final asking = _controller.state.drawAsking;
-    return PopScope(
-      canPop: !open,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _controller.resume();
-      },
-      child: !open && _show.isDismissed
-          ? const SizedBox.shrink()
-          : IgnorePointer(
-              ignoring: !open,
-              child: FadeTransition(
-                key: const Key('pause-overlay'),
-                opacity: _eased,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Semantics(
-                      label: 'Resume',
-                      button: true,
-                      enabled: !asking,
-                      child: GestureDetector(
-                        key: const Key('pause-scrim'),
-                        behavior: HitTestBehavior.opaque,
-                        onTap: asking ? null : _controller.resume,
-                        child: const ColoredBox(color: Palette.scrim),
-                      ),
-                    ),
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(26),
-                        child: _card(asking),
-                      ),
-                    ),
-                  ],
+    if (!open && _show.isDismissed) return const SizedBox.shrink();
+    return IgnorePointer(
+      ignoring: !open,
+      child: FadeTransition(
+        key: const Key('pause-overlay'),
+        opacity: _eased,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Semantics(
+              label: 'Resume',
+              button: true,
+              enabled: !asking,
+              child: GestureDetector(
+                key: const Key('pause-scrim'),
+                behavior: HitTestBehavior.opaque,
+                onTap: asking ? null : _controller.resume,
+                child: const ColoredBox(color: Palette.scrim),
+              ),
+            ),
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(26),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: resultMaxWidth),
+                  child: SingleChildScrollView(
+                    key: const Key('pause-scroll'),
+                    child: _card(asking),
+                  ),
                 ),
               ),
             ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -185,7 +198,7 @@ class _PauseOverlayState extends State<PauseOverlay>
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(22),
+          padding: EdgeInsets.fromLTRB(22, 22, 22, 22 - _menuReachBelow),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -286,7 +299,200 @@ class _PauseOverlayState extends State<PauseOverlay>
                 ink: Palette.dangerText,
                 onTap: asking ? null : _controller.resign,
               ),
+              const SizedBox(height: cardHalfGap),
+              Row(
+                children: [
+                  Expanded(
+                    child: CardLinkButton(
+                      id: 'pause-rules',
+                      label: 'Rules',
+                      look: _outlined,
+                      reachAbove: cardHalfGap,
+                      reachBelow: cardHalfGap,
+                      onTap: asking ? null : widget.onRules,
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: CardLinkButton(
+                      id: 'pause-settings',
+                      label: 'Settings',
+                      look: _outlined,
+                      reachAbove: cardHalfGap,
+                      reachBelow: cardHalfGap,
+                      onTap: asking ? null : widget.onSettings,
+                    ),
+                  ),
+                ],
+              ),
+              CardLinkButton(
+                id: 'pause-main-menu',
+                label: 'Main menu',
+                look: _menuLook,
+                reachAbove: cardHalfGap,
+                reachBelow: _menuReachBelow,
+                onTap: asking ? null : widget.onMainMenu,
+              ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// The design's Rules and Settings: two equal outlined buttons.
+  static const _outlined = CardLinkLook(
+    fill: Palette.optionFill,
+    edge: Palette.borderIdle,
+    ink: Palette.textBody,
+    fontSize: 13,
+    padding: 13,
+  );
+
+  /// The design's Main menu: a text button.
+  static const _menuLook = CardLinkLook(
+    ink: Palette.textDim,
+    fontSize: 13,
+    padding: 13,
+  );
+
+  /// Main menu's hit area below its drawn button, taken from the card's
+  /// bottom padding.
+  static final double _menuReachBelow = _menuLook.reachBelow(
+    above: cardHalfGap,
+  );
+}
+
+/// Half the design's 9 dp gap between two stacked card buttons: each half
+/// belongs to the hit area of the button beside it, so stacked hit areas
+/// meet at the gap's midpoint and never overlap.
+const double cardHalfGap = 4.5;
+
+/// The least height of a card button's hit area.
+const double cardMinTouch = 48;
+
+/// How a [CardLinkButton] is drawn: outlined when [edge] is set, else a
+/// text button. Its drawn height is the design's: one line of [fontSize]
+/// text, [padding] above and below, and the 1 dp border when outlined.
+class CardLinkLook {
+  const CardLinkLook({
+    this.fill,
+    this.edge,
+    required this.ink,
+    required this.fontSize,
+    required this.padding,
+  });
+
+  final Color? fill;
+  final Color? edge;
+  final Color ink;
+  final double fontSize;
+  final double padding;
+
+  double get drawnHeight => fontSize + 2 * padding + (edge == null ? 0 : 2);
+
+  /// The hit area a button reaching [above] its drawn box still needs below
+  /// it to be [cardMinTouch] tall.
+  double reachBelow({required double above}) =>
+      math.max(0, cardMinTouch - above - drawnHeight);
+}
+
+/// A card's secondary button — the pause card's Rules, Settings and Main
+/// menu, the result card's See statistics and Main menu — drawn at the
+/// design's size, its hit area reaching [reachAbove] and [reachBelow]
+/// beyond the drawn box without moving it. Pressed, an outlined button's
+/// border turns teal, a text button's text. A tap takes focus first, so
+/// focus comes back to the button when a screen it opened closes.
+class CardLinkButton extends StatefulWidget {
+  const CardLinkButton({
+    super.key,
+    required this.id,
+    required this.label,
+    required this.look,
+    required this.onTap,
+    this.reachAbove = 0,
+    this.reachBelow = 0,
+  });
+
+  /// The button's key, `Key(id)`; its drawn box is `Key('<id>-box')`.
+  final String id;
+  final String label;
+  final CardLinkLook look;
+  final VoidCallback? onTap;
+  final double reachAbove;
+  final double reachBelow;
+
+  @override
+  State<CardLinkButton> createState() => _CardLinkButtonState();
+}
+
+class _CardLinkButtonState extends State<CardLinkButton> {
+  late final FocusNode _focus = FocusNode(debugLabel: widget.id);
+  bool _pressed = false;
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _tap() {
+    _focus.requestFocus();
+    widget.onTap?.call();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final look = widget.look;
+    final enabled = widget.onTap != null;
+    final pressed = _pressed && enabled;
+    final edge = look.edge;
+    const radius = BorderRadius.all(Radius.circular(13));
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: widget.label,
+      excludeSemantics: true,
+      child: Opacity(
+        opacity: enabled ? 1 : disabledPauseButtonOpacity,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            key: Key(widget.id),
+            focusNode: _focus,
+            onTap: enabled ? _tap : null,
+            onHighlightChanged: (on) => setState(() => _pressed = on),
+            splashFactory: NoSplash.splashFactory,
+            overlayColor: const WidgetStatePropertyAll(Color(0x00000000)),
+            child: Padding(
+              padding: EdgeInsets.only(
+                top: widget.reachAbove,
+                bottom: widget.reachBelow,
+              ),
+              child: Container(
+                key: Key('${widget.id}-box'),
+                height: look.drawnHeight,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: look.fill,
+                  borderRadius: radius,
+                  border: edge == null
+                      ? null
+                      : Border.all(color: pressed ? Palette.teal : edge),
+                ),
+                child: Text(
+                  widget.label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontFamily: Fonts.outfit,
+                    fontWeight: FontWeight.w500,
+                    fontSize: look.fontSize,
+                    height: 1,
+                    color: edge == null && pressed ? Palette.teal : look.ink,
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),

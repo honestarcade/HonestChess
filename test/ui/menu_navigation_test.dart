@@ -108,6 +108,14 @@ List<MethodCall> _platformCalls(WidgetTester tester) {
   return calls;
 }
 
+/// Back on a live board opens the pause card (#92); its Main menu leaves.
+Future<void> _backToMenu(WidgetTester tester) async {
+  await tester.binding.handlePopRoute();
+  await tester.pumpAndSettle();
+  await tester.tap(_key('pause-main-menu'));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('the app opens on the menu: the header, every entry, no '
       'Continue and no banner on a fresh install', (tester) async {
@@ -301,9 +309,8 @@ void main() {
     );
     expect(_key('menu-vs-computer', skipOffstage: false), findsOneWidget);
     root.controller.move(Square.parse('e2'), Square.parse('e4'));
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(_onMenu(), isTrue, reason: 'menu: back from the board');
+    await _backToMenu(tester);
+    expect(_onMenu(), isTrue, reason: 'menu: Main menu from the board');
     await root.saves.flush();
     await tester.pump();
     expect(_text('menu-continue-meta'), 'MOVE 1 · BLACK');
@@ -321,9 +328,8 @@ void main() {
     await tester.pump();
 
     final calls = _platformCalls(tester);
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(_onMenu(), isTrue, reason: 'menu: back from the board');
+    await _backToMenu(tester);
+    expect(_onMenu(), isTrue, reason: 'menu: Main menu from the board');
     expect(
       calls.where((c) => c.method == 'SystemNavigator.pop'),
       isEmpty,

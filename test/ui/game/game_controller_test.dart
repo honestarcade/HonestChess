@@ -8,6 +8,7 @@ import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
 
 import '../../fixtures/fens.dart';
+import 'fake_computer.dart';
 
 Square sq(String name) => Square.parse(name);
 
@@ -422,6 +423,35 @@ void main() {
       expect(c.state.over, isTrue);
       // White has a lone king: Black's flag is a draw, not a loss.
       expect(c.game.status, const Draw(GameEndReason.flagNoMatingMaterial));
+    });
+  });
+
+  group('leaving for the menu (#92)', () {
+    testWidgets('leave() stops the computer; resuming builds a new one with '
+        'the same step and seed, which is asked for its move', (tester) async {
+      final fakes = FakeComputers();
+      final c = GameController(
+        mode: const VsComputer(
+          playerColour: Colour.white,
+          step: Strength.club,
+          seed: 7,
+        ),
+        timeControl: const Untimed(),
+        computer: fakes.call,
+      );
+      expect(c.move(sq('e2'), sq('e4')), isTrue);
+      await tester.pump();
+      expect(fakes.current.requests, hasLength(1));
+      expect(c.pause(), isTrue);
+      c.leave();
+      expect(fakes.built.single.disposed, isTrue, reason: 'leave: kept');
+      expect(c.state.paused, isTrue, reason: 'leave: the pause ended');
+      expect(c.resume(), isTrue);
+      await tester.pump();
+      expect(fakes.built, hasLength(2), reason: 'resume: no new computer');
+      expect((fakes.current.strength, fakes.current.seed), (Strength.club, 7));
+      expect(fakes.current.requests, hasLength(1), reason: 'resume: not asked');
+      c.dispose();
     });
   });
 }

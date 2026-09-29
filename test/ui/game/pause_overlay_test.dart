@@ -2,8 +2,9 @@
 // time source and the fake computer. The complements: no time passes while
 // paused, a finished game is never paused, a declined or failed offer never
 // ends the game, an offer is refused before each side has moved and again
-// until the next move after a decline, the M4 buttons are absent, and a
-// promotion open at the pause is not played.
+// until the next move after a decline, and a promotion open at the pause
+// is not played. Where Rules, Settings and Main menu lead is tested in
+// test/ui/game_cards_navigation_test.dart (#92).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -17,7 +18,6 @@ import 'computer_turns_test.dart' show asWhite, moves, pumpVs;
 import 'fake_computer.dart';
 import 'player_panel_test.dart'
     show FakeClock, Harness, clockOf, play, pumpGame, text, tickers;
-import 'tool_row_test.dart' show openPicker, sheetMotion;
 
 final _overlay = find.byKey(const Key('pause-overlay'));
 final _draw = find.byKey(const Key('pause-draw'));
@@ -234,26 +234,30 @@ void main() {
       expect(find.text('Agree a draw'), findsOneWidget);
     });
 
-    testWidgets('Resume, the draw and Resign only: M4\'s buttons are absent', (
+    testWidgets('Resume, the draw, Resign, Rules, Settings and Main menu', (
       tester,
     ) async {
       final h = await pumpGame(tester);
       await pausePill(tester, h.clock);
       expect(find.text('Paused'), findsOneWidget);
-      for (final key in ['pause-resume', 'pause-draw', 'pause-resign']) {
-        expect(find.byKey(Key(key)), findsOneWidget);
+      const keys = [
+        'pause-resume',
+        'pause-draw',
+        'pause-resign',
+        'pause-rules',
+        'pause-settings',
+        'pause-main-menu',
+      ];
+      for (final key in keys) {
+        expect(find.byKey(Key(key)), findsOneWidget, reason: 'card: $key');
       }
       for (final label in ['Rules', 'Settings', 'Main menu']) {
-        expect(
-          find.text(label),
-          findsNothing,
-          reason: 'card: "$label" shows before M4 provides its screen',
-        );
+        expect(find.text(label), findsOneWidget, reason: 'card: "$label"');
       }
       expect(
         find.descendant(of: _overlay, matching: find.byType(InkWell)),
-        findsNWidgets(3),
-        reason: 'card: a button beyond Resume, the draw and Resign',
+        findsNWidgets(keys.length),
+        reason: 'card: a button beyond the design\'s six',
       );
     });
 
@@ -507,29 +511,6 @@ void main() {
       expect(h.controller.state.paused, isFalse);
       expect(_overlay, findsNothing, reason: 'auto-pause: a finished game');
       await comeBack(tester);
-    });
-
-    testWidgets('closes the new-game picker with nothing chosen', (
-      tester,
-    ) async {
-      final h = await pumpGame(tester, timeControl: Timed.rapid);
-      await play(tester, h.controller, 'e2e4');
-      await openPicker(tester, h.clock);
-      expect(find.byKey(const Key('new-vs-computer')), findsOneWidget);
-      final game = h.controller.game;
-      await leave(tester, AppLifecycleState.hidden);
-      expect(h.controller.state.paused, isTrue);
-      // The picker's exit plays out once frames run again.
-      await comeBack(tester);
-      await sheetMotion(tester, h.clock);
-      expect(
-        find.byKey(const Key('new-vs-computer')),
-        findsNothing,
-        reason: 'auto-pause: the picker stayed open',
-      );
-      expect(_overlay, findsOneWidget);
-      expect(moves(h.controller), ['e2e4']);
-      expect(h.controller.game.mode, game.mode);
     });
 
     testWidgets('during the decline message: the card stays up', (

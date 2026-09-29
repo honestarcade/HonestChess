@@ -436,6 +436,9 @@ class GameController extends ChangeNotifier {
     if (!_paused || _drawAsking || _replacing) return false;
     final before = _game;
     _endPause();
+    // A game left for the menu gets a new computer, with its own step and
+    // seed, when it is played on.
+    _turns ??= _turnsFor(_game.mode);
     _game = _game.resume();
     _refresh();
     notifyListeners();
@@ -454,6 +457,34 @@ class GameController extends ChangeNotifier {
     _declineTimer?.cancel();
     _declineTimer = null;
     return paused;
+  }
+
+  /// Keeps the pause card up past a declined draw: the "declines — play
+  /// on" message and the timer that would resume play both go, so play
+  /// resumes only on [resume]. Refused unless paused, and while the
+  /// computer considers a draw offer.
+  bool keepPaused() {
+    if (!_paused || _drawAsking) return false;
+    _declineTimer?.cancel();
+    _declineTimer = null;
+    if (_drawDeclined) {
+      _drawDeclined = false;
+      _state = _viewState();
+      notifyListeners();
+    }
+    return true;
+  }
+
+  /// The board is left for the menu: the computer is stopped for good
+  /// (#75's leaving rule) and the game stays as it is. Resuming the game
+  /// builds a new computer, as [restore] does.
+  void leave() {
+    if (_turns == null) return;
+    _turns?.dispose();
+    _turns = null;
+    if (_disposed) return;
+    _state = _viewState();
+    notifyListeners();
   }
 
   int get _ply => _game.history.length - 1;

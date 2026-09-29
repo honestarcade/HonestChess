@@ -143,6 +143,52 @@ Future<bool> openScreen(BuildContext context, Route<void> route) {
   });
 }
 
+/// How to play, from the board's pause card, on [initialTab].
+Future<bool> openHowTo(
+  BuildContext context, {
+  HowToTab initialTab = HowToTab.pieces,
+}) => openScreen(context, howToPlayRoute(initialTab: initialTab));
+
+/// Settings, from the board's pause card.
+Future<bool> openSettings(BuildContext context) =>
+    openScreen(context, settingsRoute());
+
+/// Statistics, from the board's result card, on [openOn]'s tab.
+Future<bool> openStats(BuildContext context, {PlayMode? openOn}) =>
+    openScreen(context, statsRoute(openOn: openOn));
+
+/// New on the board: the setup screen for [mode]'s kind of game, whose
+/// back returns to the board.
+Future<bool> openSetup(BuildContext context, PlayMode mode) =>
+    openScreen(context, switch (mode) {
+      PlayMode.computer => computerSetupRoute(fromBoard: true),
+      PlayMode.two => twoPlayerSetupRoute(),
+    });
+
+/// How long [leaveToMenu] waits for the game's save before it goes to the
+/// menu anyway.
+const leaveFlushLimit = Duration(seconds: 2);
+
+/// Main menu from the board's pause or result card, and back in view-board
+/// mode: the computer is stopped, the game's save is awaited for at most
+/// [leaveFlushLimit] — a failure is logged, never shown, since the next
+/// save rewrites it — and everything above the menu is popped. All of it
+/// runs under the navigating flag, which the pop's transition then holds.
+/// Completes with whether it ran.
+Future<bool> leaveToMenu(BuildContext context) {
+  final navigator = Navigator.of(context);
+  final scope = AppScope.of(context);
+  return scope.navigation.run(() async {
+    scope.controller.leave();
+    try {
+      await scope.saves.flush().timeout(leaveFlushLimit);
+    } on Object catch (error) {
+      debugPrint('Main menu: the game was not saved first: $error');
+    }
+    if (navigator.mounted) navigator.popUntil((route) => route.isFirst);
+  });
+}
+
 /// ‹'s action on every screen: the navigator's own pop, the same path the
 /// phone's back takes, so a route's `PopScope` is respected by both. It is
 /// never held by the navigating flag.

@@ -2,8 +2,9 @@
 // screen, with a fake time source. The complements: no result shows while
 // the game goes on, the card waits after a game-ending move and not after
 // a resignation, agreement or flag, a takeback during that wait cancels
-// it, the frozen board takes no input, and See statistics and Main menu
-// are absent until M4.
+// it, and the frozen board takes no input. Where See statistics, Main
+// menu and back in view-board mode lead is tested in
+// test/ui/game_cards_navigation_test.dart (#92).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -324,15 +325,10 @@ void main() {
       expect(c.state.resultView, ResultView.board);
     });
 
-    testWidgets('Android back: to the board, and back to the card', (
-      tester,
-    ) async {
+    testWidgets('Android back does what View board does', (tester) async {
       final h = await mated(tester);
       await back(tester);
       expect(h.controller.state.resultView, ResultView.board);
-      await back(tester);
-      expect(h.controller.state.resultView, ResultView.card);
-      expect(_card, findsOneWidget);
     });
 
     testWidgets('Rematch from the bar starts the same game again', (
@@ -388,16 +384,23 @@ void main() {
   });
 
   group('the card', () {
-    testWidgets('See statistics and Main menu are absent until M4', (
+    testWidgets('Rematch, View board, See statistics and Main menu', (
       tester,
     ) async {
       final h = await pumpGame(tester);
       await playAll(tester, h, _foolsMate);
       await cardIn(tester);
-      expect(find.text('Rematch'), findsOneWidget);
-      expect(find.text('View board'), findsOneWidget);
-      expect(find.text('See statistics'), findsNothing);
-      expect(find.text('Main menu'), findsNothing);
+      final labels = ['Rematch', 'View board', 'See statistics', 'Main menu'];
+      final tops = [
+        for (final label in labels) tester.getTopLeft(find.text(label)).dy,
+      ];
+      for (var i = 1; i < tops.length; i++) {
+        expect(
+          tops[i],
+          greaterThan(tops[i - 1]),
+          reason: 'card: ${labels[i]} is not below ${labels[i - 1]}',
+        );
+      }
     });
 
     testWidgets('announced as a live region; stats read "Moves, 2"', (

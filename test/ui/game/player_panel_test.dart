@@ -17,6 +17,7 @@ import 'package:honest_chess/ui/game/game_screen.dart';
 import 'package:honest_chess/ui/game/result_overlay.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
+import '../../support/app_harness.dart';
 import 'fake_computer.dart';
 
 /// The game's time source and the test's frame clock, moved together.
@@ -58,15 +59,17 @@ Future<Harness> pumpGame(
     // A computer that never answers keeps thinking once it is its turn.
     computer: (computer ?? (thinking ? FakeComputers() : null))?.call,
   );
-  await tester.pumpWidget(
-    MaterialApp(
-      home: GameScreen(options: options, controller: controller),
-    ),
-  );
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox());
     controller.dispose();
   });
+  // Under the app's scope, which the screen reads when a button or back
+  // leads off the board.
+  await pumpUnderScope(
+    tester,
+    GameScreen(options: options, controller: controller),
+    controller: controller,
+  );
   return (controller: controller, clock: clock);
 }
 

@@ -764,3 +764,33 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** Back on a board still resumes a paused game (#77's pause-card `PopScope`) and otherwise pops to the menu with the game running; the menu tests therefore never assert the board's back beyond "back from the board reaches the menu" on a running game.
   **Why:** The board's back is #92's, per the acceptance criteria.
   **Issue:** #91
+- **Decision:** `TemporaryNewGamePicker` is removed: `lib/ui/game/temporary_new_game.dart` is deleted with its tests (`test/ui/game/tool_row_test.dart`'s `new` group, `test/ui/game/pause_overlay_test.dart`'s picker case), its `newGameChoices` and its `new-vs-computer` / `new-two-players` keys, and GameScreen's picker bookkeeping (`_picking`, the `GameRestored` subscription). No palette token was the picker's alone (`choiceFill` and `choiceEdge` still draw the promotion sheet, the stats screen and View board), and `defaults.dart` keeps `vsComputerDefault` and `twoPlayerDefault` for `SetupChoices.initial`. `test/guards/references_test.dart` gains `removedPaths`, so this ledger may keep naming the deleted file.
+  **Why:** The acceptance criteria: New opens the real setup screens, and nothing in `lib/` references the picker.
+  **Issue:** #92
+- **Decision:** M3's DESCOPED card buttons are restored: the pause card's Rules · Settings row and Main menu, and the result card's See statistics and Main menu. #77's and #78's tests that asserted them absent now assert them present, in the design's order.
+  **Why:** Their screens exist now (#83–#91), which M3's DESCOPED line waited for.
+  **Issue:** #92
+- **Decision:** #78's back rule in view-board mode is amended: back on the final position goes to the menu, where #78 brought the card back; tapping the result bar still brings the card back. Back on the result card still does what View board does.
+  **Why:** Owner, /n8-plan M4 round two: "good to go", accepting the recommendation.
+  **Issue:** #92
+- **Decision:** Design difference: the result card's resignation body stays "Resignation ends the game at once." (#78's wording), not the design's "The position is kept in your statistics.".
+  **Why:** Statistics keep results, not positions, so the design's sentence would be untrue.
+  **Issue:** #92
+- **Decision:** The board has one `PopScope` (`canPop: false`, in `GameScreen`) that dispatches Android's back: promotion card → cancel, draw being answered → nothing, pause card → resume, live game → pause, result card waiting out its delay → shown at once, result card → View board, final position (or an idle controller) → `leaveToMenu`; nothing while the navigating flag is set or the screen is leaving. The promotion sheet's, pause card's and result card's own `PopScope`s are removed.
+  **Why:** A route calls every `PopScope`'s handler on one back press, so the layers' handlers and the board's would each have acted on it.
+  **Issue:** #92
+- **Decision:** `GameController` gains `keepPaused()` (clears a declined draw's message and cancels its 2 s resume timer; the pause card's Rules, Settings and Main menu call it) and `leave()` (stops the computer for `leaveToMenu`). `resume()` builds a new computer, with the game's own step and seed, when `leave()` left none (Rule 2).
+  **Why:** Without the rebuild, Keep playing from the menu on the live computer game (#85's `_keepPlaying` resumes it in place) would resume a game whose computer never moves.
+  **Issue:** #92
+- **Decision:** Restart's "Your previous game counted as a loss." shows for 3 s as a card over the opponent's panel (key `restart-loss`, a live region, taking no touches), not a SnackBar; it is decided by #82's `isAbandonable` on the live game before the restart, not `wouldAbandon(…, PlayMode.computer)`. Design difference: the design has no such message.
+  **Why:** A floating SnackBar would sit over the tool row for 3 s. `wouldAbandon` for the computer mode reads the saved computer game when the board holds a two-player game, which Restart never abandons.
+  **Issue:** #92
+- **Decision:** New on a finished game (view-board mode or during the 600 ms delay) shows the result card at the tap, behind the setup screen it pushes, rather than on return; the card has therefore already entered when back reveals it.
+  **Why:** "On return the result card shows" holds either way, and showing it at the tap needs no route-return hook on the board.
+  **Issue:** #92
+- **Decision:** The restored buttons are one widget, `CardLinkButton` in `pause_overlay.dart`, drawn at the design's heights (Rules/Settings 41, pause Main menu 39, See statistics 41.5, result Main menu 37). Hit areas reach 4.5 dp (`cardHalfGap`) into each neighbouring 9 dp gap, and each Main menu takes the rest of its 48 dp from the card's bottom padding, which shrinks by the same amount. A tap focuses the button, so focus returns to it when the opened screen closes. The pause card now takes the result card's 440 dp cap and scrolls (`pause-scroll`).
+  **Why:** The planner's discretion (pass 2) on hit areas and focus.
+  **Issue:** #92
+- **Decision:** M3's screen harnesses (`pumpGame` in `test/ui/game/player_panel_test.dart`, `pumpScreen` in `test/ui/promotion_sheet_test.dart`) now pump `GameScreen` through `pumpUnderScope`, and `test/ui/menu_navigation_test.dart` leaves a live board by back then the pause card's Main menu.
+  **Why:** The screen reads `AppScope` whenever back or a card button leads off the board, and back on a live board now pauses instead of popping.
+  **Issue:** #92

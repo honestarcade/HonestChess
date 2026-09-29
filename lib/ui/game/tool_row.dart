@@ -41,12 +41,19 @@ const String toolGlyphFamily = Fonts.plexMono;
 /// Takeback, Restart, Resign and New, full width under the board. Takeback
 /// is disabled when the game's option turns it off or there is nothing to
 /// undo, Resign once the game is over; a disabled tool is dimmed and a tap
-/// on it does nothing. [onNew] is New's action.
+/// on it does nothing. [onRestart] and [onNew] are Restart's and New's
+/// actions.
 class ToolRow extends StatelessWidget {
-  const ToolRow({super.key, required this.controller, required this.onNew});
+  const ToolRow({
+    super.key,
+    required this.controller,
+    required this.onNew,
+    required this.onRestart,
+  });
 
   final GameController controller;
   final VoidCallback onNew;
+  final VoidCallback onRestart;
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +63,7 @@ class ToolRow extends StatelessWidget {
         final game = controller.game;
         VoidCallback? action(Tool tool) => switch (tool) {
           Tool.takeback when game.canTakeBack => controller.takeBack,
-          Tool.restart => controller.restart,
+          Tool.restart => onRestart,
           Tool.resign when !game.isOver => controller.resign,
           Tool.newGame => onNew,
           _ => null,

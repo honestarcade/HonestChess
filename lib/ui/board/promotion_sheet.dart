@@ -25,7 +25,8 @@ const List<PieceKind> promotionChoices = [
 
 /// The design's "Promote to" card over a scrim, shown while [controller]
 /// has a promotion pending. A choice completes the move; a tap on the
-/// scrim or Android's back cancels it. It is a layer of the play screen,
+/// scrim cancels it, and so does Android's back, which the play screen
+/// handles. It is a layer of the play screen,
 /// not a route: it fills the space it is given and, with nothing pending,
 /// draws nothing and takes no touches.
 class PromotionSheet extends StatefulWidget {
@@ -107,20 +108,10 @@ class _PromotionSheetState extends State<PromotionSheet>
     final pawn = _pawn;
     final pending = _shown ?? _controller.state.pendingPromotion;
     final visible = pawn != null && (open || !_show.isDismissed);
-    return PopScope(
-      canPop: !open,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _controller.cancelPromotion();
-      },
-      child: !visible
-          ? const SizedBox.shrink()
-          : IgnorePointer(
-              ignoring: !open,
-              child: FadeTransition(
-                opacity: _eased,
-                child: _layer(pawn, pending),
-              ),
-            ),
+    if (!visible) return const SizedBox.shrink();
+    return IgnorePointer(
+      ignoring: !open,
+      child: FadeTransition(opacity: _eased, child: _layer(pawn, pending)),
     );
   }
 

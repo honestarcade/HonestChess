@@ -13,6 +13,7 @@ import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/game_screen.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
+import '../support/app_harness.dart';
 import 'board/board_interaction_test.dart' show dragTo, centre, tap;
 
 /// White pawn on e7, one step from promoting; a black rook on d8 to take.
@@ -29,11 +30,7 @@ Future<GameController> pumpScreen(
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(
-    MaterialApp(
-      home: GameScreen(options: options, fen: fen),
-    ),
-  );
+  await pumpUnderScope(tester, GameScreen(options: options, fen: fen));
   return tester.state<GameScreenState>(find.byType(GameScreen)).controller;
 }
 

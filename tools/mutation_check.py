@@ -597,6 +597,22 @@ MUTATIONS: list[Mutation] = [
                  flags=re.M),
              "a claim about a guard would stand with nothing behind it",
              'dangling-reference: 1 offender'),
+    # The picker's path is split in these strings so this file does not
+    # itself name a removed file (#92).
+    Mutation("refs", "the ledger's removed path loses its exemption",
+             "test/guards/references_test.dart",
+             sub(r"\n  'lib/ui/game/temporary_new_game\.dart':\n[^\n]*\n", "\n"),
+             "history naming a deleted file could no longer be told from a "
+             "dangling claim, so the ledger would have to be rewritten",
+             "dangling-reference .n8/decisions.md names lib/ui/game/"
+             "temporary_new_game" ".dart"),
+    Mutation("refs", "a code comment names the removed picker",
+             "lib/ui/game/tool_row.dart",
+             append("// temporary_new_game" ".dart\n"),
+             "the ledger's exemption would reach every file, so a stale "
+             "comment naming a deleted file would stand",
+             "dangling-reference lib/ui/game/tool_row.dart names "
+             "temporary_new_game" ".dart"),
 
     # rename -- rename_app_test.dart
     Mutation("rename", "rename_app.py skips the workflows", "tools/rename_app.py",
