@@ -36,9 +36,24 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 # battery's time. Such a guard tags itself `slow` (here,
 # test/guards/upload_cert_test.dart, which starts JVMs), and only the
 # mutations that need it set `slow=True` to run SUITE_SLOW.
+#
+# Both name the files that hold a guard-tagged test rather than letting
+# `flutter test` load the whole test tree to filter by tag: every other test
+# file would be compiled on every run for nothing, and that compile, not the
+# guards, is what grows with the app. The list is read once, before any
+# mutation, so a mutation that strips a file's tag still runs that file.
+def guard_files() -> list[str]:
+    tagged = re.compile(r"""['"]guard['"]""")
+    return sorted(
+        str(f.relative_to(ROOT))
+        for f in (ROOT / "test").rglob("*_test.dart")
+        if tagged.search(f.read_text(encoding="utf-8")))
+
+
+GUARD_FILES = guard_files()
 SUITE = ["flutter", "test", "--no-pub", "--tags", "guard",
-         "--exclude-tags", "slow"]
-SUITE_SLOW = ["flutter", "test", "--no-pub", "--tags", "guard"]
+         "--exclude-tags", "slow", *GUARD_FILES]
+SUITE_SLOW = ["flutter", "test", "--no-pub", "--tags", "guard", *GUARD_FILES]
 IN_FLIGHT = ROOT / ".mutation_check_in_flight"
 
 

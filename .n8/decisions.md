@@ -812,3 +812,9 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision (Rule 3):** `integration_test/app_smoke_test.dart` now waits for the menu with its own 30 s poll, settles the menu's fade, and settles the setup screen's push before tapping Start game. On emulator sudoku-dev (2026-09-29, this story's run) Start was tapped about 100 ms into the setup screen's push, while that transition still held the navigating flag, so the tap was ignored and the board never came.
   **Why:** The device test must tap only once the navigating flag is free, as the widget tests already do.
   **Issue:** #93
+
+## /n8-exec M5 — 2026-09-29
+
+- **Decision:** `tools/mutation_check.py` now passes `flutter test` the list of files that hold a guard-tagged test, found once before any mutation runs, rather than letting it load the whole test tree to filter by tag. Rule 3.
+  **Why:** M4's PR run of the mutations job took 58.3 min of its 60 min limit (PR #129, 2026-09-29). Each suite run compiled every test file, and the UI stories had added most of them. Locally, after a source edit, the suite took 9 s against 4 s with the list (M3 Max, 2026-09-29, `flutter test --no-pub --tags guard --exclude-tags slow`). The alternatives were another timeout raise, which would fail again at M5, or a job matrix, which would rename the required `mutations` check. The tags still select the tests, so what the battery measures is unchanged; the full battery was re-run in a separate worktree to confirm.
+  **Issue:** #95
