@@ -294,5 +294,9 @@ bool acceptsDraw(
   );
   final score = (result as Found).score;
   final forComputer = game.sideToMove == mode.computerColour ? score : -score;
-  return forComputer <= drawMargin;
+  return acceptsDrawAt(forComputer);
 }
+
+/// The draw decision given the computer's own score in centipawns
+/// ([forComputer]): accept at or below [drawMargin].
+bool acceptsDrawAt(int forComputer) => forComputer <= drawMargin;

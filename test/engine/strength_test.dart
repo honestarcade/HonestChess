@@ -353,6 +353,15 @@ void main() {
       );
     });
 
+    test('accepts at +50 cp for the computer and declines at +51', () {
+      expect(drawMargin, 50, reason: "#67's AC names a margin of +50 cp");
+      expect(acceptsDrawAt(50), isTrue, reason: 'exactly the margin accepts');
+      expect(acceptsDrawAt(51), isFalse, reason: 'one past it declines');
+      expect(acceptsDrawAt(0), isTrue);
+      expect(acceptsDrawAt(-mateScore), isTrue, reason: 'being mated accepts');
+      expect(acceptsDrawAt(mateScore), isFalse, reason: 'mating declines');
+    });
+
     test('a level or losing computer accepts', () {
       expect(
         acceptsDraw(_vsComputer(Position.initialFen, ['e2e4', 'e7e5'])),
