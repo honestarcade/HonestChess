@@ -557,3 +557,6 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** The pause pill is a `GestureDetector` (semantics "Pause", disabled once over). Pausing closes #76's picker by popping to the screen's own route (the picker completes with null); an auto-pause's pop plays its exit once frames resume on return. `FakeComputer.acceptsDraw` is now scripted (`draws`, `FakeDraw.accept/decline/fail`) instead of always declining.
   **Why:** The picker is a modal route, not a layer; the plan's fake-computer seam.
   **Issue:** #77
+- **Decision:** #69's recorded Stockfish run is committed as `.n8/memory/engine-strength.md`: Master ≈ 2207 (95% interval 2125–2289), above the 1800–2000 target, so no follow-up issue was filed. Two caveats were added by hand. Master played with no clock enforced (0.87 s per move) against Stockfish's 5 s + 0.1 s. The Mac was busy with M3 builds during the run, which can only have slowed Stockfish.
+  **Why:** The AC asks for the estimate to be stated honestly against the target; both conditions push the number up, so the record says so.
+  **Issue:** #69
