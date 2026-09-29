@@ -46,8 +46,9 @@ def guard_files() -> list[str]:
     tagged = re.compile(r"""['"]guard['"]""")
     return sorted(
         str(f.relative_to(ROOT))
-        for f in (ROOT / "test").rglob("*_test.dart")
-        if tagged.search(f.read_text(encoding="utf-8")))
+        for f in (ROOT / "test").rglob("*.dart")
+        if f.stem.endswith("_test")
+        and tagged.search(f.read_text(encoding="utf-8")))
 
 
 GUARD_FILES = guard_files()
