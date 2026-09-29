@@ -647,3 +647,6 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** `PieceGlyph` gains optional `colour` and `shadows` overrides, which the style samples use (#F7F5EF, `0 1px 2px rgba(0,0,0,.5)`). There is no separate TextStyle helper. The surface strips reuse `SurfacePainter` at `min(width, 480) / 390`. Test keys added: `settings-style-sample-<v>`, `settings-surface-strip-<v>`, `header-back`, `header-title`, `header-kicker`, `settings-list`.
   **Why:** The widget already held the glyph mapping and the no-fallback style, so an override was the smallest change that keeps them in one place.
   **Issue:** #83
+- **Decision:** M4's shared-conventions block (screen chrome, navigation, keys, palette token names, symbol rule) was restored to #84–#93 during execution. /n8-plan M4 drafted it, but the issues were filed without it; M3's issues likewise went out without their footer. #80–#83 were built from the design file instead. Where their names differ from the block, the code on the branch wins and later stories reconcile.
+  **Why:** #83's executor found that "the footer" cited by M4 stories existed nowhere; a planning miss, logged here honestly. M5's issues do carry theirs.
+  **Issue:** #83
