@@ -9,6 +9,7 @@ import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/defaults.dart';
+import 'package:honest_chess/ui/game/refusal.dart';
 
 /// A square's background layer, as the design's `hl`: at most one shows,
 /// in this order of precedence — the selected piece, a king in check, then
@@ -68,6 +69,7 @@ final class GameViewState {
     required this.tints,
     required this.marks,
     required this.lastMove,
+    required this.inCheck,
     required this.pendingPromotion,
     required this.thinking,
     required this.computerFailed,
@@ -92,6 +94,12 @@ final class GameViewState {
   /// The move that led to [position], whether or not it is tinted; null at
   /// the start of the game.
   final Move? lastMove;
+
+  /// The square of the side to move's king when it is in check and "Flag
+  /// check on the board" is on; null otherwise. Kept apart from [tints]
+  /// because the selection's tint hides the check tint, and the check's
+  /// badge must show all the same.
+  final Square? inCheck;
 
   final PendingPromotion? pendingPromotion;
 
@@ -188,6 +196,10 @@ class GameController extends ChangeNotifier {
   /// done; see [_emit] for events raised during a delivery.
   final _events = StreamController<GameEvent>.broadcast(sync: true);
   final _undelivered = <GameEvent>[];
+
+  /// A broadcast rather than a listenable, so two identical refusals in a
+  /// row are each heard.
+  final _refusals = StreamController<Refusal>.broadcast(sync: true);
   bool _delivering = false;
   RecordedState? _recordedState;
   final _replaceStages = <ReplaceStage>[];
@@ -213,6 +225,11 @@ class GameController extends ChangeNotifier {
   Square? _selection;
   PendingPromotion? _pendingPromotion;
   ResultView? _resultView;
+
+  /// A move is being made by a drop; a promotion it opens keeps that.
+  bool _dropping = false;
+  bool _promotionDropped = false;
+  bool _lastMoveWasDrop = false;
   List<Move> _legal = const [];
 
   Game get _game =>
@@ -232,8 +249,17 @@ class GameController extends ChangeNotifier {
   /// Whether no game has been started or restored yet.
   bool get isIdle => _current == null;
 
+  /// Whether the last move played was dropped on its square by a drag —
+  /// a promotion chosen after a drop included — so the board shows it
+  /// already there rather than sliding it (#98). False after a tap's or
+  /// the computer's move.
+  bool get lastMoveWasDrop => _lastMoveWasDrop;
+
   /// Every change of game, for the saved games (#81) and statistics (#82).
   Stream<GameEvent> get events => _events.stream;
+
+  /// Every tap or drop the board refused (#97), for the feedback hub.
+  Stream<Refusal> get refusals => _refusals.stream;
 
   /// The statistics' state of the game on the board ([RecordedState]),
   /// carried as a map into every event and saved beside the game; empty
@@ -303,6 +329,9 @@ class GameController extends ChangeNotifier {
     if (selected != null && _isTarget(selected, square)) {
       return move(selected, square);
     }
+    if (selected != null && !_isMovable(square)) {
+      _refuse(selected, square, RefusalVia.tap);
+    }
     final next = _isMovable(square) && square != selected ? square : null;
     if (next == selected) return false;
     _select(next);
@@ -333,10 +362,26 @@ class GameController extends ChangeNotifier {
   /// move was played or a promotion opened.
   bool drop(Square from, Square? to) {
     if (to != null && canDrop(from, to)) {
-      return to == from ? false : move(from, to);
+      if (to == from) return false;
+      _dropping = true;
+      try {
+        return move(from, to);
+      } finally {
+        _dropping = false;
+      }
     }
+    // Only a drag that still owns the selection was refused; one that
+    // outlived a position change, or a lock, just ends.
+    if (!inputLocked && _selection == from) _refuse(from, to, RefusalVia.drop);
     if (!inputLocked && _selection != null) _select(null);
     return false;
+  }
+
+  /// A drag from [from] ended without being let go (a pointer cancel):
+  /// the selection clears as for a drop off the board, and nothing is
+  /// refused.
+  void abandonDrag(Square from) {
+    if (!inputLocked && _selection != null) _select(null);
   }
 
   /// Plays the legal move from [from] to [to]. A pawn reaching its last
@@ -356,6 +401,7 @@ class GameController extends ChangeNotifier {
       }
       _selection = from;
       _pendingPromotion = (from: from, to: to);
+      _promotionDropped = _dropping;
       _state = _viewState();
       notifyListeners();
       return true;
@@ -604,7 +650,7 @@ class GameController extends ChangeNotifier {
       ),
       final other => other,
     };
-    return _replace(mode, _game.clock.control, fen: _fen);
+    return _replace(mode, _game.clock.control, fen: _fen, restart: true);
   }
 
   /// Starts a new game from [setup] at the standard start position; against
@@ -627,14 +673,19 @@ class GameController extends ChangeNotifier {
     );
   }
 
-  Future<bool> _replace(GameMode mode, TimeControl timeControl, {String? fen}) {
+  Future<bool> _replace(
+    GameMode mode,
+    TimeControl timeControl, {
+    String? fen,
+    bool restart = false,
+  }) {
     final outgoing = _freeze();
     final outgoingRecorded = outgoing == null ? null : _recordedState;
     final stages = List.of(_replaceStages);
     // With no stages the new game goes in within the call, so a controller
     // nothing listens to stays synchronous.
     if (stages.isEmpty) {
-      _start(outgoing, mode, timeControl, fen);
+      _start(outgoing, mode, timeControl, fen, restart: restart);
       return Future.value(true);
     }
     return () async {
@@ -646,7 +697,7 @@ class GameController extends ChangeNotifier {
         }
       }
       if (_disposed) return false;
-      _start(outgoing, mode, timeControl, fen);
+      _start(outgoing, mode, timeControl, fen, restart: restart);
       return true;
     }();
   }
@@ -673,8 +724,9 @@ class GameController extends ChangeNotifier {
     Game? outgoing,
     GameMode mode,
     TimeControl timeControl,
-    String? fen,
-  ) {
+    String? fen, {
+    required bool restart,
+  }) {
     if (outgoing != null && !outgoing.isOver) {
       _emit(GameAbandoned(outgoing, _recorded));
     }
@@ -694,7 +746,7 @@ class GameController extends ChangeNotifier {
     _turns = _turnsFor(mode);
     _refresh();
     notifyListeners();
-    _emit(GameStarted(_game, _recorded));
+    _emit(GameStarted(_game, _recorded, restart: restart));
   }
 
   /// Puts a saved, unfinished [game] on the board, paused, with the
@@ -755,6 +807,7 @@ class GameController extends ChangeNotifier {
     _declineTimer?.cancel();
     _turns?.dispose();
     _events.close();
+    _refusals.close();
     super.dispose();
   }
 
@@ -817,6 +870,11 @@ class GameController extends ChangeNotifier {
       return false;
     }
     final played = next.history.length > _game.history.length;
+    if (played) {
+      _lastMoveWasDrop =
+          !byComputer &&
+          (_pendingPromotion != null ? _promotionDropped : _dropping);
+    }
     final state = _recordedState;
     // Set before `moved` is raised, so the save of this very move says so.
     if (played &&
@@ -830,6 +888,13 @@ class GameController extends ChangeNotifier {
     notifyListeners();
     _announce(before, played ? GameMoved.new : null);
     return played;
+  }
+
+  void _refuse(Square from, Square? to, RefusalVia via) {
+    if (_disposed) return;
+    final piece = _game.position.pieceAt(from);
+    if (piece == null) return;
+    _refusals.add(Refusal(kind: piece.kind, from: from, to: to, via: via));
   }
 
   void _select(Square? square) {
@@ -862,9 +927,10 @@ class GameController extends ChangeNotifier {
       tints[lastMove.from.index] = SquareTint.lastMove;
       tints[lastMove.to.index] = SquareTint.lastMove;
     }
-    if (_options.flagCheck && inCheck(position)) {
-      tints[position.kingSquare(position.sideToMove).index] = SquareTint.check;
-    }
+    final checked = _options.flagCheck && inCheck(position)
+        ? position.kingSquare(position.sideToMove)
+        : null;
+    if (checked != null) tints[checked.index] = SquareTint.check;
     final selected = _selection;
     if (selected != null) {
       tints[selected.index] = SquareTint.selected;
@@ -880,6 +946,7 @@ class GameController extends ChangeNotifier {
       tints: List.unmodifiable(tints),
       marks: List.unmodifiable(marks),
       lastMove: lastMove,
+      inCheck: checked,
       pendingPromotion: _pendingPromotion,
       thinking: _turns?.thinking ?? false,
       computerFailed: _turns?.failed ?? false,

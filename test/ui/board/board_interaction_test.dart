@@ -71,7 +71,7 @@ void main() {
       final c = await pumpPlayable(tester);
       await tap(tester, 'e2');
       expect(keyed(tester, 'dot-'), {'e3', 'e4'});
-      expect(keyed(tester, 'selected-'), {'e2'}, reason: 'tap: teal ring');
+      expect(keyed(tester, 'ring-selected-'), {'e2'}, reason: 'tap: teal ring');
       final tint = tester.widget<ColoredBox>(find.byKey(const Key('tint-e2')));
       expect(tint.color, Palette.selectedTint, reason: 'tap: teal tint');
       await tap(tester, 'e4');
@@ -157,13 +157,13 @@ void main() {
       expect(keyed(tester, 'dot-'), {
         for (final m in moves.where((m) => !m.isCapture)) m.to.name,
       });
-      expect(keyed(tester, 'ring-'), {
+      expect(keyed(tester, 'ring-capture-'), {
         for (final m in moves.where((m) => m.isCapture)) m.to.name,
       });
-      expect(keyed(tester, 'ring-'), {'e5', 'f7', 'h7'});
+      expect(keyed(tester, 'ring-capture-'), {'e5', 'f7', 'h7'});
       expect(keyed(tester, 'dot-'), isNot(contains('h8')));
       final ring = tester.widget<DecoratedBox>(
-        find.byKey(const Key('ring-f7')),
+        find.byKey(const Key('ring-capture-f7')),
       );
       final side = (ring.decoration as BoxDecoration).border!.top;
       expect(side.color, Palette.captureRing);
@@ -180,8 +180,8 @@ void main() {
       );
       await tap(tester, 'e2');
       expect(keyed(tester, 'dot-'), isEmpty);
-      expect(keyed(tester, 'ring-'), isEmpty);
-      expect(keyed(tester, 'selected-'), {'e2'});
+      expect(keyed(tester, 'ring-capture-'), isEmpty);
+      expect(keyed(tester, 'ring-selected-'), {'e2'});
       await tap(tester, 'e4');
       expect(c.game.moves.single.toUci(), 'e2e4');
     });

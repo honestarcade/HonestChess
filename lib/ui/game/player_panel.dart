@@ -6,7 +6,8 @@ import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/labels.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
-/// A player panel's height (the design's panels).
+/// A player panel's height (the design's panels), which a large system
+/// text size may grow.
 const double panelHeight = 52;
 
 /// How often, at most, a running clock's spoken label follows its text; a
@@ -53,8 +54,10 @@ class PlayerPanel extends StatelessWidget {
         side != (game.mode as VsComputer).playerColour;
     return Container(
       key: Key('panel-${side.name}'),
-      height: panelHeight,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      // Taller when its text is: a large system text size may wrap the
+      // sub-line.
+      constraints: const BoxConstraints(minHeight: panelHeight),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: lit ? Palette.panelLit : Palette.panelDim,
         borderRadius: const BorderRadius.all(Radius.circular(14)),
@@ -87,8 +90,10 @@ class PlayerPanel extends StatelessWidget {
                 Text(
                   playerSubLine(game.mode, side, game.clock.control),
                   key: Key('sub-${side.name}'),
-                  maxLines: 1,
-                  softWrap: false,
+                  semanticsLabel: spokenCaps(
+                    playerSubLine(game.mode, side, game.clock.control),
+                  ),
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontFamily: Fonts.plexMono,
@@ -96,7 +101,7 @@ class PlayerPanel extends StatelessWidget {
                     fontSize: 9,
                     height: 1,
                     letterSpacing: 9 * .14,
-                    color: lit ? Palette.teal : Palette.textDim,
+                    color: lit ? Palette.tealOnTint : Palette.textDim,
                   ),
                 ),
               ],
@@ -260,12 +265,15 @@ class _ClockDisplayState extends State<ClockDisplay>
       label: _spoken,
       excludeSemantics: true,
       child: Opacity(
-        opacity: lit ? 1 : 0.6,
+        opacity: lit ? 1 : Palette.clockDimOpacity,
         child: Text(
           _text,
           key: Key('clock-${widget.side.name}'),
           maxLines: 1,
           softWrap: false,
+          // The digits keep their size at any system text size, as the
+          // board does.
+          textScaler: TextScaler.noScaling,
           style: TextStyle(
             fontFamily: Fonts.plexMono,
             fontWeight: FontWeight.w600,

@@ -205,7 +205,10 @@ void main() {
     );
     expect(
       tester.getSemantics(_key('menu-continue')),
-      isSemantics(label: 'Continue two-player, MOVE 2 · BLACK', isButton: true),
+      isSemantics(
+        label: 'Continue two-player, move 2, Black to move',
+        isButton: true,
+      ),
     );
     await tester.pumpWidget(const SizedBox());
   });

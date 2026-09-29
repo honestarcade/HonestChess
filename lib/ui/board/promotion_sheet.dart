@@ -4,6 +4,7 @@ import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/board/board_view.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
+import 'package:honest_chess/ui/motion.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
 /// How long the card and its scrim take to appear (the design's `hc-rise`).
@@ -56,6 +57,10 @@ class _PromotionSheetState extends State<PromotionSheet>
   PendingPromotion? _shown;
   Piece? _pawn;
 
+  /// Motion is off: the card appears and goes at once.
+  bool _still = false;
+  bool _tracked = false;
+
   GameController get _controller => widget.controller;
 
   @override
@@ -65,7 +70,16 @@ class _PromotionSheetState extends State<PromotionSheet>
     _show.addStatusListener((status) {
       if (status == AnimationStatus.dismissed && mounted) setState(() {});
     });
-    _track();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _still = Motion.of(context).isOff;
+    if (!_tracked) {
+      _tracked = true;
+      _track();
+    }
   }
 
   @override
@@ -94,11 +108,19 @@ class _PromotionSheetState extends State<PromotionSheet>
       if (pending != _shown) {
         _shown = pending;
         _pawn = _controller.state.position.pieceAt(pending.from);
-        _show.forward(from: 0);
+        if (_still) {
+          _show.value = 1;
+        } else {
+          _show.forward(from: 0);
+        }
       }
     } else if (_shown != null) {
       _shown = null;
-      _show.reverse();
+      if (_still) {
+        _show.value = 0;
+      } else {
+        _show.reverse();
+      }
     }
   }
 
@@ -158,6 +180,8 @@ class _PromotionSheetState extends State<PromotionSheet>
       key: const Key('promo-card'),
       container: true,
       liveRegion: true,
+      header: true,
+      headingLevel: 2,
       label: 'Promote pawn on $square',
       child: DecoratedBox(
         decoration: const BoxDecoration(
@@ -256,6 +280,7 @@ class _PromotionChoiceState extends State<_PromotionChoice> {
     return Semantics(
       button: true,
       label: 'Promote to ${kind.name}',
+      onTap: widget.onPick,
       excludeSemantics: true,
       child: Material(
         color: Palette.choiceFill,

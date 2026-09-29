@@ -36,9 +36,25 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 # battery's time. Such a guard tags itself `slow` (here,
 # test/guards/upload_cert_test.dart, which starts JVMs), and only the
 # mutations that need it set `slow=True` to run SUITE_SLOW.
+#
+# Both name the files that hold a guard-tagged test rather than letting
+# `flutter test` load the whole test tree to filter by tag: every other test
+# file would be compiled on every run for nothing, and that compile, not the
+# guards, is what grows with the app. The list is read once, before any
+# mutation, so a mutation that strips a file's tag still runs that file.
+def guard_files() -> list[str]:
+    tagged = re.compile(r"""['"]guard['"]""")
+    return sorted(
+        str(f.relative_to(ROOT))
+        for f in (ROOT / "test").rglob("*.dart")
+        if f.stem.endswith("_test")
+        and tagged.search(f.read_text(encoding="utf-8")))
+
+
+GUARD_FILES = guard_files()
 SUITE = ["flutter", "test", "--no-pub", "--tags", "guard",
-         "--exclude-tags", "slow"]
-SUITE_SLOW = ["flutter", "test", "--no-pub", "--tags", "guard"]
+         "--exclude-tags", "slow", *GUARD_FILES]
+SUITE_SLOW = ["flutter", "test", "--no-pub", "--tags", "guard", *GUARD_FILES]
 IN_FLIGHT = ROOT / ".mutation_check_in_flight"
 
 
@@ -817,7 +833,7 @@ MUTATIONS: list[Mutation] = [
              "android/app/src/main/kotlin/com/honestarcade/chess/MainActivity.kt",
              append('// java.net.URL("https://example.com")\n'),
              "the app's own Android bridge could reach the network (invariant 1)",
-             'platform-surface: network API in MainActivity.kt'),
+             "platform-surface: network API in the app's Kotlin"),
     Mutation("platform-surface", "the channel gains a fourth method",
              "android/app/src/main/kotlin/com/honestarcade/chess/MainActivity.kt",
              sub(r"^(\s*)(else -> result\.notImplemented\(\))",
@@ -839,6 +855,34 @@ MUTATIONS: list[Mutation] = [
              sub(r"'appVersion'", "'appVersion2'"),
              "Dart would call a method the reviewed Kotlin side does not handle",
              'platform-surface: Dart channel methods'),
+    Mutation("platform-surface", "the sound bridge names java.net",
+             "android/app/src/main/kotlin/com/honestarcade/chess/SoundBridge.kt",
+             append('// java.net.URL("https://example.com/loop.wav")\n'),
+             "the sound bridge could stream from the network (invariant 1)",
+             "platform-surface: network API in the app's Kotlin"),
+    Mutation("platform-surface", "the sound channel gains a seventh method",
+             "android/app/src/main/kotlin/com/honestarcade/chess/SoundBridge.kt",
+             sub(r"^(\s*)(else -> result\.notImplemented\(\))",
+                 r'\1"vibrate" -> result.success(null)\n\1\2', flags=re.M),
+             "the sound bridge would carry a capability nobody reviewed (invariant 1)",
+             'platform-surface: sound channel Kotlin branches'),
+    Mutation("platform-surface", "the sound channel stops refusing unknown methods",
+             "android/app/src/main/kotlin/com/honestarcade/chess/SoundBridge.kt",
+             sub(r"^\s*else -> result\.notImplemented\(\)\n", "", flags=re.M),
+             "an unreviewed method name would hang its caller instead of being refused",
+             'platform-surface: sound channel Kotlin branches'),
+    Mutation("platform-surface", "the Kotlin sound channel name drifts",
+             "android/app/src/main/kotlin/com/honestarcade/chess/SoundBridge.kt",
+             sub(r'SOUND_CHANNEL = "honestchess/sound"',
+                 'SOUND_CHANNEL = "honestchess/sound2"'),
+             "the guard's branch rule would read a channel Dart never calls",
+             'platform-surface: sound channel name'),
+    Mutation("platform-surface", "the Dart sound player invokes a seventh method",
+             "lib/feedback/sound_player.dart",
+             append("\nFuture<void> vibrate(MethodChannel channel) =>\n"
+                    "    channel.invokeMethod<void>('vibrate');\n"),
+             "Dart would call a method the reviewed Kotlin side does not handle",
+             'platform-surface: sound channel Dart methods'),
     Mutation("platform-surface", "the manifest turns backup off",
              "android/app/src/main/AndroidManifest.xml",
              sub(r"<application\n", '<application\n        android:allowBackup="false"\n'),
@@ -856,6 +900,157 @@ MUTATIONS: list[Mutation] = [
                  '<application\n        android:dataExtractionRules="@xml/data_extraction_rules"\n'),
              "extraction rules could exclude the player's data from their own backup",
              'platform-surface: backup attribute'),
+
+    # audio assets -- test/guards/audio_assets_test.dart (#95)
+    # The file alone cannot go: a declared asset that is missing stops
+    # `flutter test` at the asset bundle, which is the wrong reason. The
+    # honest shape is the file gone AND its pubspec line tidied away, which
+    # is what a "clean-up" commit would do.
+    Mutation("audio", "a clip the app plays goes missing, and its pubspec line with it",
+             "pubspec.yaml",
+             sub(r"\n    - assets/audio/end\.wav", ""),
+             "the player would hear nothing where the end chime belongs",
+             'assets/audio/end.wav: missing',
+             deletes="assets/audio/end.wav"),
+    Mutation("audio", "a clip loses its licence row",
+             "assets/audio/LICENSES.md",
+             sub(r"^\| `capture\.wav` \|[^\n]*\n", "", flags=re.M),
+             "an unrecorded clip could be swapped for anything",
+             'assets/audio/capture.wav: no source and licence'),
+    Mutation("audio", "a clip is stereo",
+             "", None,
+             "the clip would not be the format the sound bridge is built for",
+             'assets/audio/move.wav: 2 channels, not mono',
+             replaces_with=(("assets/audio/move.wav", "test/fixtures/audio/stereo.wav"),)),
+    # A text stand-in rather than a copy of move.wav: `adds` writes text, and
+    # the stray rule refuses the name before it reads a byte.
+    Mutation("audio", "a stray file sits among the clips",
+             "", None,
+             "an unplayed, unrecorded file would sit beside the licensed ones",
+             'assets/audio/stray.wav: not a clip the app plays',
+             adds=(("assets/audio/stray.wav", "RIFF\n"),)),
+    Mutation("audio", "LICENSES.md records a file that is not there",
+             "assets/audio/LICENSES.md",
+             sub(r"(\|---\|---\|---\|\n)",
+                 r"\1| `absent.wav` | ElevenLabs text-to-sound-effects | ElevenLabs Creator plan, commercial licence |\n"),
+             "the licence record would claim a clip the app does not carry",
+             'assets/audio/absent.wav: licensed but absent'),
+    Mutation("audio", "PROMPTS.md goes missing",
+             "", None,
+             "nothing would say what the clips were generated from",
+             'assets/audio/PROMPTS.md: the record is missing',
+             deletes="assets/audio/PROMPTS.md"),
+    Mutation("audio", "an effect runs over 2 s",
+             "", None,
+             "a move tap would drag on under the next move",
+             'assets/audio/move.wav: 2.5 s long, over 2 s',
+             replaces_with=(("assets/audio/move.wav", "test/fixtures/audio/long_effect.wav"),)),
+    Mutation("audio", "the loop is a 10 s take",
+             "", None,
+             "the music bed would repeat every few seconds",
+             'assets/audio/music.wav: 10.0 s long, under 29 s for a loop',
+             replaces_with=(("assets/audio/music.wav", "test/fixtures/audio/short_loop.wav"),)),
+    Mutation("audio", "a clip drops out of the bundle",
+             "pubspec.yaml",
+             sub(r"\n    - assets/audio/capture\.wav", ""),
+             "the app would fail to load the capture at run time",
+             'audio-declared: 1 offender'),
+    Mutation("audio", "the README stops saying the clips are not MIT",
+             "README.md",
+             sub(r"not covered by the MIT\nlicence", "covered by the\nlicence"),
+             "a reader would take the clips to be MIT like the code",
+             'audio-readme: the paragraph does not say the clips are not MIT'),
+    Mutation("audio", "the README stops naming the licence record",
+             "README.md",
+             sub(r"see `assets/audio/LICENSES\.md`", "see the licence record"),
+             "a reader would not find the clips' licence terms",
+             'audio-readme: the paragraph does not name assets/audio/LICENSES.md'),
+    # ---- #97: haptics ----------------------------------------------------------
+    Mutation("haptics", "a stray tick in the board's drag",
+             "lib/ui/board/board_interaction.dart",
+             chain(sub(r"(import 'package:flutter/widgets\.dart';\n)",
+                       r"\1import 'package:flutter/services.dart';\n"),
+                   sub(r"(        onDragStarted: \(\) \{\n)",
+                       r"\1          HapticFeedback.lightImpact();\n")),
+             "a pickup would tick with Haptics off",
+             'haptics-scan: Dart HapticFeedback. in lib/ui/board/board_interaction.dart'),
+    Mutation("haptics", "Settings' rows tick through Feedback.forTap",
+             "lib/ui/screens/settings_screen.dart",
+             sub(r"(\n( *)onChanged: \(\) \{\n)",
+                 r"\1\2  Feedback.forTap(context);\n"),
+             "every switch would tick with Haptics off",
+             'haptics-scan: Dart Feedback.forTap in lib/ui/screens/settings_screen.dart'),
+    Mutation("haptics", "Settings' rows tick through Feedback.forLongPress",
+             "lib/ui/screens/settings_screen.dart",
+             sub(r"(\n( *)onChanged: \(\) \{\n)",
+                 r"\1\2  Feedback.forLongPress(context);\n"),
+             "every switch would tick with Haptics off",
+             'haptics-scan: Dart Feedback.forLongPress in lib/ui/screens/settings_screen.dart'),
+    Mutation("haptics", "the hub invokes the vibrate method by hand",
+             "lib/feedback/game_feedback.dart",
+             chain(sub(r"(import 'package:flutter/foundation\.dart';\n)",
+                       r"\1import 'package:flutter/services.dart';\n"),
+                   sub(r"(  void _tick\(\) \{\n)",
+                       r"\1    unawaited(SystemChannels.platform.invokeMethod<void>(\n"
+                       r"      'HapticFeedback.vibrate',\n    ));\n")),
+             "the hub would tick past its own Haptics check",
+             "haptics-scan: Dart 'HapticFeedback.vibrate' in lib/feedback/game_feedback.dart"),
+    Mutation("haptics", "the activity ticks from Kotlin",
+             "android/app/src/main/kotlin/com/honestarcade/chess/MainActivity.kt",
+             sub(r"(    override fun onPause\(\) \{\n)",
+                 r"\1        window.decorView.performHapticFeedback(1)\n"),
+             "leaving the app would tick whatever the setting says",
+             'haptics-scan: Kotlin performHapticFeedback in android/app/src/main/kotlin/com/honestarcade/chess/MainActivity.kt'),
+    Mutation("haptics", "the port ticks with a selection click",
+             "lib/feedback/haptics.dart",
+             sub(r"await HapticFeedback\.lightImpact\(\);",
+                 "await HapticFeedback.selectionClick();"),
+             "the tick would not be the light impact the design asks for",
+             'haptics-scan: lib/feedback/haptics.dart no longer ticks with lightImpact'),
+    # ---- #102: announcer ------------------------------------------------------
+    Mutation("announcer", "Statistics speaks past the announcer",
+             "lib/ui/screens/stats_screen.dart",
+             chain(sub(r"(import 'package:flutter/material\.dart';\n)",
+                       r"\1import 'package:flutter/semantics.dart';\n"),
+                   sub(r"  void _announce\(String message\) =>\n"
+                       r"      AppScope\.of\(context\)\.announcer\.announce\(message\);",
+                       "  void _announce(String message) =>\n"
+                       "      SemanticsService.sendAnnouncement(\n"
+                       "        View.of(context), message, TextDirection.ltr,\n"
+                       "      ).ignore();")),
+             "the reset would be spoken to everyone, and no test would hear it",
+             'announcer-scan: SemanticsService. in lib/ui/screens/stats_screen.dart'),
+    Mutation("announcer", "the announcer speaks without a screen reader",
+             "lib/a11y/announcer.dart",
+             sub(r"    if \(!MediaQuery\.accessibleNavigationOf\(from\)\) return;\n", ""),
+             "every move would be announced to players with no screen reader",
+             'announcer-scan: lib/a11y/announcer.dart speaks without a screen reader'),
+    # ---- #99: contrast -------------------------------------------------------
+    Mutation("contrast", "bone's dark square goes back to the design's",
+             "lib/ui/board/board_options.dart",
+             sub(r"dark: Color\(0xFF6A7586\)", "dark: Color(0xFF6B7788)"),
+             "the bone board's squares would fall under the brand sheet's 4:1",
+             'contrast-board: below'),
+    Mutation("contrast", "the faint text goes back to the design's",
+             "lib/ui/theme/palette.dart",
+             sub(r"static const textFaint = Color\(0xFF87AAD9\);",
+                 "static const textFaint = Color(0xFF4E739F);"),
+             "Settings' version line would fall under 4.5:1 on the navy",
+             'contrast-text: below WCAG AA'),
+    Mutation("contrast", "the luminance curve uses gamma 2.2",
+             "lib/ui/theme/contrast.dart",
+             sub(r"(double _linear\(double channel\) => channel <= wcagLinearLimit\n"
+                 r"    \? channel / 12\.92\n"
+                 r"    : math\.pow\(\(channel \+ 0\.055\) / 1\.055, )2\.4",
+                 r"\g<1>2.2"),
+             "every ratio the guard proves would be computed on the wrong curve",
+             'contrast-maths: #777 on white'),
+    Mutation("contrast", "a moved colour overshoots its nearest pass",
+             "lib/ui/theme/palette.dart",
+             sub(r"static const textMuted = Color\(0xFF9ABCE3\);",
+                 "static const textMuted = Color(0xFFA6C8F0);"),
+             "the muted text would drift further from the design than contrast needs",
+             'contrast-shift: not the nearest pass'),
 ]
 
 

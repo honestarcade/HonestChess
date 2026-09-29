@@ -3,22 +3,29 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:honest_chess/a11y/announcer.dart';
 import 'package:honest_chess/data/app_store.dart';
 import 'package:honest_chess/data/game_saves.dart';
 import 'package:honest_chess/data/recorded_state.dart';
 import 'package:honest_chess/data/settings_store.dart';
 import 'package:honest_chess/data/stats.dart';
+import 'package:honest_chess/feedback/music_controller.dart';
 import 'package:honest_chess/main.dart' show appTheme;
 import 'package:honest_chess/engine/engine.dart';
+import 'package:honest_chess/ui/app_builder.dart';
 import 'package:honest_chess/ui/app_scope.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/defaults.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/navigation.dart';
 
+import 'fake_haptics.dart';
 import 'fake_platform_channel.dart';
+import 'fake_sound_player.dart';
 
+export 'fake_haptics.dart';
 export 'fake_platform_channel.dart';
+export 'fake_sound_player.dart';
 
 /// What [pumpUnderScope] put in the scope.
 class AppHarness {
@@ -31,6 +38,12 @@ class AppHarness {
     this.settings,
     this.navigation,
     this.random,
+    this.sound,
+    this.music,
+    this.boardRoutes,
+    this.foreground,
+    this.haptics,
+    this.announcer,
   );
 
   final AppStore store;
@@ -41,6 +54,17 @@ class AppHarness {
   final SettingsStore settings;
   final NavigationGuard navigation;
   final Random random;
+  final FakeSoundPlayer sound;
+  final MusicController music;
+  final BoardRouteObserver boardRoutes;
+
+  /// The music's foreground flag; the harness has no lifecycle listener, so
+  /// a test sets it.
+  final ValueNotifier<bool> foreground;
+  final FakeHaptics haptics;
+
+  /// What the screen reader would have heard.
+  final RecordingAnnouncer announcer;
 }
 
 /// Pumps [child] as the home of a `MaterialApp` with the app's theme, under
@@ -51,9 +75,12 @@ class AppHarness {
 /// default a recorder over the store, with no listener wiring it to the
 /// controller, so nothing is recorded) and [settings] (by default on the
 /// defaults, not loaded from the store) and [random] (by default a seeded
-/// source), with a fresh [NavigationGuard] registered ahead of [observers],
-/// as the root registers its own. What the harness
-/// builds it also disposes; what the test passes, the test disposes.
+/// source) and [sound], [haptics] and [announcer] (by default recording
+/// fakes), with a
+/// fresh [NavigationGuard] and a [BoardRouteObserver] registered ahead of
+/// [observers], and a [MusicController] over them, as the root registers its
+/// own. What the harness builds it also disposes; what the test passes, the
+/// test disposes.
 Future<AppHarness> pumpUnderScope(
   WidgetTester tester,
   Widget child, {
@@ -64,6 +91,9 @@ Future<AppHarness> pumpUnderScope(
   StatsRecorder? stats,
   SettingsStore? settings,
   Random? random,
+  FakeSoundPlayer? sound,
+  FakeHaptics? haptics,
+  RecordingAnnouncer? announcer,
   List<NavigatorObserver> observers = const [],
 }) async {
   final theStore = store ?? AppStore.memory();
@@ -84,6 +114,22 @@ Future<AppHarness> pumpUnderScope(
       if (settings == null) theSettings.dispose();
     });
   }
+  final theSound = sound ?? FakeSoundPlayer();
+  final boardRoutes = BoardRouteObserver();
+  final foreground = ValueNotifier<bool>(true);
+  final music = MusicController(
+    controller: theController,
+    board: theSettings.board,
+    boardVisible: boardRoutes.visible,
+    foreground: foreground,
+    player: theSound,
+  );
+  addTearDown(() async {
+    await tester.pumpWidget(const SizedBox());
+    music.dispose();
+    boardRoutes.dispose();
+    foreground.dispose();
+  });
   final harness = AppHarness(
     theStore,
     platform ?? FakePlatformChannel(),
@@ -93,6 +139,12 @@ Future<AppHarness> pumpUnderScope(
     theSettings,
     NavigationGuard(),
     random ?? Random(85),
+    theSound,
+    music,
+    boardRoutes,
+    foreground,
+    haptics ?? FakeHaptics(),
+    announcer ?? RecordingAnnouncer(),
   );
   await tester.pumpWidget(
     AppScope(
@@ -104,9 +156,18 @@ Future<AppHarness> pumpUnderScope(
       settings: harness.settings,
       navigation: harness.navigation,
       random: harness.random,
+      sound: harness.sound,
+      music: harness.music,
+      haptics: harness.haptics,
+      announcer: harness.announcer,
       child: MaterialApp(
         theme: appTheme(),
-        navigatorObservers: [harness.navigation, ...observers],
+        navigatorObservers: [
+          harness.navigation,
+          harness.boardRoutes,
+          ...observers,
+        ],
+        builder: appBuilder(harness.settings.board),
         home: child,
       ),
     ),

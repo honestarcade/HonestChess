@@ -43,6 +43,12 @@ String continueLabel(OfferedGame offered) => switch (offered.step) {
 String continueMeta(OfferedGame offered) =>
     'MOVE ${offered.fullmove} · ${offered.sideToMove.label.toUpperCase()}';
 
+/// What a screen reader says for Continue: "Continue vs Club, move 12,
+/// White to move".
+String continueSpeech(OfferedGame offered) =>
+    '${continueLabel(offered)}, move ${offered.fullmove}, '
+    '${offered.sideToMove.label} to move';
+
 /// How far a tappable drawn [drawn] high reaches past its drawn box, above
 /// and below, to be [_minTouch] to touch.
 double _spill(double drawn) => math.max(0, (_minTouch - drawn) / 2);
@@ -77,34 +83,30 @@ class MenuScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scope = AppScope.of(context);
-    // Screen text ignores the system text scale, as the board does, until
-    // M5's accessibility work.
-    return MediaQuery.withNoTextScaling(
-      child: Scaffold(
-        backgroundColor: Palette.screenBg,
-        resizeToAvoidBottomInset: false,
-        body: ScreenBackground(
-          gradient: ScreenGradient.menu,
-          child: SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final s =
-                    math.min(constraints.maxWidth, menuScaleCapWidth) /
-                    designWidth;
-                return ListenableBuilder(
-                  listenable: Listenable.merge([
-                    scope.saves,
-                    scope.store.corruptionNotices,
-                  ]),
-                  builder: (context, _) => _MenuBody(
-                    scale: s,
-                    offered: scope.saves.offered,
-                    notices: scope.store.corruptionNotices.value,
-                    store: scope.store,
-                  ),
-                );
-              },
-            ),
+    return Scaffold(
+      backgroundColor: Palette.screenBg,
+      resizeToAvoidBottomInset: false,
+      body: ScreenBackground(
+        gradient: ScreenGradient.menu,
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final s =
+                  math.min(constraints.maxWidth, menuScaleCapWidth) /
+                  designWidth;
+              return ListenableBuilder(
+                listenable: Listenable.merge([
+                  scope.saves,
+                  scope.store.corruptionNotices,
+                ]),
+                builder: (context, _) => _MenuBody(
+                  scale: s,
+                  offered: scope.saves.offered,
+                  notices: scope.store.corruptionNotices.value,
+                  store: scope.store,
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -211,7 +213,9 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Semantics(
+                container: true,
                 header: true,
+                headingLevel: 1,
                 label: 'Honest Chess',
                 excludeSemantics: true,
                 child: Text.rich(
@@ -232,6 +236,7 @@ class _Header extends StatelessWidget {
               Text(
                 menuKickerText,
                 key: const Key('menu-kicker'),
+                semanticsLabel: spokenCaps(menuKickerText),
                 style: _font(
                   Fonts.plexMono,
                   FontWeight.w500,
@@ -437,7 +442,7 @@ class _ContinueButton extends StatelessWidget {
     final meta = continueMeta(offered);
     return _Tappable(
       tapKey: const Key('menu-continue'),
-      label: '$label, $meta',
+      label: continueSpeech(offered),
       spill: _spill(drawnHeight(s)),
       onTap: () => unawaited(continueGame(context)),
       builder: (context, pressed) => Container(
@@ -453,8 +458,6 @@ class _ContinueButton extends StatelessWidget {
               child: Text(
                 label,
                 key: const Key('menu-continue-label'),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
                 style: _font(
                   Fonts.outfit,
                   FontWeight.w600,
@@ -467,7 +470,7 @@ class _ContinueButton extends StatelessWidget {
             ),
             SizedBox(width: 12 * s),
             Opacity(
-              opacity: .7,
+              opacity: Palette.continueMetaOpacity,
               child: Text(
                 meta,
                 key: const Key('menu-continue-meta'),
@@ -526,7 +529,7 @@ class _ModeCard extends StatelessWidget {
     final radius = BorderRadius.circular(16 * s);
     return _Tappable(
       tapKey: tapKey,
-      label: '$title, $subtitle',
+      label: '$title, ${spokenCaps(subtitle)}',
       onTap: onTap,
       builder: (context, pressed) => Container(
         decoration: BoxDecoration(
@@ -551,7 +554,11 @@ class _ModeCard extends StatelessWidget {
                 ),
                 padding: EdgeInsets.only(left: 16 * s, top: 14 * s),
                 alignment: Alignment.topLeft,
-                child: ExcludeSemantics(child: _miniBoard(s)),
+                // The art keeps its size at any system text size, as the
+                // board does.
+                child: ExcludeSemantics(
+                  child: MediaQuery.withNoTextScaling(child: _miniBoard(s)),
+                ),
               ),
               Padding(
                 padding: EdgeInsets.fromLTRB(16 * s, 13 * s, 16 * s, 16 * s),

@@ -44,8 +44,9 @@ Held back, because they are not ours to give away:
 under the SIL Open Font License 1.1 (OFL), not MIT; their licence texts will
 sit beside them.
 
-**Audio.** Any licensed sound clips the app ships are not covered by the MIT
-licence; their licence terms will sit beside them.
+**Audio.** The sounds in `assets/audio/` were generated with ElevenLabs for
+Honest Chess. They are licensed to Honest Arcade and not covered by the MIT
+licence; see `assets/audio/LICENSES.md`.
 
 **Names and logos.** "Honest Arcade", "Honest Chess", the four-corner outline
 mark shared across the studio's apps, and the launcher icons built from it are

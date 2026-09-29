@@ -1,16 +1,24 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:honest_chess/a11y/announcer.dart';
 import 'package:honest_chess/data/app_loader.dart';
 import 'package:honest_chess/data/app_store.dart';
 import 'package:honest_chess/data/game_saves.dart';
 import 'package:honest_chess/data/settings_store.dart';
 import 'package:honest_chess/data/stats.dart';
 import 'package:honest_chess/data/stats_listener.dart';
+import 'package:honest_chess/feedback/clips.dart';
+import 'package:honest_chess/feedback/game_feedback.dart';
+import 'package:honest_chess/feedback/haptics.dart';
+import 'package:honest_chess/feedback/music_controller.dart';
+import 'package:honest_chess/feedback/sound_player.dart';
 import 'package:honest_chess/platform/platform_channel.dart';
+import 'package:honest_chess/ui/app_builder.dart';
 import 'package:honest_chess/ui/app_scope.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
@@ -66,7 +74,11 @@ class HonestChessApp extends StatefulWidget {
     this.seedOverride,
     this.store,
     this.platform,
+    this.sound,
+    this.haptics,
+    this.announcer,
     this.skipSplash = false,
+    this.forceAccessibleNavigation = false,
   });
 
   /// The device store; null builds the production one over [platform].
@@ -74,6 +86,21 @@ class HonestChessApp extends StatefulWidget {
 
   /// The Android bridge; null builds the production channel.
   final PlatformChannel? platform;
+
+  /// The sound bridge; null builds the production channel.
+  final SoundPlayer? sound;
+
+  /// The haptic port; null ticks through Flutter's own haptic call.
+  final HapticsPort? haptics;
+
+  /// The screen reader's announcer; null speaks through the platform while
+  /// TalkBack is on.
+  final Announcer? announcer;
+
+  /// For the device test only: the app behaves as under a screen reader
+  /// (`accessibleNavigation` on), which an emulator's TalkBack cannot be
+  /// relied on to give.
+  final bool forceAccessibleNavigation;
 
   /// Builds the computer for each game against it; tests pass a fake.
   final ComputerFactory computerFactory;
@@ -110,6 +137,22 @@ class HonestChessAppState extends State<HonestChessApp> {
   late final StatsRecorder stats;
   late final StatsListener _statsListener;
   late final AppLoader _loader;
+  late final SoundPlayer sound;
+  late final HapticsPort haptics;
+  late final Announcer announcer;
+
+  /// Marks the context the platform announcer speaks from: under the forced
+  /// `accessibleNavigation`, when there is one.
+  final _speaker = GlobalKey();
+
+  /// False from the moment the app starts leaving the foreground
+  /// (inactive, hidden, paused or detached) until it is back.
+  final foreground = ValueNotifier<bool>(true);
+
+  /// Whether the board is the page on top, for the music's gate.
+  final boardRoutes = BoardRouteObserver();
+  late final GameFeedback _feedback;
+  late final MusicController music;
 
   /// Leaving the app pauses the live game, whose pause is saved, and then
   /// waits for the store to write it.
@@ -139,6 +182,29 @@ class HonestChessAppState extends State<HonestChessApp> {
       saves: saves,
     );
     _lifecycle = AppLifecycleListener(onStateChange: _left);
+    sound = widget.sound ?? ChannelSoundPlayer();
+    // Once, beside the launch load rather than a step of it: a clip that
+    // fails to load stays silent, and nothing waits on it.
+    unawaited(sound.load(clips));
+    haptics = widget.haptics ?? FlutterHaptics();
+    announcer =
+        widget.announcer ?? FlutterAnnouncer(() => _speaker.currentContext);
+    _feedback = GameFeedback(
+      events: controller.events,
+      refusals: controller.refusals,
+      board: settings.board,
+      foreground: foreground,
+      player: sound,
+      haptics: haptics,
+      announcer: announcer,
+    );
+    music = MusicController(
+      controller: controller,
+      board: settings.board,
+      boardVisible: boardRoutes.visible,
+      foreground: foreground,
+      player: sound,
+    );
     _loader = AppLoader(
       store: store,
       settings: settings,
@@ -153,6 +219,7 @@ class HonestChessAppState extends State<HonestChessApp> {
   void _boardChanged() => controller.options = settings.board.value;
 
   Future<void> _left(AppLifecycleState state) async {
+    foreground.value = state == AppLifecycleState.resumed;
     if (state != AppLifecycleState.inactive &&
         state != AppLifecycleState.hidden) {
       return;
@@ -166,6 +233,11 @@ class HonestChessAppState extends State<HonestChessApp> {
 
   @override
   void dispose() {
+    music.dispose();
+    _feedback.dispose();
+    unawaited(sound.dispose());
+    boardRoutes.dispose();
+    foreground.dispose();
     _lifecycle.dispose();
     _loader.dispose();
     _statsListener.dispose();
@@ -181,7 +253,7 @@ class HonestChessAppState extends State<HonestChessApp> {
   Widget build(BuildContext context) {
     // Without the splash, a plain navy frame while the launch load runs.
     if (widget.skipSplash && !_launched) return const ColoredBox(color: _navy);
-    return AppScope(
+    final app = AppScope(
       store: store,
       platform: platform,
       controller: controller,
@@ -190,21 +262,26 @@ class HonestChessAppState extends State<HonestChessApp> {
       settings: settings,
       navigation: navigation,
       random: random,
+      sound: sound,
+      music: music,
+      haptics: haptics,
+      announcer: announcer,
       child: MaterialApp(
         title: 'Honest Chess',
-        navigatorObservers: [navigation],
+        navigatorObservers: [navigation, boardRoutes],
         debugShowCheckedModeBanner: false,
         theme: appTheme(),
-        // One system-bar style for every route; screens set none of their
-        // own.
-        builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
-          value: appOverlayStyle,
-          child: child ?? const SizedBox.shrink(),
-        ),
+        builder: appBuilder(settings.board),
         home: widget.skipSplash
             ? const MenuScreen()
             : SplashScreen(loader: _loader),
       ),
+    );
+    final speaking = KeyedSubtree(key: _speaker, child: app);
+    if (!widget.forceAccessibleNavigation) return speaking;
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(accessibleNavigation: true),
+      child: speaking,
     );
   }
 }

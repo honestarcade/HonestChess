@@ -96,141 +96,135 @@ class ComputerSetupScreen extends StatelessWidget {
     final saves = scope.saves;
     final controller = scope.controller;
     final guard = scope.navigation;
-    // Screen text ignores the system text scale, as the board does, until
-    // M5's accessibility work.
-    return MediaQuery.withNoTextScaling(
-      child: Scaffold(
-        backgroundColor: Palette.screenBg,
-        body: SafeArea(
-          child: ListenableBuilder(
-            listenable: Listenable.merge([settings.setup, saves, controller]),
-            builder: (context, _) {
-              final choices = settings.setup.value;
-              void update(ComputerChoices Function(ComputerChoices) change) =>
-                  settings.updateSetup(
-                    (s) => s.copyWith(computer: change(s.computer)),
-                  );
-              final canKeepPlaying =
-                  saves.unfinished(PlayMode.computer) != null;
-              final warn = wouldAbandon(controller, saves, PlayMode.computer);
-              return CustomScrollView(
-                key: const Key('csetup-scroll'),
-                slivers: [
-                  SliverPadding(
-                    // The design's 56 dp top padding, less its 44 dp status
-                    // bar (SafeArea's here).
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                    sliver: SliverList.list(
-                      children: [
-                        const ScreenHeader(
-                          title: 'New game vs computer',
-                          kicker: 'RUNS ON DEVICE · NO NETWORK',
-                          keyPrefix: 'csetup',
+    return Scaffold(
+      backgroundColor: Palette.screenBg,
+      body: SafeArea(
+        child: ListenableBuilder(
+          listenable: Listenable.merge([settings.setup, saves, controller]),
+          builder: (context, _) {
+            final choices = settings.setup.value;
+            void update(ComputerChoices Function(ComputerChoices) change) =>
+                settings.updateSetup(
+                  (s) => s.copyWith(computer: change(s.computer)),
+                );
+            final canKeepPlaying = saves.unfinished(PlayMode.computer) != null;
+            final warn = wouldAbandon(controller, saves, PlayMode.computer);
+            return CustomScrollView(
+              key: const Key('csetup-scroll'),
+              slivers: [
+                SliverPadding(
+                  // The design's 56 dp top padding, less its 44 dp status
+                  // bar (SafeArea's here).
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  sliver: SliverList.list(
+                    children: [
+                      const ScreenHeader(
+                        title: 'New game vs computer',
+                        kicker: 'RUNS ON DEVICE · NO NETWORK',
+                        keyPrefix: 'csetup',
+                      ),
+                      const SizedBox(height: 13),
+                      TitledSection(
+                        title: 'Strength',
+                        intro: strengthIntro,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (final step in Strength.values) ...[
+                              if (step.index > 0) const SizedBox(height: 8),
+                              _StrengthButton(
+                                step: step,
+                                selected: choices.computer.step == step,
+                                onPressed: () =>
+                                    update((c) => c.copyWith(step: step)),
+                              ),
+                            ],
+                          ],
                         ),
-                        const SizedBox(height: 13),
-                        TitledSection(
-                          title: 'Strength',
-                          intro: strengthIntro,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              for (final step in Strength.values) ...[
-                                if (step.index > 0) const SizedBox(height: 8),
-                                _StrengthButton(
-                                  step: step,
-                                  selected: choices.computer.step == step,
+                      ),
+                      const SizedBox(height: 13),
+                      TitledSection(
+                        title: 'Play as',
+                        child: Row(
+                          children: [
+                            for (final colour in ColourChoice.values) ...[
+                              if (colour.index > 0) const SizedBox(width: 8),
+                              Expanded(
+                                child: _ColourButton(
+                                  choice: colour,
+                                  selected: choices.computer.colour == colour,
                                   onPressed: () =>
-                                      update((c) => c.copyWith(step: step)),
+                                      update((c) => c.copyWith(colour: colour)),
                                 ),
-                              ],
+                              ),
                             ],
-                          ),
+                          ],
                         ),
-                        const SizedBox(height: 13),
-                        TitledSection(
-                          title: 'Play as',
-                          child: Row(
-                            children: [
-                              for (final colour in ColourChoice.values) ...[
-                                if (colour.index > 0) const SizedBox(width: 8),
-                                Expanded(
-                                  child: _ColourButton(
-                                    choice: colour,
-                                    selected: choices.computer.colour == colour,
-                                    onPressed: () => update(
-                                      (c) => c.copyWith(colour: colour),
-                                    ),
+                      ),
+                      const SizedBox(height: 13),
+                      TitledSection(
+                        title: 'Time control',
+                        child: TimeControlPicker(
+                          keyPrefix: 'csetup',
+                          selected: choices.computer.time,
+                          custom: choices.custom,
+                          onChanged: (time, minutes, increment) =>
+                              settings.updateSetup(
+                                (s) => s.copyWith(
+                                  computer: s.computer.copyWith(time: time),
+                                  custom: CustomTime(
+                                    minutes: minutes,
+                                    increment: increment,
                                   ),
                                 ),
-                              ],
-                            ],
-                          ),
+                              ),
                         ),
-                        const SizedBox(height: 13),
-                        TitledSection(
-                          title: 'Time control',
-                          child: TimeControlPicker(
-                            keyPrefix: 'csetup',
-                            selected: choices.computer.time,
-                            custom: choices.custom,
-                            onChanged: (time, minutes, increment) =>
-                                settings.updateSetup(
-                                  (s) => s.copyWith(
-                                    computer: s.computer.copyWith(time: time),
-                                    custom: CustomTime(
-                                      minutes: minutes,
-                                      increment: increment,
-                                    ),
-                                  ),
-                                ),
-                          ),
+                      ),
+                    ],
+                  ),
+                ),
+                // The design pins the buttons with margin-top:auto: at
+                // the bottom when the cards fit, after them when not.
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 13, 20, 30),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _StartButton(
+                          onPressed: () => guard.run(() => _start(context)),
                         ),
+                        if (warn) ...[
+                          const SizedBox(height: 9),
+                          const Text(
+                            lossWarningText,
+                            key: Key('csetup-loss-warning'),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontFamily: Fonts.outfit,
+                              fontWeight: FontWeight.w400,
+                              fontSize: 11,
+                              height: 1.3,
+                              color: Palette.dangerText,
+                            ),
+                          ),
+                        ],
+                        if (canKeepPlaying) ...[
+                          const SizedBox(height: 9),
+                          _KeepPlayingButton(
+                            onPressed: () =>
+                                guard.run(() => _keepPlaying(context)),
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                  // The design pins the buttons with margin-top:auto: at
-                  // the bottom when the cards fit, after them when not.
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 13, 20, 30),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _StartButton(
-                            onPressed: () => guard.run(() => _start(context)),
-                          ),
-                          if (warn) ...[
-                            const SizedBox(height: 9),
-                            const Text(
-                              lossWarningText,
-                              key: Key('csetup-loss-warning'),
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontFamily: Fonts.outfit,
-                                fontWeight: FontWeight.w400,
-                                fontSize: 11,
-                                height: 1.3,
-                                color: Palette.dangerText,
-                              ),
-                            ),
-                          ],
-                          if (canKeepPlaying) ...[
-                            const SizedBox(height: 9),
-                            _KeepPlayingButton(
-                              onPressed: () =>
-                                  guard.run(() => _keepPlaying(context)),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

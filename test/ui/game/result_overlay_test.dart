@@ -259,7 +259,9 @@ void main() {
       expect(_card, findsNothing, reason: 'result-card: a cancelled card');
     });
 
-    testWidgets('with system animations off, no wait', (tester) async {
+    testWidgets('with system animations off, the same wait and no rise', (
+      tester,
+    ) async {
       tester.platformDispatcher.accessibilityFeaturesTestValue =
           const FakeAccessibilityFeatures(disableAnimations: true);
       addTearDown(
@@ -267,7 +269,14 @@ void main() {
       );
       final h = await pumpGame(tester);
       await playAll(tester, h, _foolsMate);
-      expect(_card, findsOneWidget, reason: 'result-card: waited anyway');
+      await tester.pump(resultDelay - const Duration(milliseconds: 1));
+      expect(
+        _card,
+        findsNothing,
+        reason: 'result-card: motion off keeps the pacing delay',
+      );
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(_card, findsOneWidget, reason: 'result-card: in after the wait');
       final fade = tester.widget<FadeTransition>(
         find.byKey(const Key('result-overlay')),
       );
@@ -403,21 +412,20 @@ void main() {
       }
     });
 
-    testWidgets('announced as a live region; stats read "Moves, 2"', (
-      tester,
-    ) async {
+    testWidgets('a header, not a live region (the hub speaks the result, '
+        '#102); stats read "Moves, 2"', (tester) async {
       final semantics = tester.ensureSemantics();
       final h = await pumpGame(tester);
       await playAll(tester, h, _foolsMate);
       await cardIn(tester);
-      final live = find.bySemanticsLabel(
-        'BLACK WINS, Black delivers checkmate',
+      final heading = find.bySemanticsLabel(
+        'Black wins, Black delivers checkmate',
       );
-      expect(live, findsOneWidget);
+      expect(heading, findsOneWidget);
       expect(
-        tester.getSemantics(live),
-        isSemantics(isLiveRegion: true, isHeader: true),
-        reason: 'result-card: the result is not announced',
+        tester.getSemantics(heading),
+        isSemantics(isLiveRegion: false, isHeader: true),
+        reason: 'result-card: the card would read the result a second time',
       );
       expect(find.bySemanticsLabel('Moves, 2'), findsOneWidget);
       expect(find.bySemanticsLabel('Time left, no clock'), findsOneWidget);

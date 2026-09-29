@@ -79,3 +79,39 @@ String clockSemantics(String who, int? ms) {
     if (rest > 0 || minutes == 0) _plural(rest, 'second'),
   ].join(' ');
 }
+
+/// The words [spokenCaps] keeps capitalised: the sides, the steps and the
+/// names.
+final Map<String, String> _properWords = {
+  for (final colour in Colour.values) colour.label.toLowerCase(): colour.label,
+  for (final step in Strength.values) step.name: step.label,
+  'honest': 'Honest',
+  'arcade': 'Arcade',
+  'chess': 'Chess',
+  'github': 'GitHub',
+};
+
+/// Upper-case display text as a screen reader should hear it: sentence
+/// case, names kept ("Honest Arcade", "White", "Club"), and each " · "
+/// read as a comma pause — "MOVE 12 · WHITE" → "Move 12, White". A line
+/// opening with "vs" or a web address keeps it lower case. Text already
+/// in mixed case keeps its case.
+String spokenCaps(String text) {
+  final pauses = text.split(' · ').join(', ');
+  if (pauses.contains(RegExp('[a-z]'))) return pauses;
+  final words = pauses
+      .split(' ')
+      .map((word) {
+        final lower = word.toLowerCase();
+        final bare = lower.replaceAll(RegExp(r'[^a-z]'), '');
+        final proper = _properWords[bare];
+        return proper == null ? lower : lower.replaceFirst(bare, proper);
+      })
+      .join(' ');
+  if (words.isEmpty ||
+      words.startsWith('vs ') ||
+      words.split(' ').first.contains('.')) {
+    return words;
+  }
+  return words[0].toUpperCase() + words.substring(1);
+}

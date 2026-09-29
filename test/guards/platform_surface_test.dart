@@ -1,14 +1,15 @@
 @Tags(['guard'])
 library;
 
-// The app's platform surface stays small and offline (#80, CLAUDE.md
-// invariant 1). The app reaches Android through its own channel rather than
-// a plugin, so this guard reads both sides of it:
-//  1. no Dart file under lib/ and nothing in MainActivity.kt names a network
+// The app's platform surface stays small and offline (#80, #96, CLAUDE.md
+// invariant 1). The app reaches Android through its own two channels rather
+// than plugins, so this guard reads both sides of each:
+//  1. no Dart file under lib/ and no Kotlin file of the app names a network
 //     API;
-//  2. the channel's name is the same in Kotlin and Dart, Kotlin handles
-//     exactly filesDir, openUrl and appVersion and refuses anything else, and
-//     the Dart side invokes exactly those three;
+//  2. the platform channel's name is the same in Kotlin and Dart, Kotlin
+//     handles exactly filesDir, openUrl and appVersion and refuses anything
+//     else, and the Dart side invokes exactly those three; the sound channel
+//     likewise, in SoundBridge.kt and sound_player.dart, with its six;
 //  3. the main manifest leaves Android's own backup on: it is the player's
 //     setting, and the app does not opt out.
 //
@@ -48,19 +49,35 @@ const channelMethods = ['appVersion', 'filesDir', 'openUrl'];
 
 const dartChannelFile = 'lib/platform/platform_channel.dart';
 
-/// The value of every top-level `private const val CHANNEL = "…"`.
-List<String> kotlinChannelNames(String kotlin) => [
-  for (final m in RegExp(
-    r'^private const val CHANNEL = "([^"]*)"',
-    multiLine: true,
-  ).allMatches(kotlin))
-    m[1]!,
+/// The methods the sound channel carries, in both languages.
+const soundMethods = [
+  'load',
+  'musicPause',
+  'musicStart',
+  'musicStop',
+  'play',
+  'release',
 ];
 
-/// The value of every `const platformChannelName = '…'`.
-List<String> dartChannelNames(String dart) => [
+const dartSoundFile = 'lib/feedback/sound_player.dart';
+
+/// The value of every top-level `private const val <constant> = "…"`.
+List<String> kotlinChannelNames(String kotlin, [String constant = 'CHANNEL']) =>
+    [
+      for (final m in RegExp(
+        '^private const val $constant = "([^"]*)"',
+        multiLine: true,
+      ).allMatches(kotlin))
+        m[1]!,
+    ];
+
+/// The value of every `const <constant> = '…'`.
+List<String> dartChannelNames(
+  String dart, [
+  String constant = 'platformChannelName',
+]) => [
   for (final m in RegExp(
-    r"""^const platformChannelName = ['"]([^'"]*)['"]""",
+    '^const $constant = [\'"]([^\'"]*)[\'"]',
     multiLine: true,
   ).allMatches(dart))
     m[1]!,
@@ -71,16 +88,19 @@ List<String> kotlinBranches(String kotlin) => [
   for (final m in RegExp(r'"([^"\n]*)"\s*->').allMatches(kotlin)) m[1]!,
 ];
 
-/// What is wrong with [kotlin]'s branches: anything but exactly
-/// [channelMethods], or no `else -> result.notImplemented()`.
-List<String> kotlinBranchProblems(String kotlin) {
+/// What is wrong with [kotlin]'s branches: anything but exactly [methods],
+/// or no `else -> result.notImplemented()`.
+List<String> kotlinBranchProblems(
+  String kotlin, [
+  List<String> methods = channelMethods,
+]) {
   final branches = kotlinBranches(kotlin)..sort();
   final elses = RegExp(r'else\s*->\s*result\.notImplemented\(\)')
       .allMatches(kotlin)
       .length;
   return [
-    if (branches.join(',') != channelMethods.join(','))
-      'branches are $branches, not $channelMethods',
+    if (branches.join(',') != methods.join(','))
+      'branches are $branches, not $methods',
     if (elses != 1)
       '$elses `else -> result.notImplemented()` branches, not exactly one',
   ];
@@ -117,10 +137,15 @@ const mainManifest = 'android/app/src/main/AndroidManifest.xml';
 void main() {
   group('the real tree', () {
     late String activityPath;
+    late String soundBridgePath;
+    late List<String> kotlinFiles;
 
-    setUpAll(
-      () => activityPath = '${readIdentity().kotlinDir}/MainActivity.kt',
-    );
+    setUpAll(() {
+      final dir = readIdentity().kotlinDir;
+      activityPath = '$dir/MainActivity.kt';
+      soundBridgePath = '$dir/SoundBridge.kt';
+      kotlinFiles = filesUnder(dir).where((p) => p.endsWith('.kt')).toList();
+    });
 
     test('nothing in lib/ names a network API', () {
       final files = filesUnder('lib').where((p) => p.endsWith('.dart'));
@@ -140,19 +165,18 @@ void main() {
       );
     });
 
-    test('nothing in MainActivity.kt names a network API', () {
+    test('no Kotlin file of the app names a network API', () {
+      expect(kotlinFiles, containsAll([activityPath, soundBridgePath]));
       final offenders = [
-        for (final api in networkUses(
-          readFile(activityPath),
-          kotlinNetworkApis,
-        ))
-          '$activityPath: $api',
+        for (final path in kotlinFiles)
+          for (final api in networkUses(readFile(path), kotlinNetworkApis))
+            '$path: $api',
       ];
       expect(
         offenders,
         isEmpty,
         reason: describeOffenders(
-          'platform-surface: network API in MainActivity.kt',
+          'platform-surface: network API in the app\'s Kotlin',
           offenders,
         ),
       );
@@ -191,6 +215,51 @@ void main() {
         reason:
             'platform-surface: Dart channel methods are $methods, not '
             '$channelMethods (each invoked once, by literal name)',
+      );
+    });
+
+    test('the sound channel has one name, the same on both sides', () {
+      final kotlin = kotlinChannelNames(
+        readFile(soundBridgePath),
+        'SOUND_CHANNEL',
+      );
+      final dart = dartChannelNames(
+        readFile(dartSoundFile),
+        'soundChannelName',
+      );
+      expect(
+        kotlin.length == 1 && dart.length == 1 && kotlin.single == dart.single,
+        isTrue,
+        reason:
+            'platform-surface: sound channel name is $kotlin in '
+            'SoundBridge.kt and $dart in $dartSoundFile; each must declare '
+            'exactly one, and the two must be equal',
+      );
+    });
+
+    test('SoundBridge.kt handles exactly the six sound methods', () {
+      final problems = kotlinBranchProblems(
+        readFile(soundBridgePath),
+        soundMethods,
+      );
+      expect(
+        problems,
+        isEmpty,
+        reason:
+            'platform-surface: sound channel Kotlin branches: '
+            '${problems.join('; ')} — a new method is a new capability, '
+            'which is a conversation with the owner, not an edit',
+      );
+    });
+
+    test('the Dart sound player invokes exactly the six methods', () {
+      final methods = dartInvokedMethods(readFile(dartSoundFile))..sort();
+      expect(
+        methods,
+        soundMethods,
+        reason:
+            'platform-surface: sound channel Dart methods are $methods, not '
+            '$soundMethods (each invoked once, by literal name)',
       );
     });
 
@@ -297,6 +366,50 @@ class MainActivity : FlutterActivity() {
         isNot(dartChannelNames("const platformChannelName = 'a/b';")),
       );
       expect(kotlinChannelNames('val x = "a/b"'), isEmpty);
+      const sound = 'private const val SOUND_CHANNEL = "a/s"';
+      expect(kotlinChannelNames(sound, 'SOUND_CHANNEL'), ['a/s']);
+      expect(kotlinChannelNames(sound), isEmpty);
+      expect(kotlinChannelNames(kotlin, 'SOUND_CHANNEL'), isEmpty);
+      expect(
+        dartChannelNames("const soundChannelName = 'a/s';", 'soundChannelName'),
+        ['a/s'],
+      );
+      expect(dartChannelNames("const soundChannelName = 'a/s';"), isEmpty);
+    });
+
+    test('the sound branches: exactly six and a refusing else', () {
+      const bridge = '''
+when (call.method) {
+    "load" -> result.success(load(clips))
+    "play" -> { play(); result.success(null) }
+    "musicStart" -> result.success(musicStart())
+    "musicPause" -> { pauseMusic(); result.success(null) }
+    "musicStop" -> { stopMusic(); result.success(null) }
+    "release" -> { release(); result.success(null) }
+    else -> result.notImplemented()
+}
+''';
+      expect(kotlinBranchProblems(bridge, soundMethods), isEmpty);
+      expect(kotlinBranchProblems(bridge), hasLength(1));
+      expect(
+        kotlinBranchProblems(
+          bridge.replaceFirst(
+            'else ->',
+            '"vibrate" -> result.success(null)\n    else ->',
+          ),
+          soundMethods,
+        ),
+        hasLength(1),
+        reason: 'a seventh branch',
+      );
+      expect(
+        kotlinBranchProblems(
+          bridge.replaceFirst('    else -> result.notImplemented()\n', ''),
+          soundMethods,
+        ),
+        hasLength(1),
+        reason: 'no refusing else',
+      );
     });
 
     test('the Dart invocations: literals only, generics allowed', () {

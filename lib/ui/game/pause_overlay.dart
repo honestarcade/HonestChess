@@ -6,6 +6,7 @@ import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/labels.dart';
 import 'package:honest_chess/ui/game/result_overlay.dart' show resultMaxWidth;
+import 'package:honest_chess/ui/motion.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
 /// How long the pause card and its scrim take to fade in, and out.
@@ -44,7 +45,6 @@ String? drawHint(DrawOffer offer) => switch (offer) {
 const double disabledPauseButtonOpacity = 0.4;
 
 /// The card text colour at half strength: the draw hint's colour.
-const Color _hintInk = Color(0x80FFFFFF);
 
 /// The design's Paused card over a scrim that also covers the top bar,
 /// shown while [controller] is paused and the game goes on. The board stays
@@ -92,6 +92,10 @@ class _PauseOverlayState extends State<PauseOverlay>
 
   bool get _open => _controller.state.paused && !_controller.state.over;
 
+  /// Motion is off: the card appears and goes at once.
+  bool _still = false;
+  bool _tracked = false;
+
   @override
   void initState() {
     super.initState();
@@ -99,7 +103,16 @@ class _PauseOverlayState extends State<PauseOverlay>
     _show.addStatusListener((status) {
       if (status == AnimationStatus.dismissed && mounted) setState(() {});
     });
-    _track();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _still = Motion.of(context).isOff;
+    if (!_tracked) {
+      _tracked = true;
+      _track();
+    }
   }
 
   @override
@@ -123,7 +136,13 @@ class _PauseOverlayState extends State<PauseOverlay>
 
   void _track() {
     if (_open) {
-      if (!_show.isForwardOrCompleted) _show.forward();
+      if (_still) {
+        _show.value = 1;
+      } else if (!_show.isForwardOrCompleted) {
+        _show.forward();
+      }
+    } else if (_still) {
+      _show.value = 0;
     } else if (_show.isForwardOrCompleted) {
       _show.reverse();
     }
@@ -204,7 +223,9 @@ class _PauseOverlayState extends State<PauseOverlay>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Semantics(
+                container: true,
                 header: true,
+                headingLevel: 2,
                 child: const Text(
                   'Paused',
                   style: TextStyle(
@@ -220,6 +241,7 @@ class _PauseOverlayState extends State<PauseOverlay>
               Text(
                 pauseMeta(game),
                 key: const Key('pause-meta'),
+                semanticsLabel: spokenCaps(pauseMeta(game)),
                 style: const TextStyle(
                   fontFamily: Fonts.plexMono,
                   fontWeight: FontWeight.w500,
@@ -286,7 +308,7 @@ class _PauseOverlayState extends State<PauseOverlay>
                     fontFamily: Fonts.plexMono,
                     fontSize: 11,
                     height: 1,
-                    color: _hintInk,
+                    color: Palette.hintInk,
                   ),
                 ),
               ],
@@ -452,6 +474,7 @@ class _CardLinkButtonState extends State<CardLinkButton> {
       button: true,
       enabled: enabled,
       label: widget.label,
+      onTap: enabled ? _tap : null,
       excludeSemantics: true,
       child: Opacity(
         opacity: enabled ? 1 : disabledPauseButtonOpacity,
@@ -540,6 +563,7 @@ class CardButton extends StatelessWidget {
       button: true,
       enabled: onTap != null,
       label: busy ? '$label, waiting for the answer' : label,
+      onTap: onTap,
       excludeSemantics: true,
       child: Opacity(
         opacity: onTap == null && !busy ? disabledPauseButtonOpacity : 1,

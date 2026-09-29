@@ -71,7 +71,7 @@ void main() {
     );
     final files = {
       for (final p in paths)
-        if (!RegExp(r'\.(png|jar|ttf)$').hasMatch(p) && pathExists(p))
+        if (!RegExp(r'\.(png|jar|ttf|wav)$').hasMatch(p) && pathExists(p))
           p: readFile(p),
     };
     final offenders = leftovers(files);

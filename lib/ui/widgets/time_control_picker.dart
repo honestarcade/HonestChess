@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../game/defaults.dart';
 import '../theme/palette.dart';
+import '../motion.dart';
 import 'option_button.dart';
 
 /// The name each time choice is shown under on the setup screens (the
@@ -83,7 +84,7 @@ class _TimeControlPickerState extends State<TimeControlPicker> {
     Scrollable.ensureVisible(
       context,
       alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
-      duration: MediaQuery.disableAnimationsOf(context)
+      duration: Motion.of(context).isOff
           ? Duration.zero
           : stepperRevealDuration,
       curve: Curves.easeOut,
@@ -222,15 +223,18 @@ class _StepperRow extends StatelessWidget {
         padding: const EdgeInsets.only(left: 11, right: 1),
         child: Row(
           children: [
+            // The value's node says the label, beside what it labels.
             Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontFamily: Fonts.outfit,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 11.5,
-                  height: 1,
-                  color: Palette.textChoice,
+              child: ExcludeSemantics(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontFamily: Fonts.outfit,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 11.5,
+                    height: 1,
+                    color: Palette.textChoice,
+                  ),
                 ),
               ),
             ),

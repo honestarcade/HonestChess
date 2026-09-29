@@ -812,3 +812,265 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision (Rule 3):** `integration_test/app_smoke_test.dart` now waits for the menu with its own 30 s poll, settles the menu's fade, and settles the setup screen's push before tapping Start game. On emulator sudoku-dev (2026-09-29, this story's run) Start was tapped about 100 ms into the setup screen's push, while that transition still held the navigating flag, so the tap was ignored and the board never came.
   **Why:** The device test must tap only once the navigating flag is free, as the widget tests already do.
   **Issue:** #93
+
+## /n8-exec M5 — 2026-09-29
+
+- **Decision:** `tools/mutation_check.py` now passes `flutter test` the list of files that hold a guard-tagged test, found once before any mutation runs, rather than letting it load the whole test tree to filter by tag. Rule 3.
+  **Why:** M4's PR run of the mutations job took 58.3 min of its 60 min limit (PR #129, 2026-09-29). Each suite run compiled every test file, and the UI stories had added most of them. Locally, after a source edit, the suite took 9 s against 4 s with the list (M3 Max, 2026-09-29, `flutter test --no-pub --tags guard --exclude-tags slow`). The alternatives were another timeout raise, which would fail again at M5, or a job matrix, which would rename the required `mutations` check. The tags still select the tests, so what the battery measures is unchanged; the full battery was re-run in a separate worktree to confirm.
+  **Issue:** #95
+- **Decision:** The six clips were generated in one take each on 2026-09-29 (`move` first as the probe, then the other five), with the owner's key on the Creator plan, and installed as they came; none was auditioned or regenerated.
+  **Why:** The plan's one-take rule (owner, /n8-plan M5 round one); any clip the owner dislikes is regenerated in M6.
+  **Issue:** #95
+- **Decision:** `check.wav` was installed at −10.6 dBFS peak rather than the −4 dBFS its `MIX_DB` aims at, because the take was quiet enough that the ported ×8 gain cap bound (`tools/sfx.py generate` output and a peak read of the installed files, 2026-09-29).
+  **Why:** The cap is part of the ported polish, and lifting it for one clip would be the auditioning the plan rules out; the level is flagged for the owner's M6 listening pass.
+  **Issue:** #95
+- **Decision:** `tools/sfx.py` differs from Honest Solitaire's in three small ways: an HTTP refusal is reported with its status and the start of its body and is not retried; each raw take is also staged as `build/sfx/<name>.raw.wav` and its length printed; and the key-file parsing is a separate `parse_key` so `tools/test_sfx.py` can test it.
+  **Why:** The readiness pass needs a 401 told apart from a quota error on the probe; the raw length is how the stereo-response assumption was checked (0.48 s raw for a 0.5 s request, read as stereo: the probe's own output, 2026-09-29); the plan asks for key-file parsing to be tested.
+  **Issue:** #95
+- **Decision:** The guard reads `pubspec.yaml`'s `flutter: assets:` with `package:yaml` instead of Solitaire's line regex, and adds a mutation for the README naming LICENSES.md alongside the plan's "not covered by the MIT" one. The stray-file mutation adds a text stand-in `stray.wav` rather than a copy of `move.wav`.
+  **Why:** This repository's guards read YAML structurally (`test/guards/repo_files.dart`); each README assertion is a rule and gets its own mutation; the battery's `adds` writes text, and the stray rule refuses the name before reading any bytes.
+  **Issue:** #95
+- **Decision (Rule 3):** `references_test.dart` and `template_leftovers_test.dart` now skip `.wav` files alongside `.png`, `.jar` and `.ttf`: both read every tracked file as UTF-8 text and threw on the first committed clip.
+  **Why:** A WAV holds no file reference or placeholder name to scan; the skip lists already exist for binary files, and the WAVs are the first binary type this story added.
+  **Issue:** #95
+- **Decision (Rule 1):** The hub pairs a game's end with its move by the end itself — a `GameEnded` whose game ended on its last move (`endedByMove`, the same test the result card uses) plays nothing more; any other `GameEnded` plays `end` — instead of pass 2's "ply count equal to the last `moved` event's".
+  **Why:** A resignation, an agreed draw or a flag adds no ply, so under the ply rule every resignation made after a move would have been silent; `endedByMove` tells the two apart exactly, and `test/feedback/sound_priority_test.dart` holds both cases.
+  **Issue:** #96
+- **Decision:** "On the board route" is read by a `BoardRouteObserver` (`lib/feedback/music_controller.dart`), a navigator observer registered beside the navigation guard that keeps the stack of page routes and reports whether the top one is named `board`, rather than a `RouteObserver` with a `RouteAware` board screen.
+  **Why:** The gate then needs nothing from `GameScreen`, dialogs and sheets over the board (popup routes) do not count as leaving without a special case, and the harness wires the same observer; the pause and result cards are layers of the board page, read from the controller's state.
+  **Issue:** #96
+- **Decision:** The music's "a new game, restart or rematch starts from the beginning" is detected by the game's statistics id changing (`controller.recorded['id']`), not by the `GameStarted` event; a refused start is retried only when the gate closes and opens again, not on every controller change.
+  **Why:** The controller notifies its listeners before it raises `GameStarted`, so the event arrived after the gate had already started the loop and cost a start–stop–start; and `musicStart` may wait up to a second on the Android side after an effect, so retrying on every move would stall it again and again. The first game after launch has no loop to rewind.
+  **Issue:** #96
+- **Decision:** The Kotlin channel name lives in `SoundBridge.kt` (top-level `private const val SOUND_CHANNEL`), and the bridge registers its own channel through `SoundBridge.attach(messenger)`; `MainActivity.kt` only creates it, so its own `when` still holds exactly the platform channel's three branches.
+  **Why:** A file-private constant cannot be read from `MainActivity.kt`, and the guard reads each channel's name and branches from one file each.
+  **Issue:** #96
+- **Decision:** The guard's Kotlin network scan now reads every `.kt` file under the app package and reports as "network API in the app's Kotlin"; the existing MainActivity mutation's `expect` follows the new reason.
+  **Why:** The plan widens the scan to every Kotlin file; one rule, one reason.
+  **Issue:** #96
+- **Decision:** Design difference: the Sound effects row reads "Moves, captures, castling, check and the end of a game." instead of the design's "Piece taps, captures, castling and the mate chime." (planner, pass 2); Background music keeps the design's "Quiet loop while you play."
+  **Why:** There is no separate tap or chime clip: the five effects are `move`, `capture`, `castle`, `check` and `end`, and `end` plays for every ending, not only mate.
+  **Issue:** #96
+- **Decision:** Every widget test that pumps `HonestChessApp` through `test/widget_test.dart`'s `_launch` passes a `FakeSoundPlayer`; the few other tests that pump the root without one get the production `ChannelSoundPlayer`, which finds no channel under test, logs once and stays silent.
+  **Why:** That is the player's own failure path (a sound never throws into the UI), and adding a parameter to tests unrelated to sound would be churn.
+  **Issue:** #96
+- **Decision:** `Refusal` lives in its own file, `lib/ui/game/refusal.dart` (`kind`, `from`, `to` — null for a drop off the board — and `via: RefusalVia.tap|drop`), and `GameController.refusals` is a synchronous broadcast stream beside `events`.
+  **Why:** #102 needs the same record without importing the controller; a sync broadcast matches `events`, so a tick lands in the same frame as the refused tap.
+  **Issue:** #97
+- **Decision:** A refused drop on the board reports the square it was let go on: `BoardInteraction` records the square under the pointer from each `DragTarget.onMove` (fired for targets that reject the drag too) and clears it on each pointer move of the drag's own pointer, rather than clearing it in `onLeave`.
+  **Why:** Flutter calls every entered target's `onLeave` at the drop itself, before `onDraggableCanceled`, so a leave cannot tell "left the board" from "let go here".
+  **Issue:** #97
+- **Decision:** A drag whose pointer is cancelled (the planner's "second pointer" case, or the system taking the gesture) ends through a new `GameController.abandonDrag(from)`, which clears the selection like a drop off the board but raises no refusal; the board spots the cancel with a `Listener.onPointerCancel` on the drag's own pointer, which runs before the drag recogniser sees the same event.
+  **Why:** `onDraggableCanceled` fires the same way for a drop that nothing accepted and for a cancelled pointer; the plan says only the first ticks.
+  **Issue:** #97
+- **Decision:** The tick is skipped while the app is not in the foreground, as the hub already does for sound.
+  **Why:** A capture by the computer landing as the app leaves should not buzz a phone in a pocket; the hub's one foreground check now covers both outputs.
+  **Issue:** #97
+- **Decision:** The haptics scan also bans `performHapticFeedback` in every `.kt` file under `android/app/src` (all source sets), and its lightImpact check reads `haptics.dart` with comments stripped. It has six mutations under issue `haptics` (`--only haptics`), one per banned form plus the lightImpact check. `stripDartComments` is Honest Solitaire's helper, copied into `test/guards/repo_files.dart`, and reads Kotlin's comments too (same syntax).
+  **Why:** The plan asks for one mutation per rule; scanning all source sets costs nothing and leaves no Kotlin corner unread.
+  **Issue:** #97
+- **Decision:** The `FlutterHaptics` test covers the `PlatformException` path only. `SystemChannels.platform` is an `OptionalMethodChannel`, so a missing handler answers null rather than throwing `MissingPluginException`; the catch for it stays, as in Honest Solitaire's port.
+  **Why:** You cannot make a missing plugin throw through that channel in a test. The catch costs nothing and still protects a platform whose channel does throw.
+  **Issue:** #97
+- **Decision:** The slides, which the design does not specify: 180 ms with `Curves.easeOutCubic` (`moveSlideDuration`, `moveSlideCurve` in `lib/ui/board/move_animation.dart`). A capture, or en passant's passed pawn, fades by opacity only over the same 180 ms. Castling slides the rook with the king. A promotion slides the pawn after the choice, then the new piece shows on its square. A dropped move does not slide: its capture vanishes at once, and only a castling rook still slides.
+  **Why:** These are the owner's round-one "about 180 ms, castling together" and the planner's pass-1 spec. They are logged here because the design gives no slide spec.
+  **Issue:** #98
+- **Decision:** `Motion.of(context)` combines two live reads: `MotionScope` (Settings' Piece animations, which `SettingsMotion` puts in from `MaterialApp.builder` in both the root and the test harness), and `MediaQuery.disableAnimations` read at the call site. The builder does not fold both into one value.
+  **Why:** A `MediaQuery` override below the builder (as in a test, or any subtree) is still honoured, and the result is the same one value the plan asks for. Without a scope, as on the splash before settings load, only the phone setting counts, which is the behaviour the plan asks for there.
+  **Issue:** #98
+- **Decision:** `MoveAnimation` (one `AnimationController`) is owned by `GameScreenState` and passed to `BoardInteraction` (`slides:`), so the play screen's panels and board can hold their orientation while it runs. `BoardInteraction` builds its own when it is given none. It draws through a new `BoardView.above` layer, inside the board's clip and above the squares' layers, and takes no touches. It hides the sliding pieces' target squares until the end.
+  **Why:** The plan says a rotating two-player board flips after the slide ends. The flip is decided above the board in `_PanelsAndBoard`, so that code needs to see the slide.
+  **Issue:** #98
+- **Decision:** The slide ends at once on every event other than `GameMoved`, except a `GameEnded` that the move itself caused. Those events are takeback, restart and new game, restore, pause, and a resign, flag or draw ending. It also ends at once when the app leaves `resumed`, or when motion turns off. The motion-off case notifies through a microtask, because it is read from `didChangeDependencies` during a build.
+  **Why:** The planner's pass-1 rules. A mate's `GameEnded` arrives straight after its `GameMoved` and must not cut the mating move's slide.
+  **Issue:** #98
+- **Decision:** `GameController.lastMoveWasDrop` is set in `_play` from the drop path, and a pending promotion carries it to `choosePromotion`. It is false for a tap or the computer.
+  **Why:** This is the plan's pass-2 wording. Keeping it on the controller means the slide layer reads it at the `moved` event.
+  **Issue:** #98
+- **Decision:** The M3/M4 animations now read `Motion` in place of `MediaQuery.disableAnimations`. These are the spring-back, the promotion, pause and result cards, the Statistics reset card, the splash's gradient, bar and hand-off fade, the switch knob, and the stepper reveal. The promotion and pause cards had not honoured the phone setting before; they do now. With motion off the result card keeps #78's 600 ms delay and then appears without rising (previously the phone setting skipped the delay too). `test/ui/game/result_overlay_test.dart`'s "no wait" test is rewritten to match.
+  **Why:** Plan pass 2: "Motion off skips animations only; pacing delays stay (#78's 600 ms before the result card…)". Rule 2 applies for the two cards that ignored the phone setting.
+  **Issue:** #98
+- **Decision:** `test/ui/game/player_panel_test.dart`'s "the ticking clock never rebuilds the board" now waits out the move's slide before it takes the board it compares against. Settings' hidden-row check for "Piece animations" is replaced by an order check (first under DISPLAY), and the toggle walk's expected options now include `animations: false`.
+  **Why:** Both are behaviour changes the plan asks for. A slide ending rebuilds the board once, and the row is now shown.
+  **Issue:** #98
+- **Decision:** Contrast is checked by computation, as in Solitaire. `lib/ui/theme/contrast.dart` holds the WCAG 2.x maths (0.03928 limit), compositing, `TextSize` (large at 18 dp, or at 14 dp when bold ≥ w700), and the CIELAB lightness search. `Palette.textPairs` has one row per text colour per surface. A row's surface is a stack of fills from the opaque bottom up (`Surfaces.*`), so a translucent fill is composited over what it really sits on. The gradient screens (the menu, About Honest Arcade, the splash and the play screen) take `gradientInner` as their bottom. `test/support/checked_text_guideline.dart` walks every `RenderParagraph`. It folds any ancestor `Opacity` into the colour and requires the result to be a `textPairs` foreground of its size class. It exempts piece glyphs (the piece font or a `PieceGlyph`), disabled controls (the three 0.4 disabled opacities) and fully transparent text.
+  **Why:** This is the plan's pass-1 and pass-2 design. Folding `Opacity` in is needed because two texts are dimmed that way rather than by a token: the waiting side's clock and Continue's meta line.
+  **Issue:** #99
+- **Decision:** The first run of `test/guards/contrast_test.dart` against the design's values (2026-09-29, local) failed as follows. Board pair: bone #F1EFE7/#6B7788 at 3.95:1. Text rows:
+  - teal on the lit panel 4.50 and on the finished status chip 4.33;
+  - Continue's meta (onTeal at .7 on teal) 4.43;
+  - white on the reset red #E05A4E 3.66;
+  - textFaint 2.90 on navy and 2.22 on the gradient;
+  - textLabel 2.65;
+  - kicker 3.44–4.50;
+  - skyBlue 4.28–4.38;
+  - textDim 3.79–4.45, and 2.32 for the waiting side's clock at .6;
+  - textMuted 3.70–3.84;
+  - violetText 3.69–4.26;
+  - dangerText 4.34 on the check chip, and 2.32 for a waiting low clock at .6;
+  - the pause card's draw hint (white .5) 4.15;
+  - every coordinate label: dark squares 2.35–4.32, light squares 2.89–2.97.
+
+  Every other row passed as designed.
+  **Why:** The plan asks for the first failing run's results to be recorded here.
+  **Issue:** #99
+- **Decision:** Each failing colour moved just enough, and the new ratios on the worst surface come from the same guard after the change (2026-09-29, local). A design difference in each case:
+  - **Bone's dark square:** #6B7788 → #6A7586, 4.05:1. It went darker in L*, with only the dark square moved.
+  - **Coordinate labels** (the alpha changes, never the hue) are now per theme on `BoardTheme` as `labelOnLight`/`labelOnDark`, replacing `Palette.coordOnLight`/`coordOnDark`. On light squares, rgba(0,0,0,.42) → #8D (navy, teal), #8F (violet) and #8C (bone) black, 4.57–4.61. On dark squares, rgba(255,255,255,.5) → #95 (navy), #B6 (teal), #86 (violet) and #FB (bone) white, 4.58–4.59.
+  - **Lighter in L*,** at their own hue and chroma:
+    - textFaint #4E739F → #87AAD9 (4.55 on the gradient);
+    - textLabel #5C7FB0 → #88AADD (4.58);
+    - kicker #6E93C4 → #86AADC (4.56);
+    - skyBlue #6FB4FF → #7DB9FF (4.55 on its chip; the Statistics bar in sky blue follows);
+    - textDim #7FA6D8 → #8FB6E9 (4.55 on a gradient card);
+    - textMuted #87A9D0 → #9ABCE3 (4.58 on the menu bar);
+    - violetText #B48CFF → #C5A3FF (4.56);
+    - dangerText #FF8C7E → #FF9486 (4.58 on the check chip).
+  - **The draw hint:** now `Palette.hintInk`, moved out of pause_overlay.dart. White .5 → #8A white, 4.58.
+  - **The reset button's red:** `danger` #E05A4E → #CC493F, darker, so its white label reads 4.57. `dangerPressed` #C94A3F already passed at 4.63 and is unchanged, so it now differs only slightly from the idle red.
+  **Why:** The owner's round-one rule ("failing colours adjusted just enough within the same hue") and the plan's pass-1/pass-2 search: L* in steps of 0.1, chroma reduced only when a value would fall outside sRGB, stopping at the first 8-bit value ≥ threshold + 0.05. `Palette.shifts` records each design value, and the guard re-derives each shift from the rows that use it.
+  **Issue:** #99
+- **Decision:** The brand teal #00D6B4 stays unchanged everywhere it passes. A new text token `Palette.tealOnTint` #16DBB8 (4.56 on the finished status chip) is used only where teal text sits on a teal tint over the play screen's gradient (the lit panel's subtitle, the status chip once the game is over) and on About Honest Arcade's NO ADS chip.
+  **Why:** AC 2 keeps the brand sheet's swatches unchanged. Moving `teal` itself would have recoloured every teal button, ring and fill to fix two text surfaces. `test/ui/game/player_panel_test.dart`'s two teal-text expectations now read `tealOnTint`, the behaviour change this story makes.
+  **Issue:** #99
+- **Decision:** Two dimming opacities rise instead of their inks. `Palette.clockDimOpacity` for the waiting side's clock goes .6 → .75, which gives the moved textDim 3.28:1 and a waiting low clock (dangerText) 3.09:1, both at the large-text 3:1. `Palette.continueMetaOpacity` for Continue's meta goes .7 → .71. Each is the first hundredth that clears its threshold + 0.05, and the text-pair rows prove both. They are not re-derived, because `shifts` covers colours only.
+  **Why:** At .6 opacity, the textDim and dangerText shades the search reached were #A2C9FC and #FFBAAF, close to white. That would have flattened every dim label to fix one dimmed clock. The plan's rule for a translucent label ("changes its alpha, not hue") fits a dimming opacity better.
+  **Issue:** #99
+- **Decision:** `test/guards/contrast_test.dart` has five tests, with a mutation for each guard rule:
+  - the reference maths (black/white 21:1 and #777/#fff 4.48:1 within ±0.01, compositing, size classes) — mutation: the luminance curve's 2.4 exponent becomes 2.2;
+  - the brand sheet's six swatches;
+  - the board pairs at 4:1 — mutation: bone's old dark square is restored;
+  - every text pair at its threshold — mutation: textFaint's design value is restored;
+  - every shift re-derived as the nearest pass — mutation: textMuted overshoots.
+
+  **Why:** The plan names a mutation for "the reference maths constant changed". Changing 0.03928 itself is invisible to any 8-bit reference pair: no channel value k/255 falls between 0.03928 and 0.04045. The exponent is the constant a mutation can move. The re-derivation test is a fourth guard rule, so it has its own mutation.
+  **Issue:** #99
+- **Decision:** `test/ui/contrast_screens_test.dart` checks every screen at 390 × 844 on the navy theme, scrolled end to end:
+  - the menu, with Continue and the damaged-data banner;
+  - both setups;
+  - Settings, with its four switches;
+  - How to play, both tabs;
+  - both About screens;
+  - Statistics and its reset card;
+  - the splash;
+  - the board bare, paused, in check, with the promotion card, with the result card and with the result bar.
+
+  A last test proves that the check fails for a colour no row covers.
+  **Why:** These are the plan's states. The in-check board also exercises the red status chip.
+  **Issue:** #99
+- **Decision:** The highlight keys follow the plan's pass-1/pass-2 names: `selected-<sq>` is now `ring-selected-<sq>` and `ring-<sq>` is now `ring-capture-<sq>`. `dot-<sq>` and `tint-<sq>` are unchanged; `mark-last-<sq>` and `badge-check-<sq>` are new. The tests in test/ui/board/board_interaction_test.dart and test/ui/settings_options_test.dart now read the new names, the behaviour change this story makes.
+  **Why:** The plan names the keys, and a bare `ring-` prefix would match both rings.
+  **Issue:** #100
+- **Decision:** The selected ring is drawn over the piece, as pass 2's paint order puts it. It goes through a new `BoardView.decorateAbove` hook, whose layers fill the square under an `IgnorePointer`. The other shapes stay in `decorate`, under the coordinates and the piece.
+  **Why:** A layer over the piece that took touches would swallow the press that starts the selected piece's drag. test/ui/board_shapes_test.dart drags a selected pawn from under its ring.
+  **Issue:** #100
+- **Decision:** Design differences, as `ArtSource/design/README.md` asks: the selected ring is 4 dp, where the design draws 2 dp; the capture ring stays 3 dp. The last-move corner mark (an 8 dp triangle, bottom-left, teal at .7 on a light square, white at .7 on a dark one) and the check's "!" badge are new. The "!" is white Outfit 700 at 0.22 of a square, in a circle 0.34 of a square across, top-right. New tokens: `Palette.lastMoveMarkOnLight`, `lastMoveMarkOnDark` and `checkBadgeInk`.
+  **Why:** These are the owner's round-one choices, with the planner's sizes.
+  **Issue:** #100
+- **Decision:** The badge's circle is `Palette.danger` as #99 left it (#CC493F), not the #E05A4E the plan quotes. A `Palette.textPairs` row, "the check badge", proves the white "!" on that surface.
+  **Why:** #99 darkened `danger` so that white text on it passes 4.5:1. The plan names the token, and it was written before #99 moved the token's value.
+  **Issue:** #100
+- **Decision:** `shapesFor(tint, mark, inCheck:)` takes the last-move mark from the last-move tint, and `GameViewState.inCheck` is a square of its own. The selection and check tints can never cover a last-move square: both fall on the side to move's pieces, and the last move's two squares hold the other side's piece or nothing.
+  **Why:** This keeps the plan's signature. Only the check's badge needs to outlive a tint that takes precedence (the selected king in check), and the separate field covers it.
+  **Issue:** #100
+- **Decision:** The piece check is arithmetic on what `PieceGlyph` actually draws, not a rendered greyscale image. For each style, theme and square colour: the white and black inks differ by at least 3:1, and each piece shows at least 3:1 against its square through its ink or its edge (white's dark outline, black's light halo at its alpha).
+  **Why:** The M5 conventions make contrast maths a unit test. Reading the glyph's own style ties the numbers to the code.
+  **Issue:** #100
+- **Decision:** Screen text now follows the phone's text size, which M4 had kept fixed. `appBuilder` in `lib/ui/app_builder.dart` clamps it with `TextScaler.clamp(minScaleFactor: 1.0, maxScaleFactor: 1.3)`. The root's `MaterialApp.builder` and `test/support/app_harness.dart`'s `pumpUnderScope` both use it, and it also holds the motion scope and the system-bar style that each builder had before. M4's screen-wide `MediaQuery.withNoTextScaling` wrappers are gone from nine screens and from the no-browser SnackBar. Text stays fixed in four places: the board (its labels, pieces and badge, each already on `TextScaler.noScaling`), the clocks' digits (now `noScaling`), the promotion card's pieces (through `PieceGlyph`) and the menu cards' mini-board art (a `withNoTextScaling` subtree).
+  **Why:** These are the owner's round-one choices, applied as the planner's pass 1 and pass 2 describe.
+  **Issue:** #101
+- **Decision:** A layout delegate sizes the game screen instead of fixed heights. `_ScreenLayout` measures the top bar and puts the panels 64 dp down, as the design does, unless a taller bar needs more room. `_BoardColumnLayout` measures the two panels and the tool row, and the board takes what is left. `panelHeight`, `toolRowHeight`, `toolHeight`, `topBarHeight` and `resultBarHeight` are now minimum heights. Panel sub-lines, tool labels and the pause pill may wrap to two lines, and the status chip to three. The computer-failed text needs three at 1.3× on a 360 dp phone.
+  **Why:** The owner's round-two rule is that the board shrinks just enough and the game screen never scrolls. Measuring the rows keeps that exact at any text size.
+  **Issue:** #101
+- **Decision:** The result bar is now `ResultBar`, a public widget in `result_overlay.dart`. The top bar shows it in its own slot during View board, where `ResultOverlay` used to lay it over the screen at a fixed 56 dp. It now sits below the card layers, so during View board's `resultFadeDuration` fade the card fades out over the bar, where before the bar was drawn over the card. At 1.3× the longest title ("Flag fell, but no mating material") wraps to two lines and the bar grows. Rule 1: the fixed bar had cut that title short.
+  **Why:** A bar that grows needs the screen layout to measure it. Only the top bar's slot is measured.
+  **Issue:** #101
+- **Decision:** Two texts no longer ellipsize: Continue's label on the menu and the result bar's title. The only text still allowed to cut short is the panel names, which is the exception the plan grants. `test/ui/large_text_test.dart` is a plain test, not a guard, so it has no mutation. It runs every screen at 360 × 640 dp with 24/48 dp insets at 1.3×, 2.0×, 1.0× and 0.85×. It also checks that its own overflow and cut-text detection fires on a known-bad fixture.
+  **Why:** The plan's test plan (pass 1) asks for exactly this.
+  **Issue:** #101
+- **Decision:** The announcer has Honest Solitaire's shape, with one change: `Announcer.announce(text)` takes no `BuildContext`. `FlutterAnnouncer` in `lib/a11y/announcer.dart` gets a context provider instead. The root passes the context of a `KeyedSubtree` that sits under the forced `accessibleNavigation` `MediaQuery` when there is one. The announcer speaks only while that context's `accessibleNavigation` is on, and its announcements are polite. A `NoAnnouncer` serves a `BoardInteraction` that has no screen reader wired to it. The injection points are `HonestChessApp(announcer:, forceAccessibleNavigation:)`, `AppScope.announcer` (required) and `pumpUnderScope(announcer:)`. The harness defaults to a `RecordingAnnouncer`.
+  **Why:** The feedback hub lives in the root's state, above `MaterialApp`, and has no context of its own. The readiness pass's test seam needs the forced flag to reach the announcer's check.
+  **Issue:** #102
+- **Decision:** New guard `test/guards/announcer_scan_test.dart`, Solitaire's rule: `SemanticsService.` may appear only in `lib/a11y/announcer.dart`, and that file must keep its `accessibleNavigation` check. It has two mutations under issue `announcer`. Because of it, Statistics' reset messages (#90) now go through `AppScope.announcer` rather than calling `SemanticsService` directly. They are therefore spoken only under a screen reader, and `test/ui/stats_screen_test.dart` reads the harness's recording announcer instead of mocking the accessibility channel.
+  **Why:** The planner wants one `Announcer` for the app. A guard keeps that true where a sentence could not.
+  **Issue:** #102
+- **Decision:** `GameStarted` gained `restart` (default false), which `restart()` sets. The hub uses it to say "Game restarted, …" rather than "New game, …". A takeback names the earliest ply undone, which the hub reads from the previous event's game. Against the computer that is your own move ("Took back White pawn to e4"), the one you now play again. The words leave out ", check".
+  **Why:** Nothing else in an event tells Restart apart from New. The plan's pass 2 asks for "the move undone" without saying which of two plies, and your own move is the one that matters to you.
+  **Issue:** #102
+- **Decision:** `SquareStates` lives in `lib/ui/board/board_semantics.dart` beside the board's describer, not in `game_controller.dart`. It is computed from `Game` and the selection. The double-tap's own words ("White knight selected", "put down", "Club is thinking", "Paused", "Game over") are spoken by `screenReaderTap`, which wraps `GameController.tapSquare`. Moves and refusals are spoken only by the hub, so a refusal is heard once, as "Knight can't move there, put down". A promotion that opens says nothing of its own, because the card's live region reads it. The square hints use Flutter's `onTapHint` ("select", "move here", "put down"), which TalkBack reads as "Double-tap to select". `BoardView(describe:)` excludes everything inside a described square from the semantics tree. The pause pill reads "Pause game" and excludes its glyph text. #78's card drops `liveRegion`.
+  **Why:** These follow the plan's pass 1 and pass 2 wordings. `onTapHint` is the platform's own way to word a double-tap's hint.
+  **Issue:** #102
+- **Decision:** Two earlier tests are updated for behaviour this story changes. `result_overlay_test`'s live-region test now asserts that the card is a header and not a live region. `computer_turns_test`'s "leaving the game" test now pumps under `pumpUnderScope`, because `GameScreen` reads the announcer from the scope.
+  **Why:** The plan amends #78's live region, and a board needs its scope.
+  **Issue:** #102
+- **Decision:** `SegmentedTabs` is now a tab bar. The row carries `SemanticsRole.tabBar`, and each tab carries `SemanticsRole.tab`, replacing `button: true`. Each tab keeps #87's group and selected flags. Each tab's label also carries its position: "The pieces, tab, 1 of 2" (`tabSpeech`). This departs from the plan, which expected TalkBack to supply "tab, 1 of 2" from the role. Flutter 3.47.5's Android embedding gives the tab roles no Android class (its `RoleConfiguratorFactory`, read 2026-09-29), so TalkBack would have said only "The pieces, selected". Flutter's own Material `TabBar` puts "Tab 1 of 2" into its label for the same reason. The test asserts the role, the order, the selected flags and the label.
+  **Why:** The acceptance criterion is what the user hears. The role alone would not deliver it on Android.
+  **Issue:** #103
+- **Decision:** Spoken-versus-visible differences. Upper-case display text is spoken through `spokenCaps` (`lib/ui/game/labels.dart`). It uses sentence case and keeps names (White, Black, the step names, Honest, Arcade, Chess, GitHub). Each " · " becomes a comma. A line starting "vs" or a web address stays lower case, and text already in mixed case keeps its case. This covers kickers, card and group titles, option names (NAVY → "Navy"), panel sub-lines, the status chip, the pause meta, the result tag, promise chips ("No ads"), link text and gesture tags. Specific readings:
+  - Continue reads "Continue vs Club, move 12, White to move" (`continueSpeech`).
+  - Settings' version reads "Version 0.1.0, build 1" (`versionSpeech`). The empty line is hidden until Android answers, and "Version unavailable" reads as written.
+  - About the app's version reads "Version 0.1.0, offline", or "Offline" (`versionOfflineSpeech`).
+  - Links read their words, and "opens in browser" is now their hint (`opensInBrowser`), no longer part of the label.
+  - Menu cards read the name, then the subtitle with "·" as a comma.
+  - The steppers' visible labels are left out, because each value's node already says "Minutes per side, 10 min".
+  **Why:** The plan's pass 1 rules for spoken text. A single function keeps every screen consistent.
+  **Issue:** #103
+- **Decision:** Rule 2 fix: some buttons had no action a screen reader could use. Their `Semantics(excludeSemantics: true)` dropped the InkWell's tap, and their role nodes had none of their own. These were the pause and result cards' buttons (`CardButton`, `CardLinkButton`), Statistics' three buttons, the promotion choices, the result bar's Rematch and the pause pill. Each now passes its own `onTap`, the same callback as its InkWell. `CardLinkButton` passes `_tap`, so focus is still taken first. The result bar's whole-bar InkWell produced an unlabelled tappable node, so it is now `excludeFromSemantics`. Its tap is already the labelled "Show the result…" button's.
+  **Why:** TalkBack could fall back to a simulated touch, but a role node with no action fails the plan's "tappable has a role" complement and #104's labelled-target guideline.
+  **Issue:** #103
+- **Decision:** Headings. `ScreenHeader`'s title and the menu's wordmark are `headingLevel: 1`. The mono sub-title under a title is not a heading. Level 2 goes to setup section titles (`TitledSection`), Settings' board cards and the PLAY / DISPLAY / SOUND kickers, How to play's rule tags and GESTURES, About's WHAT'S IN IT, THE HONEST PROMISES and OUR PROMISES, House rules, Statistics' breakdown title, and the pause, result, promotion and reset card titles. Each heading is its own node (`container: true`), because the title had been merging into the Back button's node on the setups, Settings and Statistics. The promotion card's heading is the card's own live-region node, which already carries its label. Settings' STORED ON THIS PHONE is left a card kicker, not a heading, as the plan's demo lists only PLAY, DISPLAY, SOUND.
+  **Why:** The plan's pass 1 and pass 2 header lists.
+  **Issue:** #103
+- **Decision:** Test shape. `test/a11y/a11y_cases.dart` defines `A11yCase(name, pump)` and `a11yCases`, which covers every screen and state in the plan and is for #104 to reuse. The splash case is held on `GatedStore`, which moved from `test/ui/splash_test.dart` to `test/support/gated_store.dart`. `test/a11y/labels_test.dart` walks the tree in traversal order at 390 × 2400. Board squares are recognised by #102's label pattern and must number exactly 64 on board cases. On top of the plan's rules, the audit also reports glyphs read aloud, upper-case words, role nodes with no label, and enabled role nodes with no action. Its first failing run (2026-09-29, before the fixes, from a throwaway dump of the same tree) found:
+  - eight buttons nothing could activate;
+  - the result bar's unlabelled tappable;
+  - titles merged into Back;
+  - every kicker at heading level 0;
+  - upper-case readings;
+  - the menu cards' "·".
+  The fixture test proves the audit fails on each kind of problem. It is a plain test, not a guard, so there is no mutation.
+  **Why:** The plan's test plan and its pass 2 shared table.
+  **Issue:** #103
+- **Decision:** Earlier tests are updated for readings this story changes:
+  - `about_app_test` and `about_arcade_test`: link labels and hint.
+  - `how_to_play_test`: sentence-case tags and the tab role.
+  - `menu_navigation_test`: Continue.
+  - `result_overlay_test`: the result tag.
+  - `settings_options_test`: the version.
+  - `settings_look_test`: the label colour is read from the `RichText` under a `Text` that now has a `semanticsLabel`.
+  **Why:** The plan changes these readings.
+  **Issue:** #103
+- **Decision:** `test/a11y/guidelines_test.dart` (tag `a11y`, declared in `dart_test.yaml`) runs every case of #103's `a11y_cases.dart` at 320 × 568, 360 × 640 and 390 × 844 dp (24/48 dp insets) and text scale 1.0 and 1.3. Each screen is checked at its top and then after each half-viewport step down every vertical scrollable, to its end. The plan said "top and end". A short screen builds some controls only once scrolled to them, so top and end alone never checked the middle of the vs-computer setup or Settings at 320 × 568.
+  Three checks run at every step: a recording subclass of the stock `androidTapTargetGuideline`, `labeledTapTargetGuideline`, and #99's `CheckedTextGuideline`. Each case now carries its expected control count (`A11yCase.controls`). The suite runs in about 6 s locally (2026-09-29, `flutter test test/a11y/guidelines_test.dart`).
+  **Why:** The plan's pass 1 and pass 2 matrix. Stepping covers what top-and-end cannot.
+  **Issue:** #104
+- **Decision:** The tap-target check is `MinimumTapTargetGuideline` with `shouldSkipNode` overridden. It leaves out nodes tagged `a11yExemptSquare` and records them; the tag is in `lib/ui/board/board_view.dart` and is set by the board's semantics container through `tagForChildren`.
+  It also skips a node touching the edge of a scrolling view with both rects in screen space. The stock check compares a rect already moved into the scroll view's parent's space with the view's own rect. On the first run that failed How to play's tabs where they were half scrolled out of view.
+  Every recorded node must carry a square's label. At least 64 are recorded on every board case, and none on any other case. The run must also find a recorded square under 48 dp, so the exemption is needed. A fixture group proves the check fails an undersized control and an unlabelled one, and fails a tag on something that is not a square.
+  **Why:** The plan's `RecordingTapTargetGuideline`, reusing the framework's own traversal instead of copying it (Solitaire copied it). The scroll-edge fix is the stock check's own stated intent.
+  **Issue:** #104
+- **Decision:** First failing run, before any fix (2026-09-29, 77 of 177 tests failed):
+  - The pause pill ("Pause game", about 28 dp drawn) failed on every board case.
+  - The result bar's Rematch (38 dp) and "Show the result" (33 dp) failed on View board.
+  - How to play's tabs failed when half scrolled out (a checker artifact, above).
+  - The vs-computer setup and the reset-card cases could not find their controls on a short screen. Those are harness fixes: scroll to the control, and tap Reset once it is at the top.
+  - Squares measured 30 dp at 320 × 568 and 39 dp at 360 × 640.
+  Fixes, with the drawn layout unchanged:
+  - The top bar's 4 dp vertical padding moved inside each slot. The pill and the status chip each sit in a `_BarSlot` at least 48 dp tall that takes taps across all of it, so the bar's height is the same at every text size.
+  - The result bar's 8 dp padding moved inside its two controls (`_FullHeight`). Each control's node and hit area is the bar's full height, and Rematch's also reaches the bar's right edge.
+  **Why:** AC 3 (fix what fails), by M4's convention of growing hit areas without moving what is drawn.
+  **Issue:** #104
+- **Decision (needs owner):** The squares' floors (≥ 43 dp at 360 × 640, ≥ 38 dp at 320 × 568) hold only when the app has the whole screen. With the 24/48 dp system bars the plan's matrix uses, the board is limited by height, not width: 39 dp at 360 × 640 and 30 dp at 320 × 568 (at 1.3: 36–38 and 24–27 dp; 46 dp at 390 × 844 either way). Measured by this suite on 2026-09-29.
+  The floors come from a board as wide as the screen, floor((w − 16) / 8). Reaching them with the bars in means taking 32 dp (at 360) or 64 dp (at 320) of height from the top bar, panels or tool row, which is a redesign of M3's play screen. That is outside this story, and the plan says not to change the drawn layout.
+  The suite asserts the floors with no system bars, where the numbers hold, and reports the sizes with bars in. AC 2 is left unticked, and the question is on #104.
+  **Why:** Choosing between a redesign of the play screen and a lower floor is the owner's call. Guessing either way changes the design or the owner's number.
+  **Issue:** #104
+- **Decision:** `test/a11y/flutter_test_config.dart` replaces the root config for this folder only, because flutter_test uses the nearest config. It runs the root config's font loading and turns motion off through `FakeAccessibilityFeatures(disableAnimations: true)`, reset after each test. #102's and #103's tests in this folder pass under it unchanged. The `A11yCase` table gained `controls` and six states the plan lists that it lacked:
+  - two players, turned round with Black at the bottom;
+  - the pause card after a declined draw (held by `autoPause`, so its 2 s timer cannot outlive the case);
+  - result cards after a loss (resignation) and after a draw (agreed between two players);
+  - the two-player setup's steppers at their limits;
+  - empty Statistics.
+  #103's labels test runs them too.
+  **Why:** The plan's pass 1 state list and pass 2's folder-scoped config.
+  **Issue:** #104

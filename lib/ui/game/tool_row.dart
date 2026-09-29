@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
-/// The tool row's height (the design's 62 px row around 50 px buttons).
+/// The tool row's height (the design's 62 px row around 50 px buttons),
+/// which a large system text size may grow.
 const double toolRowHeight = 62;
 
 /// A tool button's height and the gap between two buttons.
@@ -68,19 +69,26 @@ class ToolRow extends StatelessWidget {
           Tool.newGame => onNew,
           _ => null,
         };
-        return SizedBox(
-          height: toolRowHeight,
+        return ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: toolRowHeight),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: toolGap),
-            child: Row(
-              children: [
-                for (final tool in Tool.values) ...[
-                  if (tool != Tool.takeback) const SizedBox(width: toolGap),
-                  Expanded(
-                    child: _ToolButton(tool: tool, onTap: action(tool)),
-                  ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: toolGap,
+              vertical: (toolRowHeight - toolHeight) / 2,
+            ),
+            // Every button as tall as the tallest label needs.
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final tool in Tool.values) ...[
+                    if (tool != Tool.takeback) const SizedBox(width: toolGap),
+                    Expanded(
+                      child: _ToolButton(tool: tool, onTap: action(tool)),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         );
@@ -109,8 +117,8 @@ class _ToolButton extends StatelessWidget {
       excludeSemantics: true,
       child: Opacity(
         opacity: onTap == null ? disabledToolOpacity : 1,
-        child: SizedBox(
-          height: toolHeight,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: toolHeight),
           child: Material(
             color: accent ? Palette.accentFill : Palette.toolFill,
             shape: RoundedRectangleBorder(
@@ -124,44 +132,48 @@ class _ToolButton extends StatelessWidget {
               key: tool.key,
               onTap: onTap,
               borderRadius: radius,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (fallback == null)
-                    Text(
-                      tool.glyph,
-                      key: Key('tool-glyph-${tool.name}'),
-                      style: TextStyle(
-                        fontFamily: toolGlyphFamily,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 15,
-                        height: 1,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (fallback == null)
+                      Text(
+                        tool.glyph,
+                        key: Key('tool-glyph-${tool.name}'),
+                        style: TextStyle(
+                          fontFamily: toolGlyphFamily,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 15,
+                          height: 1,
+                          color: ink,
+                        ),
+                      )
+                    else
+                      Icon(
+                        fallback,
+                        key: Key('tool-glyph-${tool.name}'),
+                        size: 15,
                         color: ink,
                       ),
-                    )
-                  else
-                    Icon(
-                      fallback,
-                      key: Key('tool-glyph-${tool.name}'),
-                      size: 15,
-                      color: ink,
+                    const SizedBox(height: 5),
+                    Text(
+                      tool.label,
+                      maxLines: 2,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: Fonts.plexMono,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 8.5,
+                        height: 1,
+                        letterSpacing: 8.5 * .1,
+                        color: ink,
+                      ),
                     ),
-                  const SizedBox(height: 5),
-                  Text(
-                    tool.label,
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.fade,
-                    style: TextStyle(
-                      fontFamily: Fonts.plexMono,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 8.5,
-                      height: 1,
-                      letterSpacing: 8.5 * .1,
-                      color: ink,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

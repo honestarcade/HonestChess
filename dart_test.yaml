@@ -15,3 +15,8 @@ tags:
       Tests too slow for the pull-request gate (deeper perft counts; the
       computer's strength ladder). tools/gate.sh excludes them; .github/workflows/weekly.yml
       runs them through tools/weekly_tests.sh, which refuses to pass empty.
+  a11y:
+    description: >-
+      Accessibility guidelines on every screen (tap-target size, labels,
+      computed text contrast); part of the gate, runnable alone with
+      `flutter test --tags a11y`.

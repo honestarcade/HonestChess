@@ -1,3 +1,5 @@
+import 'dart:ui' show SemanticsRole;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -240,17 +242,17 @@ void main() {
       final semantics = tester.ensureSemantics();
       await _pump(tester, initialTab: HowToTab.rules);
       final tag = tester.getSemantics(find.text('THE GOAL'));
-      expect(tag, isSemantics(label: 'THE GOAL', isHeader: true));
+      expect(tag, isSemantics(label: 'The goal', isHeader: true));
       final body = tester.getSemantics(find.text(ruleCards.first.body));
       expect(body, isSemantics(label: ruleCards.first.body, isHeader: false));
       expect(
         tester.getSemantics(find.text(gesturesKicker)),
-        isSemantics(label: gesturesKicker, isHeader: true),
+        isSemantics(label: 'Gestures', isHeader: true),
       );
       final row = tester.getSemantics(_key('howto-gesture-tap'));
       expect(
         row,
-        isSemantics(label: 'TAP\n${gestures.first.body}', isHeader: false),
+        isSemantics(label: 'Tap\n${gestures.first.body}', isHeader: false),
       );
       semantics.dispose();
     });
@@ -302,7 +304,10 @@ void main() {
         );
         expect(
           tester.getSemantics(_key('howto-tab-${tab.name}')),
-          isSemantics(isButton: true, isInMutuallyExclusiveGroup: true),
+          isSemantics(
+            role: SemanticsRole.tab,
+            isInMutuallyExclusiveGroup: true,
+          ),
         );
       }
       // Just inside the slot's top edge, above the drawn pill.
@@ -312,7 +317,7 @@ void main() {
       expect(_selected(tester, HowToTab.rules), isTrue);
       expect(
         tester.getSemantics(_key('howto-tab-rules')),
-        isSemantics(label: 'The rules', isSelected: true),
+        isSemantics(label: 'The rules, tab, 2 of 2', isSelected: true),
       );
       semantics.dispose();
     });

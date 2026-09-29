@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../motion.dart';
 import '../theme/palette.dart';
 
 /// The design's switch: a 46×26 track, [Accent.main] when on and
@@ -30,9 +31,7 @@ class ToggleSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final duration = MediaQuery.disableAnimationsOf(context)
-        ? Duration.zero
-        : slideDuration;
+    final duration = Motion.of(context).isOff ? Duration.zero : slideDuration;
     // Implicit animations retarget from wherever they are, so a tap during
     // a slide turns the knob round instead of restarting it.
     return ExcludeSemantics(

@@ -15,6 +15,7 @@ import 'package:honest_chess/ui/navigation.dart';
 import 'package:honest_chess/ui/screens/about_app_screen.dart';
 import 'package:honest_chess/ui/screens/about_arcade_screen.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
+import 'package:honest_chess/ui/widgets/external_link.dart';
 
 import '../support/app_harness.dart';
 
@@ -276,11 +277,15 @@ void main() {
     expect(find.text('MADE BY'), findsOneWidget);
     expect(
       tester.getSemantics(_key('aboutapp-link-arcade')),
-      isSemantics(isLink: true, label: 'HONEST ARCADE, opens in browser'),
+      isSemantics(isLink: true, label: 'Honest Arcade', hint: opensInBrowser),
     );
     expect(
       tester.getSemantics(_key('aboutapp-link-source')),
-      isSemantics(isLink: true, label: 'SOURCE ON GITHUB, opens in browser'),
+      isSemantics(
+        isLink: true,
+        label: 'Source on GitHub',
+        hint: opensInBrowser,
+      ),
     );
     expect(
       tester.getSemantics(_key('aboutapp-promises')),

@@ -1,12 +1,15 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
 import '../../engine/engine.dart';
+import '../../feedback/clips.dart';
 import '../../platform/platform_channel.dart';
 import '../app_scope.dart';
 import '../board/board_options.dart';
 import '../board/board_view.dart';
+import '../game/labels.dart';
 import '../theme/palette.dart';
 import '../widgets/option_button.dart';
 import '../widgets/screen_header.dart';
@@ -50,6 +53,14 @@ String versionLine(AppVersion? version) {
   return 'v$name · BUILD ${version.code}';
 }
 
+/// What a screen reader says for [versionLine]'s line: "Version 0.1.0,
+/// build 1", or [versionUnavailable] as written.
+String versionSpeech(AppVersion? version) {
+  final line = versionLine(version);
+  if (line == versionUnavailable) return line;
+  return 'Version ${version!.displayName}, build ${version.code}';
+}
+
 /// One on/off row: [id] is its key's suffix, [read] and [write] its
 /// `BoardOptions` field.
 typedef _Toggle = ({
@@ -61,8 +72,7 @@ typedef _Toggle = ({
   BoardOptions Function(BoardOptions, bool) write,
 });
 
-/// The design's `SETTING_ROWS` that this build has: M5 adds piece
-/// animations and the SOUND group when it builds them.
+/// The design's `SETTING_ROWS`.
 final List<_Toggle> _toggles = [
   (
     id: 'dots',
@@ -105,6 +115,14 @@ final List<_Toggle> _toggles = [
     write: (o, v) => o.copyWith(rotateEachTurn: v),
   ),
   (
+    id: 'anim',
+    group: 'DISPLAY',
+    label: 'Piece animations',
+    description: 'Slide pieces to their square instead of jumping.',
+    read: (o) => o.animations,
+    write: (o, v) => o.copyWith(animations: v),
+  ),
+  (
     id: 'check-flag',
     group: 'DISPLAY',
     label: 'Flag check on the board',
@@ -112,7 +130,36 @@ final List<_Toggle> _toggles = [
     read: (o) => o.flagCheck,
     write: (o, v) => o.copyWith(flagCheck: v),
   ),
+  (
+    id: 'sfx',
+    group: 'SOUND',
+    label: 'Sound effects',
+    description: sfxDescription,
+    read: (o) => o.sfx,
+    write: (o, v) => o.copyWith(sfx: v),
+  ),
+  (
+    id: 'music',
+    group: 'SOUND',
+    label: 'Background music',
+    description: 'Quiet loop while you play.',
+    read: (o) => o.music,
+    write: (o, v) => o.copyWith(music: v),
+  ),
+  (
+    id: 'haptics',
+    group: 'SOUND',
+    label: 'Haptics',
+    description: 'A short tick on an illegal tap or a capture.',
+    read: (o) => o.haptics,
+    write: (o, v) => o.copyWith(haptics: v),
+  ),
 ];
+
+/// Sound effects' description, reworded from the design's to name what
+/// plays: there is no separate piece tap or mate chime (#96).
+const sfxDescription =
+    'Moves, captures, castling, check and the end of a game.';
 
 /// Settings: how the board looks, the switches it obeys, where the data
 /// lives and which version this is. Every choice applies at once, except
@@ -126,15 +173,15 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  /// Asked once per visit.
-  Future<String>? _version;
+  /// Asked once per visit; null when Android could not say.
+  Future<AppVersion?>? _version;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _version ??= AppScope.of(context).platform
         .appVersion()
-        .then(versionLine, onError: (Object _) => versionUnavailable);
+        .then((version) => version, onError: (Object _) => null);
   }
 
   @override
@@ -142,132 +189,137 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final scope = AppScope.of(context);
     final settings = scope.settings;
     final controller = scope.controller;
-    // Screen text ignores the system text scale, as the board does, until
-    // M5's accessibility work.
-    return MediaQuery.withNoTextScaling(
-      child: Scaffold(
-        backgroundColor: Palette.screenBg,
-        body: SafeArea(
-          child: ListenableBuilder(
-            listenable: Listenable.merge([settings.board, controller]),
-            builder: (context, _) {
-              final options = settings.board.value;
-              void update(BoardOptions Function(BoardOptions) change) =>
-                  settings.updateBoard(change);
-              // The controller's live game, from its start or restore until
-              // it ends; a saved game sitting in its slot is not one.
-              final inProgress = !controller.isIdle && !controller.game.isOver;
-              final width = MediaQuery.sizeOf(context).width;
-              final scale = math.min(width, surfaceScaleCapWidth) / designWidth;
-              return ListView(
-                key: const Key('settings-list'),
-                // The design's 56 dp top padding, less its 44 dp status bar
-                // (SafeArea's here).
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 30),
-                children: [
-                  const ScreenHeader(title: 'Settings', keyPrefix: 'settings'),
-                  const SizedBox(height: 12),
-                  _Section(
-                    title: 'Board colour',
-                    caption: boardColourCaption,
-                    children: [
-                      for (final theme in BoardTheme.values)
-                        OptionButton(
-                          key: Key('settings-theme-${theme.name}'),
-                          selected: options.theme == theme,
-                          onPressed: () =>
-                              update((o) => o.copyWith(theme: theme)),
-                          padding: const EdgeInsets.all(9),
-                          child: _Labelled(
-                            label: theme.label,
-                            labelSize: 9,
-                            child: _Swatch(theme),
-                          ),
+    return Scaffold(
+      backgroundColor: Palette.screenBg,
+      body: SafeArea(
+        child: ListenableBuilder(
+          listenable: Listenable.merge([settings.board, controller]),
+          builder: (context, _) {
+            final options = settings.board.value;
+            void update(BoardOptions Function(BoardOptions) change) =>
+                settings.updateBoard(change);
+            // The controller's live game, from its start or restore until
+            // it ends; a saved game sitting in its slot is not one.
+            final inProgress = !controller.isIdle && !controller.game.isOver;
+            final width = MediaQuery.sizeOf(context).width;
+            final scale = math.min(width, surfaceScaleCapWidth) / designWidth;
+            return ListView(
+              key: const Key('settings-list'),
+              // The design's 56 dp top padding, less its 44 dp status bar
+              // (SafeArea's here).
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 30),
+              children: [
+                const ScreenHeader(title: 'Settings', keyPrefix: 'settings'),
+                const SizedBox(height: 12),
+                _Section(
+                  title: 'Board colour',
+                  caption: boardColourCaption,
+                  children: [
+                    for (final theme in BoardTheme.values)
+                      OptionButton(
+                        key: Key('settings-theme-${theme.name}'),
+                        selected: options.theme == theme,
+                        onPressed: () =>
+                            update((o) => o.copyWith(theme: theme)),
+                        padding: const EdgeInsets.all(9),
+                        child: _Labelled(
+                          label: theme.label,
+                          labelSize: 9,
+                          child: _Swatch(theme),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _Section(
-                    title: 'Piece style',
-                    children: [
-                      for (final style in PieceStyle.values)
-                        OptionButton(
-                          key: Key('settings-style-${style.name}'),
-                          selected: options.pieceStyle == style,
-                          onPressed: () =>
-                              update((o) => o.copyWith(pieceStyle: style)),
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 11,
-                            horizontal: 8,
-                          ),
-                          look: OptionLook.settingsFilled,
-                          child: _Labelled(
-                            label: style.label,
-                            labelSize: 9.5,
-                            child: PieceGlyph(
-                              piece: Piece.whiteKnight,
-                              style: style,
-                              fontSize: 22,
-                              colour: styleSampleInk,
-                              shadows: styleSampleShadow,
-                              textKey: Key(
-                                'settings-style-sample-${style.name}',
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _Section(
-                    title: 'Board surface',
-                    children: [
-                      for (final surface in BoardSurface.values)
-                        OptionButton(
-                          key: Key('settings-surface-${surface.name}'),
-                          selected: options.surface == surface,
-                          onPressed: () =>
-                              update((o) => o.copyWith(surface: surface)),
-                          padding: const EdgeInsets.all(9),
-                          child: _Labelled(
-                            label: surface.label,
-                            labelSize: 9.5,
-                            child: _SurfaceStrip(
-                              surface: surface,
-                              base: options.theme.dark,
-                              scale: scale,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  for (final group in ['PLAY', 'DISPLAY']) ...[
-                    const SizedBox(height: 12),
-                    _Group(
-                      title: group,
-                      rows: [
-                        for (final t in _toggles.where((t) => t.group == group))
-                          SettingRow(
-                            key: Key('settings-toggle-${t.id}'),
-                            label: t.label,
-                            description: t.id == 'takeback' && inProgress
-                                ? takebackNextGame
-                                : t.description,
-                            value: t.read(options),
-                            onChanged: () =>
-                                update((o) => t.write(o, !t.read(o))),
-                          ),
-                      ],
-                    ),
+                      ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                _Section(
+                  title: 'Piece style',
+                  children: [
+                    for (final style in PieceStyle.values)
+                      OptionButton(
+                        key: Key('settings-style-${style.name}'),
+                        selected: options.pieceStyle == style,
+                        onPressed: () =>
+                            update((o) => o.copyWith(pieceStyle: style)),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 11,
+                          horizontal: 8,
+                        ),
+                        look: OptionLook.settingsFilled,
+                        child: _Labelled(
+                          label: style.label,
+                          labelSize: 9.5,
+                          child: PieceGlyph(
+                            piece: Piece.whiteKnight,
+                            style: style,
+                            fontSize: 22,
+                            colour: styleSampleInk,
+                            shadows: styleSampleShadow,
+                            textKey: Key('settings-style-sample-${style.name}'),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _Section(
+                  title: 'Board surface',
+                  children: [
+                    for (final surface in BoardSurface.values)
+                      OptionButton(
+                        key: Key('settings-surface-${surface.name}'),
+                        selected: options.surface == surface,
+                        onPressed: () =>
+                            update((o) => o.copyWith(surface: surface)),
+                        padding: const EdgeInsets.all(9),
+                        child: _Labelled(
+                          label: surface.label,
+                          labelSize: 9.5,
+                          child: _SurfaceStrip(
+                            surface: surface,
+                            base: options.theme.dark,
+                            scale: scale,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                for (final group in ['PLAY', 'DISPLAY', 'SOUND']) ...[
                   const SizedBox(height: 12),
-                  const _StoredNote(),
-                  const SizedBox(height: 12),
-                  _VersionLine(_version!),
+                  _Group(
+                    title: group,
+                    rows: [
+                      for (final t in _toggles.where((t) => t.group == group))
+                        SettingRow(
+                          key: Key('settings-toggle-${t.id}'),
+                          label: t.label,
+                          description: t.id == 'takeback' && inProgress
+                              ? takebackNextGame
+                              : t.description,
+                          value: t.read(options),
+                          onChanged: () {
+                            final before = options;
+                            update((o) => t.write(o, !t.read(o)));
+                            final after = settings.board.value;
+                            // Turning effects on plays a sample of them;
+                            // turning haptics on ticks one.
+                            if (!before.sfx && after.sfx) {
+                              scope.sound.play(Clip.move);
+                            }
+                            if (!before.haptics && after.haptics) {
+                              unawaited(scope.haptics.tick());
+                            }
+                          },
+                        ),
+                    ],
+                  ),
                 ],
-              );
-            },
-          ),
+                const SizedBox(height: 12),
+                const _StoredNote(),
+                const SizedBox(height: 12),
+                _VersionLine(_version!),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -291,8 +343,10 @@ class _Group extends StatelessWidget {
           child: Semantics(
             container: true,
             header: true,
+            headingLevel: 2,
             child: Text(
               title,
+              semanticsLabel: spokenCaps(title),
               style: const TextStyle(
                 fontFamily: Fonts.plexMono,
                 fontWeight: FontWeight.w500,
@@ -316,15 +370,16 @@ class _StoredNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SectionCard(
-      key: Key('settings-note'),
+    return SectionCard(
+      key: const Key('settings-note'),
       fill: Palette.optionFill,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             storedNoteKicker,
-            style: TextStyle(
+            semanticsLabel: spokenCaps(storedNoteKicker),
+            style: const TextStyle(
               fontFamily: Fonts.plexMono,
               fontWeight: FontWeight.w500,
               fontSize: 9,
@@ -333,8 +388,8 @@ class _StoredNote extends StatelessWidget {
               color: Palette.kicker,
             ),
           ),
-          SizedBox(height: 9),
-          Text(
+          const SizedBox(height: 9),
+          const Text(
             storedNoteText,
             style: TextStyle(
               fontFamily: Fonts.outfit,
@@ -355,7 +410,7 @@ class _StoredNote extends StatelessWidget {
 class _VersionLine extends StatelessWidget {
   const _VersionLine(this.version);
 
-  final Future<String> version;
+  final Future<AppVersion?> version;
 
   static const _size = 9.5;
   static const _lineHeight = 1.6;
@@ -364,21 +419,25 @@ class _VersionLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: _size * _lineHeight,
-      child: FutureBuilder<String>(
+      child: FutureBuilder<AppVersion?>(
         future: version,
-        builder: (context, snapshot) => Text(
-          snapshot.data ?? '',
-          key: const Key('settings-version'),
-          maxLines: 1,
-          style: const TextStyle(
-            fontFamily: Fonts.plexMono,
-            fontWeight: FontWeight.w500,
-            fontSize: _size,
-            height: _lineHeight,
-            letterSpacing: _size * .14,
-            color: Palette.textFaint,
-          ),
-        ),
+        builder: (context, snapshot) {
+          final answered = snapshot.connectionState == ConnectionState.done;
+          return Text(
+            answered ? versionLine(snapshot.data) : '',
+            key: const Key('settings-version'),
+            semanticsLabel: answered ? versionSpeech(snapshot.data) : '',
+            maxLines: 1,
+            style: const TextStyle(
+              fontFamily: Fonts.plexMono,
+              fontWeight: FontWeight.w500,
+              fontSize: _size,
+              height: _lineHeight,
+              letterSpacing: _size * .14,
+              color: Palette.textFaint,
+            ),
+          );
+        },
       ),
     );
   }
@@ -401,7 +460,9 @@ class _Section extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Semantics(
+            container: true,
             header: true,
+            headingLevel: 2,
             child: Text(
               title,
               style: const TextStyle(
@@ -464,6 +525,7 @@ class _Labelled extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           label,
+          semanticsLabel: spokenCaps(label),
           maxLines: 1,
           overflow: TextOverflow.visible,
           softWrap: false,

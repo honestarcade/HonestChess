@@ -1,15 +1,16 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 
 import '../../data/play_mode.dart';
 import '../app_scope.dart';
 import '../board/board_view.dart' show designWidth;
 import '../content/stats_view.dart';
+import '../game/labels.dart';
 import '../game/pause_overlay.dart' show disabledPauseButtonOpacity;
 import '../theme/palette.dart';
 import '../widgets/option_button.dart';
+import '../motion.dart';
 import '../widgets/screen_header.dart';
 import '../widgets/segmented_tabs.dart';
 
@@ -86,7 +87,7 @@ class _StatsScreenState extends State<StatsScreen>
     super.dispose();
   }
 
-  bool get _instant => MediaQuery.disableAnimationsOf(context);
+  bool get _instant => Motion.of(context).isOff;
 
   void _show(PlayMode tab) {
     setState(() => _tab = tab);
@@ -94,13 +95,8 @@ class _StatsScreenState extends State<StatsScreen>
     if (_scroll.hasClients) _scroll.jumpTo(0);
   }
 
-  void _announce(String message) {
-    SemanticsService.sendAnnouncement(
-      View.of(context),
-      message,
-      Directionality.of(context),
-    ).ignore();
-  }
+  void _announce(String message) =>
+      AppScope.of(context).announcer.announce(message);
 
   void _ask() {
     if (_open) return;
@@ -162,30 +158,26 @@ class _StatsScreenState extends State<StatsScreen>
     final s =
         math.min(MediaQuery.sizeOf(context).width, statsScaleCapWidth) /
         designWidth;
-    // Screen text ignores the system text scale, as the board does, until
-    // M5's accessibility work.
-    return MediaQuery.withNoTextScaling(
-      child: PopScope(
-        canPop: !_open,
-        onPopInvokedWithResult: (didPop, _) {
-          if (!didPop) _close();
-        },
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Scaffold(
-              backgroundColor: Palette.screenBg,
-              body: SafeArea(
-                child: ListenableBuilder(
-                  listenable: stats,
-                  builder: (context, _) =>
-                      _body(statsView(stats.document, _tab), s),
-                ),
+    return PopScope(
+      canPop: !_open,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _close();
+      },
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Scaffold(
+            backgroundColor: Palette.screenBg,
+            body: SafeArea(
+              child: ListenableBuilder(
+                listenable: stats,
+                builder: (context, _) =>
+                    _body(statsView(stats.document, _tab), s),
               ),
             ),
-            if (!_confirm.isDismissed || _open) _overlay(s),
-          ],
-        ),
+          ),
+          if (!_confirm.isDismissed || _open) _overlay(s),
+        ],
       ),
     );
   }
@@ -344,7 +336,9 @@ class _StatsScreenState extends State<StatsScreen>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Semantics(
+              container: true,
               header: true,
+              headingLevel: 2,
               child: Text(
                 resetTitle,
                 key: const Key('stats-reset-title'),
@@ -586,10 +580,13 @@ class _Breakdown extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Semantics(
+            container: true,
             header: true,
+            headingLevel: 2,
             child: Text(
               view.breakdownTitle,
               key: const Key('stats-breakdown-title'),
+              semanticsLabel: spokenCaps(view.breakdownTitle),
               style: _font(
                 Fonts.plexMono,
                 FontWeight.w500,
@@ -768,6 +765,7 @@ class _ButtonState extends State<_Button> {
       button: true,
       enabled: w.onTap != null,
       label: w.label,
+      onTap: w.onTap,
       excludeSemantics: true,
       child: Opacity(
         opacity: w.onTap == null ? disabledPauseButtonOpacity : 1,

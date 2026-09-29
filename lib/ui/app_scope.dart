@@ -2,10 +2,14 @@ import 'dart:math';
 
 import 'package:flutter/widgets.dart';
 
+import '../a11y/announcer.dart';
 import '../data/app_store.dart';
 import '../data/game_saves.dart';
 import '../data/settings_store.dart';
 import '../data/stats.dart';
+import '../feedback/haptics.dart';
+import '../feedback/music_controller.dart';
+import '../feedback/sound_player.dart';
 import '../platform/platform_channel.dart';
 import 'game/game_controller.dart';
 import 'navigation.dart';
@@ -14,8 +18,10 @@ import 'navigation.dart';
 /// and overlay sees it: the store and the platform bridge (#80), the game
 /// controller and the saved games (#81), the statistics (#82) and the
 /// settings (#83), the navigating flag and the random source for
-/// Random's colour (#85). Later stories add their own fields. The root creates each object once, and live
-/// changes reach widgets through those objects' own listenables.
+/// Random's colour (#85), the sounds and the music loop's gate (#96), the
+/// haptic port (#97), the screen reader's announcer (#102). Later stories add their own fields. The root creates
+/// each object once, and live changes reach widgets through those objects'
+/// own listenables.
 class AppScope extends InheritedWidget {
   const AppScope({
     super.key,
@@ -27,6 +33,10 @@ class AppScope extends InheritedWidget {
     required this.settings,
     required this.navigation,
     required this.random,
+    required this.sound,
+    required this.music,
+    required this.haptics,
+    required this.announcer,
     required super.child,
   });
 
@@ -53,6 +63,22 @@ class AppScope extends InheritedWidget {
   /// Draws Random's colour when a game starts; tests pass a scripted one.
   final Random random;
 
+  /// The sound bridge: the feedback hub plays through it, and Settings plays
+  /// its sample (#96).
+  final SoundPlayer sound;
+
+  /// The music loop's gate, which follows the settings, the board route,
+  /// the game and the app's lifecycle by itself (#96).
+  final MusicController music;
+
+  /// The one place that ticks: the feedback hub ticks through it, and
+  /// Settings ticks its sample (#97).
+  final HapticsPort haptics;
+
+  /// The one door to TalkBack: the feedback hub and the board speak
+  /// through it (#102).
+  final Announcer announcer;
+
   /// The nearest scope. It does not register a dependency, so it works in
   /// `initState` and callbacks; there is no `maybeOf`, because a widget
   /// outside the scope is a wiring mistake.
@@ -76,5 +102,9 @@ class AppScope extends InheritedWidget {
       !identical(stats, oldWidget.stats) ||
       !identical(settings, oldWidget.settings) ||
       !identical(navigation, oldWidget.navigation) ||
-      !identical(random, oldWidget.random);
+      !identical(random, oldWidget.random) ||
+      !identical(sound, oldWidget.sound) ||
+      !identical(music, oldWidget.music) ||
+      !identical(haptics, oldWidget.haptics) ||
+      !identical(announcer, oldWidget.announcer);
 }

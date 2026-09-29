@@ -1,13 +1,22 @@
 import 'dart:math' as math;
+import 'dart:ui' show SemanticsRole;
 
 import 'package:flutter/material.dart';
 
 import '../theme/palette.dart';
 import 'option_button.dart';
 
-/// The design's two-button tab pill (How to play's, Statistics'): one
-/// button per [values] entry, labelled by [labelOf], the [selected] one
-/// filled teal. Tapping another calls [onChanged] at once; tapping the
+/// What a screen reader says for the tab at [index] of [count]:
+/// "The pieces, tab, 1 of 2". The label carries the position, as Flutter's
+/// own TabBar's does, because Flutter 3.47.5's Android embedding gives the
+/// tab role no Android class to speak (its RoleConfiguratorFactory, read
+/// 2026-09-29).
+String tabSpeech(String label, int index, int count) =>
+    '$label, tab, ${index + 1} of $count';
+
+/// The design's two-button tab pill (How to play's, Statistics'), a tab
+/// bar to a screen reader: one tab per [values] entry, labelled by
+/// [labelOf], the [selected] one filled teal. Tapping another calls [onChanged] at once; tapping the
 /// selected one does nothing. Each tab is keyed `<keyPrefix>-tab-<name>`.
 ///
 /// The pill is drawn at the design's size, scaled by [scale], and centred
@@ -73,24 +82,30 @@ class SegmentedTabs<T extends Enum> extends StatelessWidget {
               ),
             ),
           ),
-          Row(
-            children: [
-              for (final (i, value) in values.indexed)
-                Expanded(
-                  child: _Tab(
-                    key: Key('$keyPrefix-tab-${value.name}'),
-                    label: labelOf(value),
-                    selected: value == selected,
-                    onTap: value == selected ? null : () => onChanged(value),
-                    padding: EdgeInsets.only(
-                      left: i == 0 ? edge : halfGap,
-                      right: i == values.length - 1 ? edge : halfGap,
+          Semantics(
+            container: true,
+            explicitChildNodes: true,
+            role: SemanticsRole.tabBar,
+            child: Row(
+              children: [
+                for (final (i, value) in values.indexed)
+                  Expanded(
+                    child: _Tab(
+                      key: Key('$keyPrefix-tab-${value.name}'),
+                      label: labelOf(value),
+                      spoken: tabSpeech(labelOf(value), i, values.length),
+                      selected: value == selected,
+                      onTap: value == selected ? null : () => onChanged(value),
+                      padding: EdgeInsets.only(
+                        left: i == 0 ? edge : halfGap,
+                        right: i == values.length - 1 ? edge : halfGap,
+                      ),
+                      buttonHeight: drawn - 2 * edge,
+                      scale: scale,
                     ),
-                    buttonHeight: drawn - 2 * edge,
-                    scale: scale,
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -102,6 +117,7 @@ class _Tab extends StatefulWidget {
   const _Tab({
     super.key,
     required this.label,
+    required this.spoken,
     required this.selected,
     required this.onTap,
     required this.padding,
@@ -110,6 +126,7 @@ class _Tab extends StatefulWidget {
   });
 
   final String label;
+  final String spoken;
   final bool selected;
   final VoidCallback? onTap;
   final EdgeInsets padding;
@@ -136,10 +153,11 @@ class _TabState extends State<_Tab> {
         ? Palette.teal
         : Palette.textBody;
     return Semantics(
-      button: true,
+      container: true,
+      role: SemanticsRole.tab,
       inMutuallyExclusiveGroup: true,
       selected: selected,
-      label: widget.label,
+      label: widget.spoken,
       onTap: widget.onTap ?? () {},
       excludeSemantics: true,
       child: GestureDetector(

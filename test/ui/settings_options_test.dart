@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:honest_chess/data/app_store.dart';
 import 'package:honest_chess/data/settings_store.dart';
 import 'package:honest_chess/engine/engine.dart';
+import 'package:honest_chess/feedback/clips.dart';
 import 'package:honest_chess/platform/platform_channel.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/game/defaults.dart';
@@ -60,10 +61,34 @@ final _rows =
         read: (o) => o.rotateEachTurn,
       ),
       (
+        key: 'settings-toggle-anim',
+        label: 'Piece animations',
+        description: 'Slide pieces to their square instead of jumping.',
+        read: (o) => o.animations,
+      ),
+      (
         key: 'settings-toggle-check-flag',
         label: 'Flag check on the board',
         description: 'Redden the king square whenever it is in check.',
         read: (o) => o.flagCheck,
+      ),
+      (
+        key: 'settings-toggle-sfx',
+        label: 'Sound effects',
+        description: 'Moves, captures, castling, check and the end of a game.',
+        read: (o) => o.sfx,
+      ),
+      (
+        key: 'settings-toggle-music',
+        label: 'Background music',
+        description: 'Quiet loop while you play.',
+        read: (o) => o.music,
+      ),
+      (
+        key: 'settings-toggle-haptics',
+        label: 'Haptics',
+        description: 'A short tick on an illegal tap or a capture.',
+        read: (o) => o.haptics,
       ),
     ];
 
@@ -153,51 +178,57 @@ void _move(GameController c, String uci) => expect(
 );
 
 void main() {
-  testWidgets('the PLAY and DISPLAY rows read as the design writes them', (
-    tester,
-  ) async {
-    await _pumpSettings(tester);
-    for (final kicker in ['PLAY', 'DISPLAY']) {
-      expect(find.text(kicker), findsOneWidget, reason: 'settings: $kicker');
-    }
-    const defaults = BoardOptions();
-    for (final row in _rows) {
-      final widget = tester.widget<SettingRow>(find.byKey(Key(row.key)));
+  testWidgets(
+    'the PLAY, DISPLAY and SOUND rows read as the design writes them',
+    (tester) async {
+      await _pumpSettings(tester);
+      for (final kicker in ['PLAY', 'DISPLAY', 'SOUND']) {
+        expect(find.text(kicker), findsOneWidget, reason: 'settings: $kicker');
+      }
+      const defaults = BoardOptions();
+      for (final row in _rows) {
+        final widget = tester.widget<SettingRow>(find.byKey(Key(row.key)));
+        expect(
+          (widget.label, widget.description, widget.value),
+          (row.label, row.description, row.read(defaults)),
+          reason: 'settings-options: ${row.key} reads as the design',
+        );
+        expect(
+          tester.getSemantics(find.byKey(Key(row.key))),
+          isSemantics(
+            label: '${row.label}, ${row.description}',
+            hasToggledState: true,
+            isToggled: row.read(defaults),
+            hasTapAction: true,
+          ),
+          reason: 'settings-options: ${row.key} is one toggled node',
+        );
+      }
       expect(
-        (widget.label, widget.description, widget.value),
-        (row.label, row.description, row.read(defaults)),
-        reason: 'settings-options: ${row.key} reads as the design',
+        tester.getTopLeft(find.text('Flag check on the board')).dy,
+        greaterThan(tester.getTopLeft(find.text('DISPLAY')).dy),
+        reason: 'settings-options: check flag sits under DISPLAY',
       );
       expect(
-        tester.getSemantics(find.byKey(Key(row.key))),
-        isSemantics(
-          label: '${row.label}, ${row.description}',
-          hasToggledState: true,
-          isToggled: row.read(defaults),
-          hasTapAction: true,
+        tester.getTopLeft(find.text('Sound effects')).dy,
+        greaterThan(tester.getTopLeft(find.text('SOUND')).dy),
+        reason: 'settings-options: the sound rows sit under SOUND',
+      );
+      expect(
+        tester.getTopLeft(find.text('SOUND')).dy,
+        greaterThan(tester.getTopLeft(find.text('Flag check on the board')).dy),
+        reason: 'settings-options: SOUND comes after DISPLAY',
+      );
+      expect(
+        tester.getTopLeft(find.text('Piece animations')).dy,
+        allOf(
+          greaterThan(tester.getTopLeft(find.text('DISPLAY')).dy),
+          lessThan(tester.getTopLeft(find.text('Flag check on the board')).dy),
         ),
-        reason: 'settings-options: ${row.key} is one toggled node',
+        reason: 'settings-options: Piece animations is first under DISPLAY',
       );
-    }
-    expect(
-      tester.getTopLeft(find.text('Flag check on the board')).dy,
-      greaterThan(tester.getTopLeft(find.text('DISPLAY')).dy),
-      reason: 'settings-options: check flag sits under DISPLAY',
-    );
-    for (final hidden in [
-      'Piece animations',
-      'Sound effects',
-      'Background music',
-      'Haptics',
-      'SOUND',
-    ]) {
-      expect(
-        find.textContaining(hidden),
-        findsNothing,
-        reason: 'settings-options: "$hidden" stays hidden until M5',
-      );
-    }
-  });
+    },
+  );
 
   testWidgets('each toggle flips its field, draws it and keeps it', (
     tester,
@@ -240,7 +271,7 @@ void main() {
         reason: 'settings-options: ${row.key} is saved at once',
       );
     }
-    // Only its own field moved each time: the whole walk flipped all six.
+    // Only its own field moved each time: the whole walk flipped them all.
     expect(
       harness.settings.board.value,
       const BoardOptions(
@@ -249,10 +280,81 @@ void main() {
         takebackAllowed: false,
         autoQueen: true,
         rotateEachTurn: true,
+        animations: false,
         flagCheck: false,
+        sfx: false,
+        music: true,
+        haptics: false,
       ),
       reason: 'settings-options: the toggles touch nothing else',
     );
+  });
+
+  testWidgets('turning Sound effects on plays one sample move; nothing else '
+      'does', (tester) async {
+    final store = AppStore.memory(
+      documents: {
+        StoreDoc.settings: {
+          'board': encodeBoard(const BoardOptions(sfx: true, music: true)),
+        },
+      },
+    );
+    final harness = await _pumpSettings(tester, store: store);
+    expect(
+      harness.sound.played,
+      isEmpty,
+      reason: 'settings-sound: the launch restore plays no sample',
+    );
+    await _toggle(tester, 'settings-toggle-sfx');
+    expect(harness.settings.board.value.sfx, isFalse);
+    expect(
+      harness.sound.played,
+      isEmpty,
+      reason: 'settings-sound: turning effects off plays nothing',
+    );
+    await _toggle(tester, 'settings-toggle-sfx');
+    expect(harness.settings.board.value.sfx, isTrue);
+    expect(harness.sound.played, [
+      Clip.move,
+    ], reason: 'settings-sound: turning effects on plays one sample move');
+    await _toggle(tester, 'settings-toggle-music');
+    await _toggle(tester, 'settings-toggle-music');
+    await _toggle(tester, 'settings-toggle-dots');
+    expect(harness.sound.played, [
+      Clip.move,
+    ], reason: 'settings-sound: no other switch plays the sample');
+    expect(await _saved(store), harness.settings.board.value);
+  });
+
+  testWidgets('turning Haptics on ticks one sample; nothing else does', (
+    tester,
+  ) async {
+    final store = AppStore.memory();
+    final harness = await _pumpSettings(tester, store: store);
+    expect(harness.settings.board.value.haptics, isTrue);
+    await _toggle(tester, 'settings-toggle-haptics');
+    expect(harness.settings.board.value.haptics, isFalse);
+    expect(
+      harness.haptics.ticks,
+      0,
+      reason: 'settings-haptics: turning haptics off ticks nothing',
+    );
+    await _toggle(tester, 'settings-toggle-haptics');
+    expect(
+      harness.haptics.ticks,
+      1,
+      reason: 'settings-haptics: turning haptics on ticks one sample',
+    );
+    await _toggle(tester, 'settings-toggle-sfx');
+    await _toggle(tester, 'settings-toggle-sfx');
+    await _toggle(tester, 'settings-toggle-dots');
+    expect(
+      harness.haptics.ticks,
+      1,
+      reason: 'settings-haptics: no other switch ticks',
+    );
+    expect(harness.sound.played, hasLength(1));
+    expect((await _saved(store)).haptics, isTrue);
   });
 
   testWidgets('every tap counts, even mid-slide', (tester) async {
@@ -327,14 +429,14 @@ void main() {
     await _back(tester);
     await tester.tap(find.byKey(const Key('cell-e2')));
     await tester.pump();
-    expect(find.byKey(const Key('selected-e2')), findsOneWidget);
+    expect(find.byKey(const Key('ring-selected-e2')), findsOneWidget);
     expect(find.byKey(const Key('dot-e4')), findsOneWidget);
 
     await _openSettings(tester);
     await _toggle(tester, 'settings-toggle-dots');
     expect(root.controller.options.legalMoveDots, isFalse);
     await _back(tester);
-    expect(find.byKey(const Key('selected-e2')), findsOneWidget);
+    expect(find.byKey(const Key('ring-selected-e2')), findsOneWidget);
     expect(
       find.byKey(const Key('dot-e4')),
       findsNothing,
@@ -505,7 +607,7 @@ void main() {
       expect(style.color, Palette.textFaint);
       expect(
         tester.getSemantics(find.byKey(const Key('settings-version'))),
-        isSemantics(label: 'v1.2.3 · BUILD 1034'),
+        isSemantics(label: 'Version 1.2.3, build 1034'),
       );
     });
 

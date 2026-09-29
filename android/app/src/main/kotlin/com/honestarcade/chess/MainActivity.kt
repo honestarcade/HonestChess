@@ -3,8 +3,10 @@ package com.honestarcade.chess
 import android.content.Intent
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -13,13 +15,25 @@ import io.flutter.plugin.common.MethodChannel
 private const val CHANNEL = "honestchess/platform"
 
 class MainActivity : FlutterActivity() {
+    private var sound: SoundBridge? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // The volume keys set the media volume the game's sounds play at (#96).
+        volumeControlStream = AudioManager.STREAM_MUSIC
+    }
+
     // The app's whole Android surface (#80): the private files directory the
     // store saves into, opening an https link in the browser, and the
-    // installed version. None of it needs a permission, and
-    // test/guards/platform_surface_test.dart keeps the channel to exactly
-    // these three methods.
+    // installed version; and, on a second channel in SoundBridge.kt, the
+    // sounds (#96). None of it needs a permission, and
+    // test/guards/platform_surface_test.dart keeps each channel to exactly
+    // its own methods.
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        val bridge = SoundBridge(applicationContext)
+        bridge.attach(flutterEngine.dartExecutor.binaryMessenger)
+        sound = bridge
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -29,6 +43,23 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    override fun onPause() {
+        // The loop never plays behind another app; Dart restarts it on return.
+        sound?.pauseMusic()
+        super.onPause()
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        sound?.release()
+        super.cleanUpFlutterEngine(flutterEngine)
+    }
+
+    override fun onDestroy() {
+        sound?.release()
+        sound = null
+        super.onDestroy()
     }
 
     private fun filesDir(result: MethodChannel.Result) {

@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:honest_chess/data/app_store.dart';
 import 'package:honest_chess/data/play_mode.dart';
 import 'package:honest_chess/engine/engine.dart';
+import 'package:honest_chess/feedback/clips.dart';
 import 'package:honest_chess/main.dart';
 import 'package:honest_chess/ui/app_scope.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
@@ -29,6 +30,7 @@ Future<HonestChessAppState> _launch(
   FakeComputers? fakes,
   int? seedOverride,
   FakePlatformChannel? platform,
+  FakeSoundPlayer? sound,
 }) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
@@ -40,6 +42,8 @@ Future<HonestChessAppState> _launch(
       seedOverride: seedOverride,
       store: store,
       platform: platform ?? FakePlatformChannel(),
+      sound: sound ?? FakeSoundPlayer(),
+      haptics: FakeHaptics(),
     ),
   );
   // The splash shows while the launch load runs, then the menu fades in,
@@ -210,6 +214,39 @@ void main() {
     ], reason: 'app: the computer answers');
     // The running clock keeps a ticker alive; leaving stops it.
     await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the root loads the clips once, sounds both sides\' moves, '
+      'tracks the foreground and releases the player', (tester) async {
+    final fakes = FakeComputers();
+    final sound = FakeSoundPlayer();
+    final root = await _launch(
+      tester,
+      AppStore.memory(),
+      fakes: fakes,
+      sound: sound,
+    );
+    expect(sound.loads, [clips], reason: 'sound: every clip loads once');
+    await _tapThrough(tester, 'menu-vs-computer');
+    await _tapThrough(tester, 'csetup-start');
+    expect(sound.played, isEmpty, reason: 'sound: a new game is silent');
+
+    await tester.tap(find.byKey(const Key('cell-e2')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('cell-e4')));
+    await tester.pump();
+    fakes.current.last.move('d7d5');
+    await tester.pump(minThinkTime);
+    expect(sound.played, [Clip.move, Clip.move]);
+
+    await leave(tester, AppLifecycleState.inactive);
+    expect(root.controller.state.paused, isTrue);
+    expect(root.foreground.value, isFalse);
+    await comeBack(tester);
+    expect(root.foreground.value, isTrue);
+
+    await tester.pumpWidget(const SizedBox());
+    expect(sound.disposed, isTrue, reason: 'sound: released with the root');
   });
 
   group('saved games', () {

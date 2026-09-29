@@ -7,6 +7,7 @@ import '../app_scope.dart';
 import '../board/board_view.dart' show designWidth;
 import '../brand/honest_mark.dart';
 import '../brand/links.dart';
+import '../game/labels.dart';
 import '../content/about_content.dart';
 import '../navigation.dart';
 import 'about_arcade_screen.dart' show aboutScaleCapWidth;
@@ -17,6 +18,11 @@ import '../widgets/screen_header.dart';
 /// The version line's text when no version name is known: the design's
 /// "3.6 MB" is left out, since no fixed size would stay true.
 const offlineText = 'OFFLINE';
+
+/// What a screen reader says for the version line: "Version 0.1.0,
+/// offline", or "Offline" with no version name.
+String versionOfflineSpeech(String? name) =>
+    name == null ? 'Offline' : 'Version $name, offline';
 
 /// The smallest height a tappable takes.
 const _minTouch = 48.0;
@@ -45,67 +51,63 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Screen text ignores the system text scale, as the board does, until
-    // M5's accessibility work.
-    return MediaQuery.withNoTextScaling(
-      child: Scaffold(
-        backgroundColor: Palette.screenBg,
-        resizeToAvoidBottomInset: false,
-        body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final s =
-                  math.min(constraints.maxWidth, aboutScaleCapWidth) /
-                  designWidth;
-              final gap = 13 * s;
-              // The links' 48 dp touch height is centred on their line
-              // (9.5 × 1.7), eating into the gap above and the padding
-              // below so the drawn spacing stays the design's.
-              final linkLine = 9.5 * 1.7 * s;
-              final linkSpill = math.max(0.0, (_minTouch - linkLine) / 2);
-              return SingleChildScrollView(
-                key: const Key('aboutapp-scroll'),
-                // The design's 56 dp top padding, less its 44 dp status bar
-                // (SafeArea's here).
-                padding: EdgeInsets.fromLTRB(
-                  20 * s,
-                  12,
-                  20 * s,
-                  math.max(0.0, 30 * s - linkSpill),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const ScreenHeader(
-                      title: aboutAppTitle,
-                      keyPrefix: 'aboutapp',
+    return Scaffold(
+      backgroundColor: Palette.screenBg,
+      resizeToAvoidBottomInset: false,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final s =
+                math.min(constraints.maxWidth, aboutScaleCapWidth) /
+                designWidth;
+            final gap = 13 * s;
+            // The links' 48 dp touch height is centred on their line
+            // (9.5 × 1.7), eating into the gap above and the padding
+            // below so the drawn spacing stays the design's.
+            final linkLine = 9.5 * 1.7 * s;
+            final linkSpill = math.max(0.0, (_minTouch - linkLine) / 2);
+            return SingleChildScrollView(
+              key: const Key('aboutapp-scroll'),
+              // The design's 56 dp top padding, less its 44 dp status bar
+              // (SafeArea's here).
+              padding: EdgeInsets.fromLTRB(
+                20 * s,
+                12,
+                20 * s,
+                math.max(0.0, 30 * s - linkSpill),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const ScreenHeader(
+                    title: aboutAppTitle,
+                    keyPrefix: 'aboutapp',
+                  ),
+                  SizedBox(height: gap),
+                  _AppCard(scale: s, versionName: _versionName!),
+                  SizedBox(height: gap),
+                  Text(
+                    appDescription,
+                    key: const Key('aboutapp-description'),
+                    style: _font(
+                      Fonts.outfit,
+                      FontWeight.w400,
+                      13.5,
+                      1.65,
+                      Palette.textLead,
+                      s,
                     ),
-                    SizedBox(height: gap),
-                    _AppCard(scale: s, versionName: _versionName!),
-                    SizedBox(height: gap),
-                    Text(
-                      appDescription,
-                      key: const Key('aboutapp-description'),
-                      style: _font(
-                        Fonts.outfit,
-                        FontWeight.w400,
-                        13.5,
-                        1.65,
-                        Palette.textLead,
-                        s,
-                      ),
-                    ),
-                    SizedBox(height: gap),
-                    _Features(scale: s),
-                    SizedBox(height: gap),
-                    _PromisesPanel(scale: s),
-                    SizedBox(height: math.max(0.0, gap - linkSpill)),
-                    _MadeBy(scale: s, height: linkLine + 2 * linkSpill),
-                  ],
-                ),
-              );
-            },
-          ),
+                  ),
+                  SizedBox(height: gap),
+                  _Features(scale: s),
+                  SizedBox(height: gap),
+                  _PromisesPanel(scale: s),
+                  SizedBox(height: math.max(0.0, gap - linkSpill)),
+                  _MadeBy(scale: s, height: linkLine + 2 * linkSpill),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -136,10 +138,13 @@ TextStyle _font(
 /// The design's section kicker: Plex Mono, spaced, read as a header.
 Widget _kicker(String text, Color colour, double size, double s, Key key) =>
     Semantics(
+      container: true,
       header: true,
+      headingLevel: 2,
       child: Text(
         text,
         key: key,
+        semanticsLabel: spokenCaps(text),
         style: _font(
           Fonts.plexMono,
           FontWeight.w500,
@@ -206,6 +211,7 @@ class _AppCard extends StatelessWidget {
                     return Text(
                       name == null ? offlineText : 'v$name · $offlineText',
                       key: const Key('aboutapp-version'),
+                      semanticsLabel: versionOfflineSpeech(name),
                       style: _font(
                         Fonts.plexMono,
                         FontWeight.w500,
@@ -419,6 +425,7 @@ class _Chip extends StatelessWidget {
           Expanded(
             child: Text(
               label,
+              semanticsLabel: spokenCaps(label),
               style: _font(
                 Fonts.plexMono,
                 FontWeight.w500,
@@ -543,7 +550,7 @@ class _MadeBy extends StatelessWidget {
     Widget link(String key, String url, String text) => ExternalLink(
       key: Key('aboutapp-link-$key'),
       url: url,
-      semanticsLabel: '$text, opens in browser',
+      semanticsLabel: spokenCaps(text),
       builder: (context, pressed) => SizedBox(
         height: height,
         child: Center(
@@ -564,7 +571,11 @@ class _MadeBy extends StatelessWidget {
       crossAxisAlignment: WrapCrossAlignment.center,
       spacing: 8 * s,
       children: [
-        Text(madeByText, style: style(Palette.textFaint)),
+        Text(
+          madeByText,
+          semanticsLabel: spokenCaps(madeByText),
+          style: style(Palette.textFaint),
+        ),
         link('arcade', Links.site, arcadeLinkText),
         ExcludeSemantics(child: Text('·', style: style(Palette.textFaint))),
         link('source', appSourceUrl, githubLinkText),

@@ -79,8 +79,13 @@ StripePattern? _surface(WidgetTester tester) {
 }
 
 /// The colour [label] is painted in, after its button's DefaultTextStyle.
-Color? _labelColour(WidgetTester tester, String label) =>
-    tester.renderObject<RenderParagraph>(find.text(label)).text.style?.color;
+Color? _labelColour(WidgetTester tester, String label) => tester
+    .renderObject<RenderParagraph>(
+      find.descendant(of: find.text(label), matching: find.byType(RichText)),
+    )
+    .text
+    .style
+    ?.color;
 
 Future<void> _choose(WidgetTester tester, String key) async {
   await tester.ensureVisible(find.byKey(Key(key)));

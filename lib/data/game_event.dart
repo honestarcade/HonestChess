@@ -12,9 +12,13 @@ sealed class GameEvent {
   final Map<String, Object?> recorded;
 }
 
-/// A new game was put on the board: New, Restart or Rematch.
+/// A new game was put on the board: New, Restart or Rematch. [restart] is
+/// true for Restart and Rematch, which play the same game again, so the
+/// spoken start (#102) can say which.
 final class GameStarted extends GameEvent {
-  const GameStarted(super.game, super.recorded);
+  const GameStarted(super.game, super.recorded, {this.restart = false});
+
+  final bool restart;
 }
 
 /// A move was applied — yours, the computer's, or either player's.

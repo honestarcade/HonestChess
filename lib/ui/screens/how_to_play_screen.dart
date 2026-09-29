@@ -7,6 +7,7 @@ import '../app_scope.dart';
 import '../board/board_options.dart';
 import '../board/board_view.dart';
 import '../content/rules_text.dart';
+import '../game/labels.dart';
 import '../theme/palette.dart';
 import '../widgets/screen_header.dart';
 import '../widgets/segmented_tabs.dart';
@@ -48,54 +49,50 @@ class _HowToPlayScreenState extends State<HowToPlayScreen> {
   @override
   Widget build(BuildContext context) {
     final board = AppScope.of(context).settings.board;
-    // Screen text ignores the system text scale, as the board does, until
-    // M5's accessibility work.
-    return MediaQuery.withNoTextScaling(
-      child: Scaffold(
-        backgroundColor: Palette.screenBg,
-        body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final s =
-                  math.min(constraints.maxWidth, howToScaleCapWidth) /
-                  designWidth;
-              final pillGap = 13 * s - SegmentedTabs.overhang(s);
-              return SingleChildScrollView(
-                key: const Key('howto-scroll'),
-                controller: _scroll,
-                // The design's 56 dp top padding, less its 44 dp status bar
-                // (SafeArea's here).
-                padding: EdgeInsets.fromLTRB(20 * s, 12, 20 * s, 30 * s),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const ScreenHeader(title: howToTitle, keyPrefix: 'howto'),
-                    SizedBox(height: pillGap),
-                    SegmentedTabs<HowToTab>(
-                      values: HowToTab.values,
-                      labelOf: (t) => switch (t) {
-                        HowToTab.pieces => piecesTabLabel,
-                        HowToTab.rules => rulesTabLabel,
-                      },
-                      selected: _tab,
-                      onChanged: _show,
-                      keyPrefix: 'howto',
-                      scale: s,
-                    ),
-                    SizedBox(height: pillGap),
-                    switch (_tab) {
-                      HowToTab.pieces => ValueListenableBuilder<BoardOptions>(
-                        valueListenable: board,
-                        builder: (_, options, _) =>
-                            _PieceCards(options: options, scale: s),
-                      ),
-                      HowToTab.rules => _RuleCards(scale: s),
+    return Scaffold(
+      backgroundColor: Palette.screenBg,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final s =
+                math.min(constraints.maxWidth, howToScaleCapWidth) /
+                designWidth;
+            final pillGap = 13 * s - SegmentedTabs.overhang(s);
+            return SingleChildScrollView(
+              key: const Key('howto-scroll'),
+              controller: _scroll,
+              // The design's 56 dp top padding, less its 44 dp status bar
+              // (SafeArea's here).
+              padding: EdgeInsets.fromLTRB(20 * s, 12, 20 * s, 30 * s),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const ScreenHeader(title: howToTitle, keyPrefix: 'howto'),
+                  SizedBox(height: pillGap),
+                  SegmentedTabs<HowToTab>(
+                    values: HowToTab.values,
+                    labelOf: (t) => switch (t) {
+                      HowToTab.pieces => piecesTabLabel,
+                      HowToTab.rules => rulesTabLabel,
                     },
-                  ],
-                ),
-              );
-            },
-          ),
+                    selected: _tab,
+                    onChanged: _show,
+                    keyPrefix: 'howto',
+                    scale: s,
+                  ),
+                  SizedBox(height: pillGap),
+                  switch (_tab) {
+                    HowToTab.pieces => ValueListenableBuilder<BoardOptions>(
+                      valueListenable: board,
+                      builder: (_, options, _) =>
+                          _PieceCards(options: options, scale: s),
+                    ),
+                    HowToTab.rules => _RuleCards(scale: s),
+                  },
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -257,9 +254,12 @@ class _RuleCards extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Semantics(
+                  container: true,
                   header: true,
+                  headingLevel: 2,
                   child: Text(
                     rule.tag,
+                    semanticsLabel: spokenCaps(rule.tag),
                     style: kicker(i == 0 ? Palette.teal : Palette.kicker),
                   ),
                 ),
@@ -291,8 +291,14 @@ class _RuleCards extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Semantics(
+                container: true,
                 header: true,
-                child: Text(gesturesKicker, style: kicker(Palette.kicker)),
+                headingLevel: 2,
+                child: Text(
+                  gesturesKicker,
+                  semanticsLabel: spokenCaps(gesturesKicker),
+                  style: kicker(Palette.kicker),
+                ),
               ),
               for (final (i, gesture) in gestures.indexed) ...[
                 SizedBox(height: i == 0 ? 11 * s : 8 * s),
@@ -313,6 +319,7 @@ class _RuleCards extends StatelessWidget {
                         ),
                         child: Text(
                           gesture.tag,
+                          semanticsLabel: spokenCaps(gesture.tag),
                           style: _font(
                             Fonts.plexMono,
                             FontWeight.w500,

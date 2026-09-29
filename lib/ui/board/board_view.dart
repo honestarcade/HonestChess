@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 
 import 'package:honest_chess/engine/engine.dart';
@@ -60,6 +61,40 @@ typedef PieceWrapper = Widget Function(
 /// Wraps everything drawn on [square] above the board's colours.
 typedef SquareWrapper = Widget Function(Square square, Widget child);
 
+/// A layer over the whole board, above every square's layers and inside
+/// the board's clip; [cell] is where a square is drawn, [side] a square's
+/// size and [scale] the board's scale from the design.
+typedef BoardLayer = Widget Function(
+  Rect Function(Square square) cell,
+  double side,
+  double scale,
+);
+
+/// What a screen reader gets for one square in place of [squareLabel]: the
+/// [label] it reads, the [onTap] a double-tap runs and, when there is one,
+/// the [onTapHint] naming what it does ("select", "move here").
+@immutable
+class SquareSemantics {
+  const SquareSemantics({
+    required this.label,
+    required this.onTap,
+    this.onTapHint,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final String? onTapHint;
+}
+
+/// [square]'s semantics, given its [piece].
+typedef SquareDescriber = SquareSemantics Function(Square square, Piece? piece);
+
+/// Tags each square's semantics node as the one tap target allowed under
+/// 48 × 48 dp: eight squares must fit across the phone, so a square cannot
+/// grow without the board shrinking (owner, #104's approval gate,
+/// 2026-09-28). The accessibility tests exempt only nodes carrying it.
+const SemanticsTag a11yExemptSquare = SemanticsTag('a11yExemptSquare');
+
 /// What a screen reader says for [square]: its name and what stands on it.
 String squareLabel(Square square, Piece? piece) => piece == null
     ? '${square.name}, empty'
@@ -74,9 +109,17 @@ String squareLabel(Square square, Piece? piece) => piece == null
 /// play screen and its tests can find them.
 ///
 /// The board knows nothing of a game. The play screen's highlights and
-/// gestures come in through three hooks, each called per square:
-/// [decorate] adds layers under the coordinates and the piece, [wrapPiece]
-/// wraps the square's piece and [wrapSquare] the whole square.
+/// gestures come in through hooks, each called per square: [decorate] adds
+/// layers under the coordinates and the piece, [decorateAbove] layers over
+/// the piece, each filling the square and taking no touches, [wrapPiece] wraps the square's piece
+/// and [wrapSquare] the whole square; [above] is one layer over all of
+/// them, which takes no touches.
+///
+/// Each square is one semantics node, read in the order the squares are
+/// seen — rank by rank from the top, left to right, whichever way the board
+/// faces. [describe] replaces its plain [squareLabel] with a label, a tap
+/// action and its hint, and then everything inside the square is left out
+/// of the semantics tree, so the node is the square's only one.
 class BoardView extends StatelessWidget {
   const BoardView({
     super.key,
@@ -84,16 +127,22 @@ class BoardView extends StatelessWidget {
     required this.bottom,
     this.options = const BoardOptions(),
     this.decorate,
+    this.decorateAbove,
     this.wrapPiece,
     this.wrapSquare,
+    this.above,
+    this.describe,
   });
 
   final Position position;
   final Colour bottom;
   final BoardOptions options;
   final SquareDecorator? decorate;
+  final SquareDecorator? decorateAbove;
   final PieceWrapper? wrapPiece;
   final SquareWrapper? wrapSquare;
+  final BoardLayer? above;
+  final SquareDescriber? describe;
 
   @override
   Widget build(BuildContext context) {
@@ -186,12 +235,25 @@ class BoardView extends StatelessWidget {
             ),
           if (pieceLayer != null)
             Positioned.fill(key: const ValueKey(#piece), child: pieceLayer),
+          // Over the piece, so a layer here would otherwise take the touch
+          // that starts the piece's drag.
+          for (final layer
+              in decorateAbove?.call(square, side, scale) ?? const <Widget>[])
+            Positioned.fill(
+              key: ValueKey((#above, layer.key)),
+              child: IgnorePointer(child: layer),
+            ),
         ],
       );
+      cell = wrapSquare?.call(square, cell) ?? cell;
+      final described = describe?.call(square, piece);
       cell = Semantics(
         container: true,
-        label: squareLabel(square, piece),
-        child: wrapSquare?.call(square, cell) ?? cell,
+        sortKey: OrdinalSortKey((row * 8 + column).toDouble()),
+        label: described?.label ?? squareLabel(square, piece),
+        onTap: described?.onTap,
+        onTapHint: described?.onTapHint,
+        child: described == null ? cell : ExcludeSemantics(child: cell),
       );
       overlays.add(
         Positioned.fromRect(
@@ -202,6 +264,7 @@ class BoardView extends StatelessWidget {
       );
     }
     final pattern = options.surface.pattern;
+    final layer = above;
     return Stack(
       children: [
         ...squares,
@@ -215,6 +278,19 @@ class BoardView extends StatelessWidget {
             ),
           ),
         ...overlays,
+        if (layer != null)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: layer(
+                (square) {
+                  final (column, row) = _viewCell(square);
+                  return Rect.fromLTWH(column * side, row * side, side, side);
+                },
+                side,
+                scale,
+              ),
+            ),
+          ),
         // The design's ring sits on the board's edge; drawn over the
         // squares it stays visible inside the clip.
         const Positioned.fill(
@@ -251,22 +327,40 @@ class BoardView extends StatelessWidget {
           fontWeight: FontWeight.w600,
           fontSize: 8 * scale,
           height: 1,
-          color: onLight ? Palette.coordOnLight : Palette.coordOnDark,
+          color: onLight
+              ? options.theme.labelOnLight
+              : options.theme.labelOnDark,
         ),
       ),
     );
   }
 
-  Widget _piece(Square square, Piece piece, double side, double scale) {
-    final flat = options.pieceStyle == PieceStyle.flat;
-    return PieceGlyph(
-      piece: piece,
-      style: options.pieceStyle,
-      fontSize: (side * (flat ? 0.62 : 0.92)).roundToDouble(),
-      scale: scale,
-      textKey: Key('piece-${square.name}'),
-    );
-  }
+  Widget _piece(Square square, Piece piece, double side, double scale) =>
+      boardPiece(
+        piece,
+        options.pieceStyle,
+        side,
+        scale,
+        textKey: Key('piece-${square.name}'),
+      );
+}
+
+/// [piece] as the board draws it on a square of [side] in [style].
+PieceGlyph boardPiece(
+  Piece piece,
+  PieceStyle style,
+  double side,
+  double scale, {
+  Key? textKey,
+}) {
+  final flat = style == PieceStyle.flat;
+  return PieceGlyph(
+    piece: piece,
+    style: style,
+    fontSize: (side * (flat ? 0.62 : 0.92)).roundToDouble(),
+    scale: scale,
+    textKey: textKey,
+  );
 }
 
 /// One piece as the board draws it: [piece]'s glyph in [style] at
