@@ -296,3 +296,16 @@ Ad-hoc entries (decisions made outside a planning/execution command) use:
 - **Decision:** M8's audit emphases written final (not provisional): saved-data robustness and privacy, accessibility, on-device performance, the honest dial and legal chess, documents against code; no project-specific skill.
   **Why:** Every feature milestone M0–M7 now has stories.
   **Issue:** M8
+
+## Readiness pass for an unattended M2–M5 run — 2026-09-28
+
+The owner asked for M2–M5 to run in one shot without questions. A readiness audit (a subagent reading every M2–M5 story against the codebase, 2026-09-28) found no step needing the owner during execution, but found gaps that would stall an unattended run. Fixed on the issues, each under a "Readiness pass (2026-09-28)" heading:
+
+- Dependency edges added: #67 ← #64 (draw acceptance uses #64's agreed-draw rule), #74 ← #73 (a test closes the promotion card), #62 ← #63 (the flag rule uses `canMate`). #64 now creates the `Strength` enum names and #67 extends them, so no story names a type a later story defines.
+- M5 re-wired: #99 is blocked by #93 instead of #98, and #104 also by #98. An ElevenLabs failure on #95 now holds only #96–#98, not the accessibility stories.
+- #61 and #69 each rewrite the #47 weekly-schedule mutation in `tools/mutation_check.py`, which the first weekly-tagged test would otherwise turn into SURVIVED and enabling the schedule into BROKEN.
+- #69: node budgets are unchanged in the ladder (games per pair shrink instead), Master plays at its node budget in the Stockfish benchmark, and a benchmark run still going when M2's PR is ready lands on the M3 branch.
+- #67's calibration assumes a mid-range phone is 4× slower than the dev Mac, with the measurement recorded.
+- #71 keeps `lib/main.dart`'s `_navy` literal for the launcher-colours guard. #102 gets an accessible-navigation test seam. #104 declares its `a11y` tag.
+- Device tests: local SDK paths or a `device.yml` dispatch on the milestone branch; a device test that cannot run is reported, not blocking.
+- The CI mutations job may have its timeout raised from 30 to 45 min if a milestone PR's run passes 25 min. The job's own comment asks for this. It is the one CI edit M2–M5 may make, an exception to the owner's infra-before-features rule, and the owner may veto it.
