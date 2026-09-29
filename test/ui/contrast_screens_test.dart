@@ -1,6 +1,7 @@
-// Every screen's text passes a computed contrast check (#99): each text
-// colour drawn is a Palette.textPairs row that test/guards/contrast_test.dart
-// proves by arithmetic. Every screen at 390 × 844 on the navy theme,
+// Every screen's text passes a computed contrast check (#99, #141): each
+// text reaches its ratio against the fills it is drawn over, and each text
+// colour drawn is a Palette.textPairs row that
+// test/guards/contrast_test.dart proves by arithmetic. Every screen at 390 × 844 on the navy theme,
 // scrolled end to end; the board bare and with each card; Settings with
 // its sound and motion switches shown. The complement: a colour no row
 // proves fails the check (the last test).
@@ -226,6 +227,29 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     expect(_key('result-bar'), findsOneWidget);
     await _check(tester);
+  });
+
+  testWidgets('a proven colour on a fill it does not read on fails the '
+      'check', (tester) async {
+    _phone(tester);
+    await pumpUnderScope(
+      tester,
+      const Center(
+        child: ColoredBox(
+          color: Color(0xFFAAAAAA),
+          child: Text('Unread', style: TextStyle(color: Color(0xFFFFFFFF))),
+        ),
+      ),
+    );
+    final evaluation = const CheckedTextGuideline().evaluate(tester);
+    expect(evaluation.passed, isFalse);
+    expect(
+      evaluation.reason,
+      allOf(
+        contains('"Unread" in #FFFFFFFF'),
+        contains('is drawn on #FFAAAAAA: 2.32:1'),
+      ),
+    );
   });
 
   testWidgets('a colour no row proves fails the check', (tester) async {

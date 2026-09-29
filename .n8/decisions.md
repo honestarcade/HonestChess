@@ -1139,3 +1139,27 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** Checked every other screen against the stronger rule: the sweep's cases pass, and a throwaway sweep of every `a11yCases` state at 320 × 568, 360 × 640 and 390 × 844, at 1.0× and 1.3×, found no other clipped paragraph after the fix, and failed on the unfixed code (`flutter test` on a scratch file, deleted, 2026-09-29).
   **Why:** #140 asks for every screen to be checked; no other clipping was found, so nothing else changed.
   **Issue:** #140
+- **Decision:** `CheckedTextGuideline` (test/support/checked_text_guideline.dart) now works out the background each text is actually drawn on. It walks the element tree in paint order and collects the fills under the text's centre: a `DecoratedBox`'s colour or gradient, a `ColoredBox`, a `Material`, a `ScreenBackground`'s gradient, and the highlight of an `InkWell` held under a given `pressedAt`. It composites them from the nearest opaque fill up, tries every stop of a gradient, and requires the WCAG ratio for the text's size. The textPairs-row rule stays alongside it. A new `test/a11y/contrast_held_test.dart` holds each control of every `a11yCases` state down in turn at 390 × 844 and lifts off without a tap. Self-tests show that a proven colour on a fill it does not read on fails, and that a held control whose pressed fill does not read fails. On the unfixed colours (`flutter test` of the held, guidelines and screens suites, 2026-09-29) it failed on: two-player Start held (white on #9A68FF, 3.62:1); the menu's About bar held (teal 4.17:1, muted text below 4.5:1); the tool row's ink (the New tool's teal 2.95:1 at the gradient's brightest stop); the pause card's Resign (2.98:1); a promotion choice ("QUEEN" 3.79:1); and the coordinate labels on tinted squares.
+  **Why:** #141 offered two approaches, a composited check or a row per pressed fill tied by a test. I chose the composited check because it tests what the screens draw rather than a list kept by hand. I also added textPairs rows for every pressed surface, so the guard proves each one and re-derives the moved fills.
+  **Issue:** #141
+- **Decision:** An `InkSparkle` splash (Android's Material 3 default) is not counted as a held fill. Its alpha runs back to 0 by 617 ms while the finger is still down (its alpha sequence in Flutter 3.47.5's InkSparkle source), so the held state is the highlight alone. `InkSplash` and `InkRipple` splashes stay while the finger is down, so they are counted.
+  **Why:** To check the state a player sees while holding a button, not a transient animation peak.
+  **Issue:** #141
+- **Decision:** Pressed colours were moved by the smallest same-hue change: CIELAB lightness at fixed hue, chroma and alpha, 0.1 at a time, to the first 8-bit value that clears each text on it by 4.5:1 + `shiftMargin`. Old → new:
+  - `violetPressed` #9A68FF → #8757EC: white 3.62 → 4.56:1.
+  - `tealBarPressed` #2E00D6B4 → #2E009B82: teal 4.17 → 4.84:1, muted 3.95 → 4.59:1.
+  - The promotion choice's ink, the inline teal at .2 (#3300D6B4) → new token `promoPressed` #3300947C: "QUEEN" 3.79 → 4.58:1.
+  - The Material ink highlight, Flutter's dark-theme #40CCCCCC → new token `inkHighlight` #40565656, set as `appTheme()`'s `highlightColor`: the New tool 2.95 → 4.61, Resign 2.98 → 4.73, the result bar's red 3.21 → 5.05, its teal 3.68 → 5.79, the other tools 4.63 → 7.24, Resume/Rematch 8.63 → 6.34:1.
+  - `tealPressed` already reads (10.37:1, and Continue's meta 5.00:1), so it only gained rows.
+  All ratios are from `Palette.textPairs` and the unfixed values, with the WCAG formula, 2026-09-29. Each moved fill is in `Palette.shifts` with its design value. The guard re-derives a translucent fill through a new branch: `shiftFillLightness`, over every row whose surface holds the fill.
+  **Why:** #141 asks for the smallest same-hue change. Lowering the alpha instead would have removed the feedback: the ink highlight would need alpha 3/255, and the bar would need exactly its idle alpha.
+  **Issue:** #141
+- **Decision (for the owner):** Two pressed states now barely differ from idle. The About bar pressed is #084B80 against #094A85 idle, and the ink highlight now darkens a button where Flutter's default lightened it. Idle text is already close to 4.5:1 on both, so no lighter pressed wash can read. A stronger pressed cue, such as an edge colour like the other controls use, is a design choice left to the owner.
+  **Why:** Recorded so the design review sees it.
+  **Issue:** #141
+- **Decision:** The composited check also found the board's coordinate labels below 4.5:1 on tinted squares (selected, last move, check). Some themes cannot reach 4.5:1 there even with an opaque label, so fixing it is a design call. It is filed as #149. Until then the check exempts only a coordinate label drawn over a `tint-` square; labels on plain squares are still checked.
+  **Why:** Outside #141's pressed-fill scope and not fixable by a colour nudge (brief: separate problems are filed, not fixed inline).
+  **Issue:** #141, #149
+- **Decision:** New battery mutations (`--only contrast`): "the two-player Start's pressed fill goes back to the design's" (expects `contrast-text: below WCAG AA`) and "a pressed ink fill overshoots its nearest pass" (expects `contrast-shift: not the nearest pass`, through the new translucent-fill branch).
+  **Why:** CLAUDE.md: a guard's new rule gets its mutation.
+  **Issue:** #141

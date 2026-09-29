@@ -209,6 +209,28 @@ Color shiftLightness(
   return colour;
 }
 
+/// Translucent fill [design] moved in CIELAB lightness, 0.1 at a time
+/// (lighter when [lighter]), at its own hue, chroma and alpha, to the
+/// first 8-bit colour for which [clears] holds (the text drawn over the
+/// fill reaching its ratios); [design] itself when it already does.
+Color shiftFillLightness(
+  Color design,
+  bool Function(Color fill) clears, {
+  required bool lighter,
+}) {
+  final lch = toLch(design);
+  var colour = design;
+  var l = lch.l;
+  while (!clears(colour)) {
+    l += lighter ? 0.1 : -0.1;
+    if (l < 0 || l > 100) {
+      throw StateError('no lightness of $design clears its text');
+    }
+    colour = fromLch(l, lch.c, lch.h).withValues(alpha: design.a);
+  }
+  return colour;
+}
+
 /// Translucent [design] made more opaque, one 8-bit alpha step at a time,
 /// to the first alpha that clears every one of [targets]; its colour is
 /// kept.

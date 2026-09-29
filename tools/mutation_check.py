@@ -1051,6 +1051,19 @@ MUTATIONS: list[Mutation] = [
                  "static const textMuted = Color(0xFFA6C8F0);"),
              "the muted text would drift further from the design than contrast needs",
              'contrast-shift: not the nearest pass'),
+    # ---- #141: pressed fills ------------------------------------------------
+    Mutation("contrast", "the two-player Start's pressed fill goes back to the design's",
+             "lib/ui/theme/palette.dart",
+             sub(r"static const violetPressed = Color\(0xFF8757EC\);",
+                 "static const violetPressed = Color(0xFF9A68FF);"),
+             "Start game would fall under 4.5:1 while held down",
+             'contrast-text: below WCAG AA'),
+    Mutation("contrast", "a pressed ink fill overshoots its nearest pass",
+             "lib/ui/theme/palette.dart",
+             sub(r"static const inkHighlight = Color\(0x40565656\);",
+                 "static const inkHighlight = Color(0x40404040);"),
+             "the ink buttons' pressed grey would drift further from the design than contrast needs",
+             'contrast-shift: not the nearest pass'),
 ]
 
 

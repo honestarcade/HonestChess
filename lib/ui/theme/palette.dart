@@ -156,6 +156,15 @@ abstract final class Palette {
   /// A filled teal button while pressed (the design's hover colour).
   static const tealPressed = Color(0xFF31E7CB);
 
+  /// The pressed highlight of every Material ink button (the theme's
+  /// `highlightColor`): Flutter's dark-theme grey, darkened at its own
+  /// alpha until the text on each ink button reads while it is held.
+  static const inkHighlight = Color(0x40565656);
+
+  /// A promotion choice's ink while pressed: the design's teal wash,
+  /// darkened at its own alpha until the piece's name reads on it.
+  static const promoPressed = Color(0x3300947C);
+
   /// The two accents a choice is selected in ([Accent]): teal's fills (the
   /// soft one is [accentFill]) and the two-player screen's violet.
   static const tealFillSelected = panelLit;
@@ -164,8 +173,9 @@ abstract final class Palette {
   static const violetFillSelected = Color(0x298448FC); // rgba(132,72,252,.16)
 
   /// The two-player screen's own: its Start game while pressed (the
-  /// design's hover colour), and its header's kicker.
-  static const violetPressed = Color(0xFF9A68FF);
+  /// design's hover colour, darkened until white reads on it), and its
+  /// header's kicker.
+  static const violetPressed = Color(0xFF8757EC);
   static const kickerViolet = Color(0xFF9E7BFF);
 
   /// How to play's: a rule's body text, the first rule card's teal tint
@@ -206,10 +216,12 @@ abstract final class Palette {
   static const confirmShadow = Color(0x80000000); // rgba(0,0,0,.5)
 
   /// The menu's About Honest Arcade bar: its edge and its fill while
-  /// pressed (its idle fill is [tealPanelFill]). Its damaged-data banner
+  /// pressed (its idle fill is [tealPanelFill]; the pressed one is the
+  /// design's teal wash, darkened at its own alpha until the bar's text
+  /// reads on it). Its damaged-data banner
   /// takes [resignFill] and [resignEdge], the same red washes.
   static const tealBarEdge = Color(0x5900D6B4); // rgba(0,214,180,.35)
-  static const tealBarPressed = Color(0x2E00D6B4); // rgba(0,214,180,.18)
+  static const tealBarPressed = Color(0x2E009B82);
 
   /// The menu cards' mini-board art, fixed as drawn: the vs Computer
   /// card's 150° wash and squares ([onTeal] is the wash's far end,
@@ -225,9 +237,10 @@ abstract final class Palette {
 
   static const _white = Color(0xFFFFFFFF);
 
-  /// Every colour this story moved from the design, with the design's
-  /// value: test/guards/contrast_test.dart re-derives each from [textPairs]
-  /// (and the board pairs), so a hand edit that overshoots is caught.
+  /// Every colour moved from the design for contrast (#99, and #141's
+  /// pressed fills), with the design's value: test/guards/contrast_test.dart
+  /// re-derives each from [textPairs] (and the board pairs), so a hand edit
+  /// that overshoots is caught.
   static final List<ColourShift> shifts = [
     ColourShift(
       'bone dark square',
@@ -290,6 +303,30 @@ abstract final class Palette {
       ShiftWay.alpha,
     ),
     const ColourShift('danger', danger, Color(0xFFE05A4E), ShiftWay.darker),
+    const ColourShift(
+      'violetPressed',
+      violetPressed,
+      Color(0xFF9A68FF),
+      ShiftWay.darker,
+    ),
+    const ColourShift(
+      'tealBarPressed',
+      tealBarPressed,
+      Color(0x2E00D6B4),
+      ShiftWay.darker,
+    ),
+    const ColourShift(
+      'promoPressed',
+      promoPressed,
+      Color(0x3300D6B4),
+      ShiftWay.darker,
+    ),
+    const ColourShift(
+      'inkHighlight',
+      inkHighlight,
+      Color(0x40CCCCCC),
+      ShiftWay.darker,
+    ),
   ];
 
   /// Every text colour on every surface it is drawn on. A surface's
@@ -369,6 +406,64 @@ abstract final class Palette {
     ),
     const TextPair('white on an overlay button', _white, Surfaces.overlayDim),
     const TextPair('white on violet', _white, Surfaces.violet),
+    const TextPair('white on violet, pressed', _white, Surfaces.violetPressed),
+    const TextPair('ink on teal, pressed', onTeal, Surfaces.tealPressed),
+    TextPair(
+      'Continue\'s meta, pressed',
+      onTeal.withValues(alpha: continueMetaOpacity),
+      Surfaces.tealPressed,
+    ),
+    const TextPair(
+      'teal on the menu bar, pressed',
+      teal,
+      Surfaces.gradientTealBarPressed,
+    ),
+    const TextPair(
+      'muted text on the menu bar, pressed',
+      textMuted,
+      Surfaces.gradientTealBarPressed,
+    ),
+    const TextPair(
+      'body text on a promotion choice, pressed',
+      textBody,
+      Surfaces.overlayChoicePromoPressed,
+    ),
+    const TextPair(
+      'tool ink on a tool, pressed',
+      toolInk,
+      Surfaces.gradientToolPressed,
+    ),
+    const TextPair(
+      'teal on the New tool, pressed',
+      teal,
+      Surfaces.gradientAccentPressed,
+    ),
+    const TextPair('ink on teal, ink pressed', onTeal, Surfaces.tealInkPressed),
+    const TextPair(
+      'white on an overlay button, pressed',
+      _white,
+      Surfaces.overlayDimPressed,
+    ),
+    const TextPair(
+      'red text on Resign, pressed',
+      dangerText,
+      Surfaces.overlayResignPressed,
+    ),
+    const TextPair(
+      'white on the result bar, pressed',
+      _white,
+      Surfaces.overlayCardPressed,
+    ),
+    const TextPair(
+      'teal on the result bar, pressed',
+      teal,
+      Surfaces.overlayCardPressed,
+    ),
+    const TextPair(
+      'red text on the result bar, pressed',
+      dangerText,
+      Surfaces.overlayCardPressed,
+    ),
     const TextPair('white on the reset red', _white, Surfaces.danger),
     const TextPair('the check badge', checkBadgeInk, Surfaces.danger),
     const TextPair(
@@ -615,6 +710,42 @@ abstract final class Surfaces {
   static const violet = [Palette.violet];
   static const danger = [Palette.danger];
   static const dangerPressed = [Palette.dangerPressed];
+  static const violetPressed = [Palette.violetPressed];
+  static const tealPressed = [Palette.tealPressed];
+
+  /// Held down: the fills of the pressed states, and the ink buttons with
+  /// [Palette.inkHighlight] over their fill.
+  static const tealInkPressed = [Palette.teal, Palette.inkHighlight];
+  static const gradientTealBarPressed = [
+    Palette.gradientInner,
+    Palette.tealBarPressed,
+  ];
+  static const gradientToolPressed = [
+    Palette.gradientInner,
+    Palette.toolFill,
+    Palette.inkHighlight,
+  ];
+  static const gradientAccentPressed = [
+    Palette.gradientInner,
+    Palette.accentFill,
+    Palette.inkHighlight,
+  ];
+  static const overlayCardPressed = [Palette.cardSurface, Palette.inkHighlight];
+  static const overlayDimPressed = [
+    Palette.cardSurface,
+    Palette.panelDim,
+    Palette.inkHighlight,
+  ];
+  static const overlayResignPressed = [
+    Palette.cardSurface,
+    Palette.resignFill,
+    Palette.inkHighlight,
+  ];
+  static const overlayChoicePromoPressed = [
+    Palette.cardSurface,
+    Palette.choiceFill,
+    Palette.promoPressed,
+  ];
 
   static const gradient = [Palette.gradientInner];
   static const gradientCard = [Palette.gradientInner, Palette.cardFill];

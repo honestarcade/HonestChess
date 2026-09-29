@@ -62,6 +62,7 @@ ThemeData appTheme() => ThemeData(
   brightness: Brightness.dark,
   scaffoldBackgroundColor: _navy,
   fontFamily: Fonts.outfit,
+  highlightColor: Palette.inkHighlight,
 );
 
 /// The app root. It owns the store, the settings, the statistics, the
