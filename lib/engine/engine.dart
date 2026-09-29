@@ -4,9 +4,12 @@ library;
 
 export 'attacks.dart';
 export 'fen.dart';
+export 'game_status.dart';
 export 'move.dart';
 export 'movegen.dart';
 export 'perft.dart';
 export 'piece.dart';
+export 'play.dart';
 export 'position.dart';
 export 'square.dart';
+export 'zobrist.dart';

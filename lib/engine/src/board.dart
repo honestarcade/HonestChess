@@ -9,6 +9,8 @@ import '../move.dart';
 import '../piece.dart';
 import '../position.dart';
 import '../square.dart';
+import '../zobrist.dart';
+import '../zobrist_keys.dart';
 import 'tables.dart';
 
 const _whiteKingside = Castling.whiteKingside;
@@ -53,10 +55,14 @@ final class Board {
       boards[piece.index] = bits;
       occupiedBy[piece.colour.index] |= bits;
       while (bits != 0) {
-        squares[lowestBit(bits)] = piece.index;
+        final square = lowestBit(bits);
+        squares[square] = piece.index;
+        _baseKey ^= pieceKey(piece.index, square);
         bits &= bits - 1;
       }
     }
+    if (side == 1) _baseKey ^= zobristKeys[zobristSide];
+    _baseKey ^= castlingKey[castling];
   }
 
   /// One bitboard per piece, indexed by `Piece.index`.
@@ -80,6 +86,11 @@ final class Board {
   int halfmoveClock;
   int fullmoveNumber;
 
+  /// The Zobrist key of everything but the en-passant file: pieces, side to
+  /// move and castling rights, kept by [make] and [unmake] with one XOR per
+  /// change.
+  int _baseKey = 0;
+
   /// Per made move: the move, then its undo record (captured piece + 1,
   /// castling rights, en-passant square + 1, halfmove clock).
   final List<int> _history = [];
@@ -94,7 +105,30 @@ final class Board {
     enPassant: enPassant < 0 ? null : Square(enPassant),
     halfmoveClock: halfmoveClock,
     fullmoveNumber: fullmoveNumber,
+    key: key,
   );
+
+  /// The Zobrist key of this board, equal to `positionKey(toPosition())`.
+  ///
+  /// The en-passant file is added only when an en-passant capture is legal
+  /// (FIDE 9.2.3.1), which takes trying the capture — so it is worked out
+  /// here, on demand, rather than on every [make].
+  int get key {
+    if (enPassant < 0) return _baseKey;
+    final us = side;
+    var capturers = pawnAttacks[us ^ 1][enPassant] & boards[us * 6 + pawn];
+    while (capturers != 0) {
+      final from = lowestBit(capturers);
+      capturers &= capturers - 1;
+      make(_pack(from, enPassant, Move.capture | Move.enPassantFlag));
+      final legal = !isAttacked(kingSquare(us), us ^ 1);
+      unmake();
+      if (legal) {
+        return _baseKey ^ zobristKeys[zobristEnPassant + (enPassant & 7)];
+      }
+    }
+    return _baseKey;
+  }
 
   int kingSquare(int colour) => lowestBit(boards[colour * 6 + king]);
 
@@ -230,6 +264,7 @@ final class Board {
 
   void _put(int piece, int square) {
     final bit = 1 << square;
+    _baseKey ^= pieceKey(piece, square);
     boards[piece] |= bit;
     occupiedBy[piece ~/ 6] |= bit;
     squares[square] = piece;
@@ -237,6 +272,7 @@ final class Board {
 
   void _remove(int piece, int square) {
     final bit = 1 << square;
+    _baseKey ^= pieceKey(piece, square);
     boards[piece] &= ~bit;
     occupiedBy[piece ~/ 6] &= ~bit;
     squares[square] = -1;
@@ -273,11 +309,14 @@ final class Board {
       _put(rookPiece, rookTo);
     }
 
-    castling &= _rightsKept[from] & _rightsKept[to];
+    final rights = castling & _rightsKept[from] & _rightsKept[to];
+    _baseKey ^= castlingKey[castling] ^ castlingKey[rights];
+    castling = rights;
     enPassant = move & Move.doublePush != 0 ? (from + to) >> 1 : -1;
     halfmoveClock = piece % 6 == pawn || captured >= 0 ? 0 : halfmoveClock + 1;
     if (side == 1) fullmoveNumber++;
     side ^= 1;
+    _baseKey ^= zobristKeys[zobristSide];
   }
 
   /// Takes back the last [make].
@@ -285,6 +324,7 @@ final class Board {
     final undo = _history.removeLast();
     final move = _history.removeLast();
     side ^= 1;
+    _baseKey ^= zobristKeys[zobristSide];
     if (side == 1) fullmoveNumber--;
     final from = move & 63, to = (move >> 6) & 63;
     final promotion = (move >> 12) & 7;
@@ -308,7 +348,9 @@ final class Board {
           : to;
       _put(captured, captureSquare);
     }
-    castling = (undo >> 4) & 15;
+    final rights = (undo >> 4) & 15;
+    _baseKey ^= castlingKey[castling] ^ castlingKey[rights];
+    castling = rights;
     enPassant = ((undo >> 8) & 127) - 1;
     halfmoveClock = undo >> 15;
   }

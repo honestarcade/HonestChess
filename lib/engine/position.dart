@@ -1,6 +1,7 @@
 import 'fen.dart';
 import 'piece.dart';
 import 'square.dart';
+import 'zobrist.dart';
 
 /// The castling-rights bits of [Position.castlingRights], a 4-bit mask.
 abstract final class Castling {
@@ -23,7 +24,8 @@ final class Position {
   /// Builds a position from its fields without validating them.
   ///
   /// [bitboards] has one 64-bit board per [Piece], indexed by
-  /// [Piece.index]; it is copied.
+  /// [Piece.index]; it is copied. [key], when given, must be what
+  /// `positionKey` would compute; otherwise [key] computes it on first use.
   Position.unchecked({
     required List<int> bitboards,
     required this.sideToMove,
@@ -31,6 +33,7 @@ final class Position {
     required this.enPassant,
     required this.halfmoveClock,
     required this.fullmoveNumber,
+    this._key,
   }) : _boards = List<int>.unmodifiable(bitboards) {
     assert(bitboards.length == Piece.values.length);
   }
@@ -49,6 +52,13 @@ final class Position {
   factory Position.fromFen(String fen) => parseFen(fen);
 
   final List<int> _boards;
+
+  int? _key;
+
+  /// The Zobrist key (see `positionKey`): equal for positions that are the
+  /// same under FIDE 9.2.3. Move making passes it in, updated incrementally;
+  /// a position loaded from a FEN computes it on first use.
+  int get key => _key ??= positionKey(this);
 
   /// The side to move.
   final Colour sideToMove;
