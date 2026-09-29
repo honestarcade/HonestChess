@@ -417,28 +417,33 @@ class _VersionLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: _size * _lineHeight,
-      child: FutureBuilder<AppVersion?>(
-        future: version,
-        builder: (context, snapshot) {
-          final answered = snapshot.connectionState == ConnectionState.done;
-          return Text(
-            answered ? versionLine(snapshot.data) : '',
-            key: const Key('settings-version'),
-            semanticsLabel: answered ? versionSpeech(snapshot.data) : '',
-            maxLines: 1,
-            style: const TextStyle(
-              fontFamily: Fonts.plexMono,
-              fontWeight: FontWeight.w500,
-              fontSize: _size,
-              height: _lineHeight,
-              letterSpacing: _size * .14,
-              color: Palette.textFaint,
-            ),
-          );
-        },
-      ),
+    // One forced line height, so the empty line and the answered one are
+    // the same height, and the box is the text's own at every text size.
+    return FutureBuilder<AppVersion?>(
+      future: version,
+      builder: (context, snapshot) {
+        final answered = snapshot.connectionState == ConnectionState.done;
+        return Text(
+          answered ? versionLine(snapshot.data) : '',
+          key: const Key('settings-version'),
+          semanticsLabel: answered ? versionSpeech(snapshot.data) : '',
+          maxLines: 1,
+          strutStyle: const StrutStyle(
+            fontFamily: Fonts.plexMono,
+            fontSize: _size,
+            height: _lineHeight,
+            forceStrutHeight: true,
+          ),
+          style: const TextStyle(
+            fontFamily: Fonts.plexMono,
+            fontWeight: FontWeight.w500,
+            fontSize: _size,
+            height: _lineHeight,
+            letterSpacing: _size * .14,
+            color: Palette.textFaint,
+          ),
+        );
+      },
     );
   }
 }

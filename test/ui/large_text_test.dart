@@ -375,14 +375,24 @@ final _cases = <_Case>[
     ),
 ];
 
-/// One paragraph as drawn: its text, its rendered height, whether it was
-/// cut short, and whether it is one allowed to be.
+/// One paragraph as drawn: its text, its rendered height, whether it ran
+/// past its line limit and whether it is one allowed to, and whether its
+/// lines are taller than the box it was given, so the box clips them.
 typedef _Paragraph = ({
   String text,
   double height,
   bool exceeded,
   bool mayEllipsize,
+  bool clipped,
 });
+
+/// Whether [p] is cut short: past its line limit when it may not ellipsize,
+/// or clipped by its box, which no text may be.
+bool _isCut(_Paragraph p) => (p.exceeded && !p.mayEllipsize) || p.clipped;
+
+/// How far a paragraph's lines may run past its box before they count as
+/// clipped: rounding, not a cut.
+const _clipTolerance = .01;
 
 List<_Paragraph> _paragraphs(WidgetTester tester) {
   final out = <_Paragraph>[];
@@ -403,6 +413,7 @@ List<_Paragraph> _paragraphs(WidgetTester tester) {
       height: render.size.height,
       exceeded: render.didExceedMaxLines,
       mayEllipsize: mayEllipsize,
+      clipped: render.textSize.height - render.size.height > _clipTolerance,
     ));
   }
   return out;
@@ -438,7 +449,7 @@ Future<_Seen> _pumpAt(WidgetTester tester, _Case c, double scale) async {
   final first = _paragraphs(tester);
   final cut = {
     for (final p in first)
-      if (p.exceeded && !p.mayEllipsize) p.text,
+      if (_isCut(p)) p.text,
   };
   final scrollables = find.byType(Scrollable);
   for (var i = 0; i < scrollables.evaluate().length; i++) {
@@ -452,7 +463,7 @@ Future<_Seen> _pumpAt(WidgetTester tester, _Case c, double scale) async {
       errors.addAll(_errors(tester));
       cut.addAll([
         for (final p in _paragraphs(tester))
-          if (p.exceeded && !p.mayEllipsize) p.text,
+          if (_isCut(p)) p.text,
       ]);
     }
   }
@@ -509,6 +520,11 @@ void main() {
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       final at10 = await _pumpAt(tester, c, 1);
       expect(at10.errors, isEmpty, reason: 'large text: ${c.name} at 1.0×');
+      expect(
+        at10.cut,
+        isEmpty,
+        reason: 'large text: ${c.name} cuts text short at 1.0×',
+      );
       final at085 = await _pumpAt(tester, c, .85);
       expect(
         _sizes(at085),
@@ -649,9 +665,8 @@ void fixedAndFitted() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('the sweep catches an overflow and text cut short', (
-    tester,
-  ) async {
+  testWidgets('the sweep catches an overflow, text cut short and text '
+      'clipped by its box', (tester) async {
     addTearDown(tester.view.reset);
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
     final overflowing = (
@@ -684,6 +699,20 @@ void fixedAndFitted() {
         ),
       ),
     );
+    final clipped = (
+      name: 'a fixed-height box shorter than its scaled line',
+      pump: (WidgetTester tester) => _screen(
+        tester,
+        const Scaffold(
+          body: SizedBox(
+            height: 17,
+            child: Center(
+              child: Text('Clipped', style: TextStyle(fontSize: 17)),
+            ),
+          ),
+        ),
+      ),
+    );
     final seenOverflow = await _pumpAt(tester, overflowing, 1.3);
     expect(
       seenOverflow.errors,
@@ -694,6 +723,11 @@ void fixedAndFitted() {
     expect(seenCut.cut, {
       'A label that cannot fit',
     }, reason: 'large text: the sweep reports text cut short');
+    final seenClipped = await _pumpAt(tester, clipped, 1.3);
+    expect(seenClipped.errors, isEmpty);
+    expect(seenClipped.cut, {
+      'Clipped',
+    }, reason: 'large text: the sweep reports text its box clips');
     await tester.pumpWidget(const SizedBox());
   });
 }

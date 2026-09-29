@@ -1126,3 +1126,16 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
   **Why:** The bug's expected test is launch, `inactive` only, release every read, and the menu at 851 ms. The 849 ms check keeps the test from passing when the menu comes early.
   **Issue:** #139
 ## /n8-exec M5 (verification fix pass) — 2026-09-29
+
+- **Decision:** `test/ui/large_text_test.dart`'s sweep now counts a paragraph as cut when its laid-out lines (`RenderParagraph.textSize`) are taller than the box it was given, for every text (the panel names' ellipsis exemption does not cover it), and checks cut text at 1.0× as well as 1.3×. A self-test case (17 dp text in a 17 dp box at 1.3×) shows the sweep catches it. Before the fix it failed on (`flutter test test/ui/large_text_test.dart`, 2026-09-29): the Play-as symbols at 1.3× and at 1.0×, and the Settings version line at 1.3×.
+  **Why:** #140: the sweep saw only overflows and `didExceedMaxLines`, so text clipped inside a fixed-height box passed.
+  **Issue:** #140
+- **Decision (Rule 1):** The Play-as symbols' row grows with the text (`textScaler.scale(17)`), rather than going on `TextScaler.noScaling`. Their `TextHeightBehavior` (height not applied to the first ascent or last descent) is removed: it laid each symbol out at the font's own line height, taller than the 17 dp row at every scale, so the kings were cut at 1.0× too. Renders of the White button at 1.0× and 1.3× before and after the change showed the king's base missing before and whole after (scratch golden renders, 2026-09-29).
+  **Why:** #101's rule is that screen text scales and fixed rows grow; the symbols sit above a label that scales, and only the board, clocks and piece art are fixed.
+  **Issue:** #140
+- **Decision (Rule 1):** Settings' version line drops its fixed-height `SizedBox` for a forced strut (`StrutStyle(forceStrutHeight: true)`, Plex Mono 9.5 × 1.6). The laid-out line is taller than 9.5 × 1.6 × scale at 1.3× (20 dp against 19.76 dp) and at 1.0× an empty line laid out 16 dp tall and a filled one at most 15.2 dp (measured by `flutter test`, 2026-09-29), so neither a box of the computed height nor a minimum height kept both "not clipped" and "the answer does not move the rows below". settings_options_test's check that the empty line is 15.2 dp tall now asserts it is about one line tall and exactly as tall as the answered line.
+  **Why:** #140 (low item): the row must grow; the strut keeps the empty and answered heights equal at every scale.
+  **Issue:** #140
+- **Decision:** Checked every other screen against the stronger rule: the sweep's cases pass, and a throwaway sweep of every `a11yCases` state at 320 × 568, 360 × 640 and 390 × 844, at 1.0× and 1.3×, found no other clipped paragraph after the fix, and failed on the unfixed code (`flutter test` on a scratch file, deleted, 2026-09-29).
+  **Why:** #140 asks for every screen to be checked; no other clipping was found, so nothing else changed.
+  **Issue:** #140
