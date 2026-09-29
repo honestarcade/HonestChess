@@ -527,3 +527,18 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** The device smoke test holds "at least 10 frames" on the reply with the most pumped frames and the 200 ms frame-gap bar on every reply after the first, not on each reply.
   **Why:** On the sudoku-dev emulator (2026-09-29, `flutter test integration_test/app_smoke_test.dart -d emulator-5554`) a pump took about 36 ms, so a ~430 ms Beginner reply fit 11–12 pumps, and the first reply — carrying the app's first frames after launch — fit 4 with a 178 ms gap; the first CI dispatch (run 36530840756) failed with the per-reply reading and its log does not show which assertion.
   **Issue:** #75
+- **Decision:** `GameController.newGame(GameSetup, {int? seed})` returns `void` and shares a private start path with `restart()`; a new game always starts from the standard position (a screen started from a FEN drops it), and `setup.rotate` is not applied — rotation stays `BoardOptions.rotateEachTurn`, off by default. `ToolRow(controller:, onNew:)` takes New's action as a callback; `GameScreen` opens `TemporaryNewGamePicker.show` and calls `newGame` with the screen's `seed`, so M4 swaps only the callback.
+  **Why:** The plan names `newGame(GameSetup)` without a return value and relies on the options default for "rotate off"; a callback keeps the temporary picker out of the tool row M4 keeps.
+  **Issue:** #76
+- **Decision:** Tool glyphs: ↺ is drawn in the bundled PlexMono; ⟳ ⚑ ✚ fall back to `Icons.refresh`, `Icons.flag`, `Icons.add` because neither Outfit nor PlexMono has them (the widget test reads both fonts' cmaps and fails if a fallback's glyph becomes available or a drawn glyph goes missing).
+  **Why:** The plan's per-glyph fallback rule; Outfit, the design's face for the glyphs, has none of the four.
+  **Issue:** #76
+- **Decision:** The tool row sits in the panels-and-board column under your panel, 62 dp high, and the panel-to-row gap shares the board gap's rule (48 dp, shrinking to 8): the board is sized from the height left after two panels, the row and three gaps. The picker is a modal bottom sheet in the card colours with the scrim as its barrier; each option's semantics label is its full text ("vs Computer — Club · White · Rapid 10+5"). New Palette tokens: `toolFill`, `toolEdge`, `toolInk` (DCE9F8), `accentFill`, `accentEdge`, `accentInk`.
+  **Why:** The design's tool row is 48 px under your panel; one gap rule keeps a short phone's board as large as it can be.
+  **Issue:** #76
+- **Decision:** `GameScreen` with no `setup` (the untimed two-player board) now passes its computer factory to the controller, so New → vs Computer on that board gets a computer; a two-player game still builds none.
+  **Why:** Without it the picker's vs-computer game would never move (Rule 2).
+  **Issue:** #76
+- **Decision:** #74's "a clock at zero ends the game" test pumps one more frame before asserting no ticker is left.
+  **Why:** Resign turning disabled at the flag releases its focus node, which schedules one rebuild frame — a frame, not a ticking clock; the assertion still catches a clock that keeps ticking.
+  **Issue:** #76

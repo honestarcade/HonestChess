@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
+import 'package:honest_chess/ui/game/defaults.dart';
 
 /// A square's background layer, as the design's `hl`: at most one shows,
 /// in this order of precedence — the selected piece, a king in check, then
@@ -102,7 +103,7 @@ class GameController extends ChangeNotifier {
     _refresh();
   }
 
-  final String? _fen;
+  String? _fen;
   final TimeSource? _now;
   final ComputerFactory? _computer;
   Game _game;
@@ -315,10 +316,24 @@ class GameController extends ChangeNotifier {
       ),
       final other => other,
     };
+    _start(mode, _game.clock.control);
+    return true;
+  }
+
+  /// Starts a new game from [setup] at the standard start position; against
+  /// the computer the seed is [seed], or a fresh one. The search of the
+  /// game it replaces is cancelled, and the takeback option applies from
+  /// here.
+  void newGame(GameSetup setup, {int? seed}) {
+    _fen = null;
+    _start(modeFor(setup, seed: seed), setup.timeControl);
+  }
+
+  void _start(GameMode mode, TimeControl timeControl) {
     _turns?.dispose();
     _game = Game.start(
       mode,
-      _game.clock.control,
+      timeControl,
       options: GameOptions(takebackAllowed: _options.takebackAllowed),
       fen: _fen,
       time: _now,
@@ -327,7 +342,6 @@ class GameController extends ChangeNotifier {
     _turns = _turnsFor(mode);
     _refresh();
     notifyListeners();
-    return true;
   }
 
   /// Resigns for you against the computer, or for the side to move between

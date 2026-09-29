@@ -360,6 +360,9 @@ void main() {
       );
       expect(text(tester, 'status-text'), 'FLAG FALL');
       expect(textColour(tester, 'status-text'), Palette.teal);
+      // Resign turning disabled at the flag gives up its focus, which asks
+      // for one more frame; a frame is not a tick.
+      await tester.pump();
       expect(tickers, 0, reason: 'clock-tick: an ended game ticks no more');
     });
 

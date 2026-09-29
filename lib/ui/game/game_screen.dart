@@ -14,14 +14,16 @@ import 'package:honest_chess/ui/game/defaults.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/labels.dart';
 import 'package:honest_chess/ui/game/player_panel.dart';
+import 'package:honest_chess/ui/game/temporary_new_game.dart';
+import 'package:honest_chess/ui/game/tool_row.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
 /// The top bar's height.
 const double topBarHeight = 52;
 
 /// The design's gaps: top bar to the opponent's panel, and a panel to the
-/// board — the latter shrinking, never below [minBoardGap], on a phone too
-/// short for it.
+/// board or your panel to the tool row — the latter shrinking, never below
+/// [minBoardGap], on a phone too short for them.
 const double barGap = 12, boardGap = 48, minBoardGap = 8;
 
 /// The status chip's text when the computer could not move; the chip then
@@ -95,7 +97,11 @@ class GameScreenState extends State<GameScreen> {
   GameController _newGame() {
     final setup = widget.setup;
     if (setup == null) {
-      return GameController(options: widget.options, fen: widget.fen);
+      return GameController(
+        options: widget.options,
+        fen: widget.fen,
+        computer: widget.computerFactory,
+      );
     }
     return GameController(
       mode: modeFor(setup, seed: widget.seed),
@@ -104,6 +110,14 @@ class GameScreenState extends State<GameScreen> {
       fen: widget.fen,
       computer: widget.computerFactory,
     );
+  }
+
+  /// New's action until M4's setup screens: the temporary picker, and the
+  /// chosen game. Closing the picker without a choice changes nothing.
+  Future<void> _pickNewGame() async {
+    final setup = await TemporaryNewGamePicker.show(context);
+    if (setup == null || !mounted) return;
+    controller.newGame(setup, seed: widget.seed);
   }
 
   @override
@@ -138,7 +152,12 @@ class GameScreenState extends State<GameScreen> {
                 Column(
                   children: [
                     const SizedBox(height: topBarHeight + barGap),
-                    Expanded(child: _PanelsAndBoard(controller: controller)),
+                    Expanded(
+                      child: _PanelsAndBoard(
+                        controller: controller,
+                        onNew: _pickNewGame,
+                      ),
+                    ),
                   ],
                 ),
                 PromotionSheet(controller: controller),
@@ -297,11 +316,12 @@ class _TopBar extends StatelessWidget {
 }
 
 /// The opponent's panel, the board and your panel, top to bottom, each
-/// following the board's orientation.
+/// following the board's orientation, then the tool row.
 class _PanelsAndBoard extends StatelessWidget {
-  const _PanelsAndBoard({required this.controller});
+  const _PanelsAndBoard({required this.controller, required this.onNew});
 
   final GameController controller;
+  final VoidCallback onNew;
 
   @override
   Widget build(BuildContext context) {
@@ -309,12 +329,12 @@ class _PanelsAndBoard extends StatelessWidget {
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         final height = constraints.maxHeight;
-        final spare = height - 2 * panelHeight;
+        final spare = height - 2 * panelHeight - toolRowHeight;
         final board = math.max(
           0.0,
-          math.min(width - 2 * boardMargin, spare - 2 * minBoardGap),
+          math.min(width - 2 * boardMargin, spare - 3 * minBoardGap),
         );
-        final gap = ((spare - board) / 2).clamp(minBoardGap, boardGap);
+        final gap = ((spare - board) / 3).clamp(minBoardGap, boardGap);
         return ListenableBuilder(
           listenable: controller,
           builder: (context, _) {
@@ -343,6 +363,8 @@ class _PanelsAndBoard extends StatelessWidget {
                 ),
                 SizedBox(height: gap),
                 panel(bottom),
+                SizedBox(height: gap),
+                ToolRow(controller: controller, onNew: onNew),
               ],
             );
           },

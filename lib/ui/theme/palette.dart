@@ -64,6 +64,15 @@ abstract final class Palette {
   static const panelDim = Color(0x0DFFFFFF); // rgba(255,255,255,.05)
   static const kingChipLight = Color(0xFFF1EFE7);
   static const kingChipDark = pieceBlack;
+
+  /// The tool row under the board (`renderVals`' `T`): a neutral tool's
+  /// fill, edge and ink, and the accented New tool's.
+  static const toolFill = choiceFill;
+  static const toolEdge = pillEdge;
+  static const toolInk = Color(0xFFDCE9F8);
+  static const accentFill = Color(0x1F00D6B4); // rgba(0,214,180,.12)
+  static const accentEdge = panelLitEdge;
+  static const accentInk = teal;
 }
 
 /// The app's font families, as pubspec.yaml declares them.
