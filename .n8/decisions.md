@@ -281,3 +281,18 @@ Ad-hoc entries (decisions made outside a planning/execution command) use:
 - **Decision:** Planner calls shown at the gate and not overruled: the phone timing run follows the owner's play-through and sweep and reinstalls the candidate (a profile install wipes the app's data); the internal track is proven by the owner's install; M6 lands in two PRs around the first tag; no API-level fallback if an API 24 image will not boot; TalkBack quirks shared with Google's apps are filed as low.
   **Why:** Pass-2 simulation guesses with visible effect.
   **Issue:** #108, #109, #111, #112
+
+## /n8-plan M7 — 2026-09-28
+
+- **Decision:** M7 is nine stories under epic #11 (#115–#123), one chain after M6's #113: store images, declarations, rating and countries, the listing, 1.0.0 to closed testing, testers, the 14-day hold, production, the launch record. The Play app entry, signing and the promote workflow with its production barriers were already delivered (#15, #20–#22, #44).
+  **Why:** 8 items from epic #11 plus the owner's launch record, each delivered by a criterion.
+  **Issue:** #11, #115–#123
+- **Decision:** Owner, round one ("all good"): the agent drafts the listing and the owner uploads; title "Honest Chess", category Board, English, `support@honestarcade.app`; six script-made screenshots and a feature graphic approved by the owner; audience 13+; every country except those needing a local licence or representative; the owner lines up testers; only blocking bugs change the testers' build, fixed in M7 as 1.0.N; production straight to 100 % on approval; README, v1.0.0 release and wiki record the launch. Round two: the tester note covers all four games — "all four games: FrogAcross, Solitaire, Sudoku, Chess"; 1.0.N fixes ship without a phone check unless visible; check-ins on days 1, 4, 7, 10, 13, 14.
+  **Why:** Owner answers.
+  **Issue:** #115–#123
+- **Decision:** Gate calls not overruled: the Chess thank-you does not release the shared testers (they stay until the last game's hold ends); the screenshot content and sizing on the existing emulator; the owner's recorded address allowed by the personal-data guard; countries applied at #119; the README test checks the store link only.
+  **Why:** Pass-2 simulation guesses with visible effect.
+  **Issue:** #115, #117, #120, #122, #123
+- **Decision:** M8's audit emphases written final (not provisional): saved-data robustness and privacy, accessibility, on-device performance, the honest dial and legal chess, documents against code; no project-specific skill.
+  **Why:** Every feature milestone M0–M7 now has stories.
+  **Issue:** M8
