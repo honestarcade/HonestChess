@@ -3,6 +3,7 @@
 library;
 
 export 'attacks.dart';
+export 'clock.dart';
 export 'fen.dart';
 export 'game_status.dart';
 export 'move.dart';
