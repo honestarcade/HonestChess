@@ -63,6 +63,9 @@ void main() {
     await tester.pumpAndSettle();
     await tapAndWait('menu-vs-computer');
     await waitFor(find.byKey(const Key('csetup-back')));
+    // Start goes through the navigating flag, which the setup screen's push
+    // holds until its transition ends.
+    await tester.pumpAndSettle();
     await tapAndWait('csetup-strength-beginner');
     await tapAndWait('csetup-start');
     await waitFor(find.byKey(const Key('sq-e1')));

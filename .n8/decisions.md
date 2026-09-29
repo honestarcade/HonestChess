@@ -809,3 +809,6 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** The splash counts as out of view on `detached` as well as `hidden` and `paused`, and back in view only on `resumed`.
   **Why:** The plan names `hidden` and `paused`; `detached` is no more visible than they are, and `inactive` on the way back leaves the READY hold waiting for `resumed`, as the plan asks.
   **Issue:** #93
+- **Decision (Rule 3):** `integration_test/app_smoke_test.dart` now waits for the menu with its own 30 s poll, settles the menu's fade, and settles the setup screen's push before tapping Start game. On emulator sudoku-dev (2026-09-29, this story's run) Start was tapped about 100 ms into the setup screen's push, while that transition still held the navigating flag, so the tap was ignored and the board never came.
+  **Why:** The device test must tap only once the navigating flag is free, as the widget tests already do.
+  **Issue:** #93
