@@ -4,6 +4,7 @@
 // are checked beside each: the two-player document is never touched, and
 // with no unfinished computer game neither the warning nor Keep playing
 // shows.
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -207,6 +208,19 @@ AppStore _storeWithBoth() => AppStore.memory(
     StoreDoc.gameTwo: _doc(_twoPlayerGame(), '00000000000000d0'),
   },
 );
+
+/// The moves of the two-player game as the store's own text holds them.
+List<String> _storedTwoPlayerMoves(AppStore store) {
+  final text = store.rawText(StoreDoc.gameTwo);
+  expect(text, isNotNull, reason: 'test: a two-player document is stored');
+  final envelope = jsonDecode(text!) as Map<String, Object?>;
+  final doc = envelope['data']! as Map<String, Object?>;
+  final game = Game.fromJson(doc['game']! as Map<String, Object?>);
+  return [
+    for (final snapshot in game.history)
+      if (snapshot.move case final move?) move.toUci(),
+  ];
+}
 
 bool _visible(String key) => find.byKey(Key(key)).evaluate().isNotEmpty;
 
@@ -615,14 +629,23 @@ void main() {
       (tester) async {
         final store = _storeWithBoth();
         final rig = await _pumpSetup(tester, store: store);
+        // One move more than the slot holds, so the store can only gain it
+        // from Keep playing's own save.
+        final saved = rig.saves.load(PlayMode.two)!;
+        final unsaved = saved.play(Move.fromUci(saved.position, 'c2c4'));
         await _inTest(
           () async => rig.controller.restore(
-            rig.saves.load(PlayMode.two)!,
+            unsaved,
             recorded: rig.saves.recorded(PlayMode.two),
           ),
         );
         await tester.pump();
         final two = rig.controller.game;
+        expect(
+          _storedTwoPlayerMoves(store),
+          ['d2d4', 'd7d5'],
+          reason: 'csetup: a restore saves nothing, so c2c4 is not stored yet',
+        );
 
         await _tap(tester, 'csetup-keep-playing');
         await _drain(tester, rig);
@@ -633,10 +656,15 @@ void main() {
         expect(rig.controller.game.history.length, 2);
         expect(rig.controller.state.paused, isFalse);
         expect(rig.computerPlayed, 0, reason: 'csetup: nothing abandoned');
+        expect(_storedTwoPlayerMoves(store), [
+          'd2d4',
+          'd7d5',
+          'c2c4',
+        ], reason: 'csetup: the two-player game was saved first');
         expect(
           rig.saves.load(PlayMode.two)?.toJson(),
           two.toJson(),
-          reason: 'csetup: the two-player game was saved first',
+          reason: 'csetup: the two-player slot holds the game from the board',
         );
         expect(find.byType(GameScreen), findsOneWidget);
         expect(find.byType(ComputerSetupScreen), findsNothing);

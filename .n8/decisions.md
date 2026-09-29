@@ -1113,3 +1113,7 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
   **Why:** The setting does nothing. A `TextPainter` in `HonestPieces` measured 'A', U+2600 and U+265E+FE0E at the same widths with `fontFamilyFallback` null and empty (scratch test under `flutter test`, 2026-09-29), so a system font still fills any missing glyph. Keeping the line would leave code that looks like a guard but is not one. `computer_setup_screen.dart`'s king glyph sets the same empty fallback with no comment and no assertion, and #136 does not cover it, so it is left as it is.
   **Issue:** #136
 ## /n8-exec M4 (verification fix pass) — 2026-09-29
+
+- **Decision:** #137's test puts on the board a two-player game with one move (c2c4) more than its saved slot, through `restore`, instead of playing that move on the board. The test reads the move back from `store.rawText(StoreDoc.gameTwo)` before and after Keep playing. It does not add a mutation to `tools/mutation_check.py`, because that battery runs only `guard`-tagged tests and this is a screen test. It failed with `_keepPlaying`'s `saves.save(live, …)` line deleted (`flutter test --no-pub test/ui/computer_setup_test.dart --plain-name "Keep playing with a two-player"`, 2026-09-29), and that edit was reverted.
+  **Why:** A move played on the board is saved at once by its own move event. A restore saves nothing, so the only way that move reaches the store is Keep playing's own save, which is the save the bug says is unchecked.
+  **Issue:** #137
