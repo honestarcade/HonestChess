@@ -607,7 +607,7 @@ void main() {
       expect(style.color, Palette.textFaint);
       expect(
         tester.getSemantics(find.byKey(const Key('settings-version'))),
-        isSemantics(label: 'v1.2.3 · BUILD 1034'),
+        isSemantics(label: 'Version 1.2.3, build 1034'),
       );
     });
 

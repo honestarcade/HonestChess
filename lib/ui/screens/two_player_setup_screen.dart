@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_scope.dart';
 import '../board/board_options.dart';
 import '../game/defaults.dart';
+import '../game/labels.dart';
 import '../navigation.dart';
 import '../theme/palette.dart';
 import '../widgets/screen_header.dart';
@@ -11,6 +12,9 @@ import '../widgets/time_control_picker.dart';
 import '../widgets/titled_section.dart';
 
 /// The Time control card's note, from the design.
+/// The house rules card's kicker.
+const houseRulesKicker = 'HOUSE RULES';
+
 const twoPlayerTimeNote = 'Both clocks sit on the board, the running one lit.';
 
 /// The rotate row's text: Settings' switch under the design's own wording
@@ -156,10 +160,13 @@ class _HouseRules extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Semantics(
+            container: true,
             header: true,
-            child: const Text(
-              'HOUSE RULES',
-              style: TextStyle(
+            headingLevel: 2,
+            child: Text(
+              houseRulesKicker,
+              semanticsLabel: spokenCaps(houseRulesKicker),
+              style: const TextStyle(
                 fontFamily: Fonts.plexMono,
                 fontWeight: FontWeight.w500,
                 fontSize: 9,

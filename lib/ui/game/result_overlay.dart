@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:honest_chess/ui/game/game_controller.dart';
+import 'package:honest_chess/ui/game/labels.dart';
 import 'package:honest_chess/ui/game/pause_overlay.dart';
 import 'package:honest_chess/ui/game/result_text.dart';
 import 'package:honest_chess/ui/motion.dart';
@@ -279,7 +280,8 @@ class ResultOverlayState extends State<ResultOverlay>
               Semantics(
                 container: true,
                 header: true,
-                label: '${text.tag}, ${text.title}',
+                headingLevel: 2,
+                label: '${spokenCaps(text.tag)}, ${text.title}',
                 excludeSemantics: true,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -428,6 +430,8 @@ class ResultBar extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           key: const Key('result-bar-show'),
+          // Its tap is the result's own node's, which says what it does.
+          excludeFromSemantics: true,
           borderRadius: radius,
           onTap: controller.showResult,
           child: ConstrainedBox(
@@ -439,7 +443,9 @@ class ResultBar extends StatelessWidget {
                   Expanded(
                     child: Semantics(
                       button: true,
-                      label: 'Show the result: ${text.tag}, ${text.title}',
+                      label:
+                          'Show the result: ${spokenCaps(text.tag)}, '
+                          '${text.title}',
                       onTap: controller.showResult,
                       excludeSemantics: true,
                       child: Column(
@@ -481,6 +487,7 @@ class ResultBar extends StatelessWidget {
                   Semantics(
                     button: true,
                     label: 'Rematch',
+                    onTap: controller.restart,
                     excludeSemantics: true,
                     child: Material(
                       color: Palette.teal,

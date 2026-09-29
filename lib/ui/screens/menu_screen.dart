@@ -43,6 +43,12 @@ String continueLabel(OfferedGame offered) => switch (offered.step) {
 String continueMeta(OfferedGame offered) =>
     'MOVE ${offered.fullmove} · ${offered.sideToMove.label.toUpperCase()}';
 
+/// What a screen reader says for Continue: "Continue vs Club, move 12,
+/// White to move".
+String continueSpeech(OfferedGame offered) =>
+    '${continueLabel(offered)}, move ${offered.fullmove}, '
+    '${offered.sideToMove.label} to move';
+
 /// How far a tappable drawn [drawn] high reaches past its drawn box, above
 /// and below, to be [_minTouch] to touch.
 double _spill(double drawn) => math.max(0, (_minTouch - drawn) / 2);
@@ -207,7 +213,9 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Semantics(
+                container: true,
                 header: true,
+                headingLevel: 1,
                 label: 'Honest Chess',
                 excludeSemantics: true,
                 child: Text.rich(
@@ -228,6 +236,7 @@ class _Header extends StatelessWidget {
               Text(
                 menuKickerText,
                 key: const Key('menu-kicker'),
+                semanticsLabel: spokenCaps(menuKickerText),
                 style: _font(
                   Fonts.plexMono,
                   FontWeight.w500,
@@ -433,7 +442,7 @@ class _ContinueButton extends StatelessWidget {
     final meta = continueMeta(offered);
     return _Tappable(
       tapKey: const Key('menu-continue'),
-      label: '$label, $meta',
+      label: continueSpeech(offered),
       spill: _spill(drawnHeight(s)),
       onTap: () => unawaited(continueGame(context)),
       builder: (context, pressed) => Container(
@@ -520,7 +529,7 @@ class _ModeCard extends StatelessWidget {
     final radius = BorderRadius.circular(16 * s);
     return _Tappable(
       tapKey: tapKey,
-      label: '$title, $subtitle',
+      label: '$title, ${spokenCaps(subtitle)}',
       onTap: onTap,
       builder: (context, pressed) => Container(
         decoration: BoxDecoration(

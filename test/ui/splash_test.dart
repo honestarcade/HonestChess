@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -13,65 +12,8 @@ import 'package:honest_chess/ui/screens/splash_screen.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
 import '../support/app_harness.dart';
+import '../support/gated_store.dart';
 import 'game/fake_computer.dart';
-
-/// A memory store whose reads each wait for their document's release.
-class _GatedStore implements AppStore {
-  _GatedStore([AppStore? delegate]) : _delegate = delegate ?? AppStore.memory();
-
-  final AppStore _delegate;
-  final _gates = {for (final doc in StoreDoc.values) doc: Completer<void>()};
-
-  /// Lets [doc]'s read, and every later one, through.
-  void release(StoreDoc doc) {
-    if (!_gates[doc]!.isCompleted) _gates[doc]!.complete();
-  }
-
-  void releaseAll() => StoreDoc.values.forEach(release);
-
-  @override
-  Future<StoreRead> read(StoreDoc doc) async {
-    await _gates[doc]!.future;
-    return _delegate.read(doc);
-  }
-
-  @override
-  Duration? get readTimeout => _delegate.readTimeout;
-
-  @override
-  ValueNotifier<Set<StoreDoc>> get corruptionNotices =>
-      _delegate.corruptionNotices;
-
-  @override
-  void dismissNotices() => _delegate.dismissNotices();
-
-  @override
-  Future<bool> get persistent => _delegate.persistent;
-
-  @override
-  Future<bool> write(StoreDoc doc, Map<String, Object?> data) =>
-      _delegate.write(doc, data);
-
-  @override
-  Future<void> delete(StoreDoc doc) => _delegate.delete(doc);
-
-  @override
-  Future<void> purgeQuarantined(StoreDoc doc) =>
-      _delegate.purgeQuarantined(doc);
-
-  @override
-  Future<void> quarantine(StoreDoc doc, String reason) =>
-      _delegate.quarantine(doc, reason);
-
-  @override
-  Future<void> flush() => _delegate.flush();
-
-  @override
-  String? rawText(StoreDoc doc) => _delegate.rawText(doc);
-
-  @override
-  void putRaw(StoreDoc doc, String text) => _delegate.putRaw(doc, text);
-}
 
 Finder _key(String key) => find.byKey(Key(key));
 
@@ -89,7 +31,7 @@ String _label(WidgetTester tester) =>
 /// Pumps the whole app over [store] on a 390 × 844 phone, at test time 0.
 Future<HonestChessAppState> _launch(
   WidgetTester tester,
-  _GatedStore store, {
+  GatedStore store, {
   bool disableAnimations = false,
 }) async {
   tester.view.physicalSize = const Size(390, 844);
@@ -130,7 +72,7 @@ void main() {
     final hex = RegExp(r'<color name="launch_navy">#([0-9A-Fa-f]{6})</color>')
         .firstMatch(xml)!
         .group(1)!;
-    await _launch(tester, _GatedStore());
+    await _launch(tester, GatedStore());
     final navy = tester.widget<ColoredBox>(_key('splash-navy'));
     expect(
       navy.color,
@@ -156,7 +98,7 @@ void main() {
   testWidgets('the design\'s sizes: mark 132, wordmark 40, the 220 × 5 bar, '
       'and one semantics node', (tester) async {
     final handle = tester.ensureSemantics();
-    await _launch(tester, _GatedStore());
+    await _launch(tester, GatedStore());
     expect(tester.getSize(find.byType(HonestMark)), const Size(132, 132));
     final wordmark = tester.widget<Text>(_key('splash-wordmark')).textSpan!;
     expect(wordmark.toPlainText(), 'HonestChess');
@@ -184,7 +126,7 @@ void main() {
   testWidgets('the bar and the label follow each finished step', (
     tester,
   ) async {
-    final store = _GatedStore();
+    final store = GatedStore();
     await _launch(tester, store);
     double fill() => tester.getSize(_key('splash-bar-fill')).width;
     expect(fill(), 0);
@@ -207,7 +149,7 @@ void main() {
 
   testWidgets('instant reads: the menu comes after the 0.6 s floor and the '
       'READY hold, not before', (tester) async {
-    final store = _GatedStore();
+    final store = GatedStore();
     final root = await _launch(tester, store);
     store.releaseAll();
     await _pumpMs(tester, 849);
@@ -236,7 +178,7 @@ void main() {
 
   testWidgets('a held read holds the splash; the menu follows its release by '
       'the READY hold', (tester) async {
-    final store = _GatedStore();
+    final store = GatedStore();
     await _launch(tester, store);
     for (final doc in StoreDoc.values) {
       if (doc != StoreDoc.gameTwo) store.release(doc);
@@ -255,7 +197,7 @@ void main() {
 
   testWidgets('a damaged saved game completes its step, and the menu reports '
       'it', (tester) async {
-    final store = _GatedStore(
+    final store = GatedStore(
       AppStore.memory(
         documents: {
           StoreDoc.gameComputer: {
@@ -296,7 +238,7 @@ void main() {
         null,
       ),
     );
-    final store = _GatedStore();
+    final store = GatedStore();
     await _launch(tester, store);
     await tester.binding.handlePopRoute();
     await tester.pump();
@@ -315,7 +257,7 @@ void main() {
 
   testWidgets('sent away mid-load, the hand-over waits for the return, then '
       'holds READY afresh', (tester) async {
-    final store = _GatedStore();
+    final store = GatedStore();
     await _launch(tester, store);
     final binding = tester.binding;
     binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
@@ -342,7 +284,7 @@ void main() {
   testWidgets('leaving during the READY hold restarts it on the return', (
     tester,
   ) async {
-    final store = _GatedStore();
+    final store = GatedStore();
     await _launch(tester, store);
     store.releaseAll();
     await _pumpMs(tester, 800);
@@ -363,7 +305,7 @@ void main() {
 
   testWidgets('with animations off: the gradient from the first frame, the '
       'bar jumps, and the menu cuts in at the same instants', (tester) async {
-    final store = _GatedStore();
+    final store = GatedStore();
     final root = await _launch(tester, store, disableAnimations: true);
     expect(
       tester.widget<FadeTransition>(_key('splash-gradient')).opacity.value,

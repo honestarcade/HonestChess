@@ -90,6 +90,9 @@ class PlayerPanel extends StatelessWidget {
                 Text(
                   playerSubLine(game.mode, side, game.clock.control),
                   key: Key('sub-${side.name}'),
+                  semanticsLabel: spokenCaps(
+                    playerSubLine(game.mode, side, game.clock.control),
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

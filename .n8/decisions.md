@@ -1003,3 +1003,40 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** Two earlier tests are updated for behaviour this story changes. `result_overlay_test`'s live-region test now asserts that the card is a header and not a live region. `computer_turns_test`'s "leaving the game" test now pumps under `pumpUnderScope`, because `GameScreen` reads the announcer from the scope.
   **Why:** The plan amends #78's live region, and a board needs its scope.
   **Issue:** #102
+- **Decision:** `SegmentedTabs` is now a tab bar. The row carries `SemanticsRole.tabBar`, and each tab carries `SemanticsRole.tab`, replacing `button: true`. Each tab keeps #87's group and selected flags. Each tab's label also carries its position: "The pieces, tab, 1 of 2" (`tabSpeech`). This departs from the plan, which expected TalkBack to supply "tab, 1 of 2" from the role. Flutter 3.47.5's Android embedding gives the tab roles no Android class (its `RoleConfiguratorFactory`, read 2026-09-29), so TalkBack would have said only "The pieces, selected". Flutter's own Material `TabBar` puts "Tab 1 of 2" into its label for the same reason. The test asserts the role, the order, the selected flags and the label.
+  **Why:** The acceptance criterion is what the user hears. The role alone would not deliver it on Android.
+  **Issue:** #103
+- **Decision:** Spoken-versus-visible differences. Upper-case display text is spoken through `spokenCaps` (`lib/ui/game/labels.dart`). It uses sentence case and keeps names (White, Black, the step names, Honest, Arcade, Chess, GitHub). Each " · " becomes a comma. A line starting "vs" or a web address stays lower case, and text already in mixed case keeps its case. This covers kickers, card and group titles, option names (NAVY → "Navy"), panel sub-lines, the status chip, the pause meta, the result tag, promise chips ("No ads"), link text and gesture tags. Specific readings:
+  - Continue reads "Continue vs Club, move 12, White to move" (`continueSpeech`).
+  - Settings' version reads "Version 0.1.0, build 1" (`versionSpeech`). The empty line is hidden until Android answers, and "Version unavailable" reads as written.
+  - About the app's version reads "Version 0.1.0, offline", or "Offline" (`versionOfflineSpeech`).
+  - Links read their words, and "opens in browser" is now their hint (`opensInBrowser`), no longer part of the label.
+  - Menu cards read the name, then the subtitle with "·" as a comma.
+  - The steppers' visible labels are left out, because each value's node already says "Minutes per side, 10 min".
+  **Why:** The plan's pass 1 rules for spoken text. A single function keeps every screen consistent.
+  **Issue:** #103
+- **Decision:** Rule 2 fix: some buttons had no action a screen reader could use. Their `Semantics(excludeSemantics: true)` dropped the InkWell's tap, and their role nodes had none of their own. These were the pause and result cards' buttons (`CardButton`, `CardLinkButton`), Statistics' three buttons, the promotion choices, the result bar's Rematch and the pause pill. Each now passes its own `onTap`, the same callback as its InkWell. `CardLinkButton` passes `_tap`, so focus is still taken first. The result bar's whole-bar InkWell produced an unlabelled tappable node, so it is now `excludeFromSemantics`. Its tap is already the labelled "Show the result…" button's.
+  **Why:** TalkBack could fall back to a simulated touch, but a role node with no action fails the plan's "tappable has a role" complement and #104's labelled-target guideline.
+  **Issue:** #103
+- **Decision:** Headings. `ScreenHeader`'s title and the menu's wordmark are `headingLevel: 1`. The mono sub-title under a title is not a heading. Level 2 goes to setup section titles (`TitledSection`), Settings' board cards and the PLAY / DISPLAY / SOUND kickers, How to play's rule tags and GESTURES, About's WHAT'S IN IT, THE HONEST PROMISES and OUR PROMISES, House rules, Statistics' breakdown title, and the pause, result, promotion and reset card titles. Each heading is its own node (`container: true`), because the title had been merging into the Back button's node on the setups, Settings and Statistics. The promotion card's heading is the card's own live-region node, which already carries its label. Settings' STORED ON THIS PHONE is left a card kicker, not a heading, as the plan's demo lists only PLAY, DISPLAY, SOUND.
+  **Why:** The plan's pass 1 and pass 2 header lists.
+  **Issue:** #103
+- **Decision:** Test shape. `test/a11y/a11y_cases.dart` defines `A11yCase(name, pump)` and `a11yCases`, which covers every screen and state in the plan and is for #104 to reuse. The splash case is held on `GatedStore`, which moved from `test/ui/splash_test.dart` to `test/support/gated_store.dart`. `test/a11y/labels_test.dart` walks the tree in traversal order at 390 × 2400. Board squares are recognised by #102's label pattern and must number exactly 64 on board cases. On top of the plan's rules, the audit also reports glyphs read aloud, upper-case words, role nodes with no label, and enabled role nodes with no action. Its first failing run (2026-09-29, before the fixes, from a throwaway dump of the same tree) found:
+  - eight buttons nothing could activate;
+  - the result bar's unlabelled tappable;
+  - titles merged into Back;
+  - every kicker at heading level 0;
+  - upper-case readings;
+  - the menu cards' "·".
+  The fixture test proves the audit fails on each kind of problem. It is a plain test, not a guard, so there is no mutation.
+  **Why:** The plan's test plan and its pass 2 shared table.
+  **Issue:** #103
+- **Decision:** Earlier tests are updated for readings this story changes:
+  - `about_app_test` and `about_arcade_test`: link labels and hint.
+  - `how_to_play_test`: sentence-case tags and the tab role.
+  - `menu_navigation_test`: Continue.
+  - `result_overlay_test`: the result tag.
+  - `settings_options_test`: the version.
+  - `settings_look_test`: the label colour is read from the `RichText` under a `Text` that now has a `semanticsLabel`.
+  **Why:** The plan changes these readings.
+  **Issue:** #103

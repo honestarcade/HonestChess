@@ -180,6 +180,8 @@ class _PromotionSheetState extends State<PromotionSheet>
       key: const Key('promo-card'),
       container: true,
       liveRegion: true,
+      header: true,
+      headingLevel: 2,
       label: 'Promote pawn on $square',
       child: DecoratedBox(
         decoration: const BoxDecoration(
@@ -278,6 +280,7 @@ class _PromotionChoiceState extends State<_PromotionChoice> {
     return Semantics(
       button: true,
       label: 'Promote to ${kind.name}',
+      onTap: widget.onPick,
       excludeSemantics: true,
       child: Material(
         color: Palette.choiceFill,

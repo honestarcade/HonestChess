@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../game/labels.dart';
 import '../navigation.dart';
 import '../theme/palette.dart';
 
@@ -51,7 +52,9 @@ class ScreenHeader extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Semantics(
+                container: true,
                 header: true,
+                headingLevel: 1,
                 child: Text(
                   title,
                   key: Key('$keyPrefix-title'),
@@ -69,6 +72,7 @@ class ScreenHeader extends StatelessWidget {
                 Text(
                   kicker,
                   key: Key('$keyPrefix-kicker'),
+                  semanticsLabel: spokenCaps(kicker),
                   style: TextStyle(
                     fontFamily: Fonts.plexMono,
                     fontWeight: FontWeight.w500,
@@ -112,6 +116,7 @@ class _BackButtonState extends State<_BackButton> {
   @override
   Widget build(BuildContext context) {
     return Semantics(
+      container: true,
       button: true,
       label: 'Back',
       onTap: widget.onBack,

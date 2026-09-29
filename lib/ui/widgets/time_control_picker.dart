@@ -223,15 +223,18 @@ class _StepperRow extends StatelessWidget {
         padding: const EdgeInsets.only(left: 11, right: 1),
         child: Row(
           children: [
+            // The value's node says the label, beside what it labels.
             Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontFamily: Fonts.outfit,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 11.5,
-                  height: 1,
-                  color: Palette.textChoice,
+              child: ExcludeSemantics(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontFamily: Fonts.outfit,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 11.5,
+                    height: 1,
+                    color: Palette.textChoice,
+                  ),
                 ),
               ),
             ),

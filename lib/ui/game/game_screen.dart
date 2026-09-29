@@ -446,6 +446,7 @@ class _TopBar extends StatelessWidget {
                       button: true,
                       enabled: !game.isOver,
                       label: pausePillLabel,
+                      onTap: game.isOver ? null : onPause,
                       excludeSemantics: true,
                       child: GestureDetector(
                         onTap: game.isOver ? null : onPause,
@@ -499,6 +500,7 @@ class _TopBar extends StatelessWidget {
                           child: Text(
                             text,
                             key: const Key('status-text'),
+                            semanticsLabel: spokenCaps(text),
                             maxLines: 3,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.end,

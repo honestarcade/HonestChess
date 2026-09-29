@@ -6,6 +6,7 @@ import '../../data/play_mode.dart';
 import '../app_scope.dart';
 import '../board/board_view.dart' show designWidth;
 import '../content/stats_view.dart';
+import '../game/labels.dart';
 import '../game/pause_overlay.dart' show disabledPauseButtonOpacity;
 import '../theme/palette.dart';
 import '../widgets/option_button.dart';
@@ -335,7 +336,9 @@ class _StatsScreenState extends State<StatsScreen>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Semantics(
+              container: true,
               header: true,
+              headingLevel: 2,
               child: Text(
                 resetTitle,
                 key: const Key('stats-reset-title'),
@@ -577,10 +580,13 @@ class _Breakdown extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Semantics(
+            container: true,
             header: true,
+            headingLevel: 2,
             child: Text(
               view.breakdownTitle,
               key: const Key('stats-breakdown-title'),
+              semanticsLabel: spokenCaps(view.breakdownTitle),
               style: _font(
                 Fonts.plexMono,
                 FontWeight.w500,
@@ -759,6 +765,7 @@ class _ButtonState extends State<_Button> {
       button: true,
       enabled: w.onTap != null,
       label: w.label,
+      onTap: w.onTap,
       excludeSemantics: true,
       child: Opacity(
         opacity: w.onTap == null ? disabledPauseButtonOpacity : 1,

@@ -9,6 +9,7 @@ import '../../platform/platform_channel.dart';
 import '../app_scope.dart';
 import '../board/board_options.dart';
 import '../board/board_view.dart';
+import '../game/labels.dart';
 import '../theme/palette.dart';
 import '../widgets/option_button.dart';
 import '../widgets/screen_header.dart';
@@ -50,6 +51,14 @@ String versionLine(AppVersion? version) {
     return versionUnavailable;
   }
   return 'v$name · BUILD ${version.code}';
+}
+
+/// What a screen reader says for [versionLine]'s line: "Version 0.1.0,
+/// build 1", or [versionUnavailable] as written.
+String versionSpeech(AppVersion? version) {
+  final line = versionLine(version);
+  if (line == versionUnavailable) return line;
+  return 'Version ${version!.displayName}, build ${version.code}';
 }
 
 /// One on/off row: [id] is its key's suffix, [read] and [write] its
@@ -164,15 +173,15 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  /// Asked once per visit.
-  Future<String>? _version;
+  /// Asked once per visit; null when Android could not say.
+  Future<AppVersion?>? _version;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _version ??= AppScope.of(context).platform
         .appVersion()
-        .then(versionLine, onError: (Object _) => versionUnavailable);
+        .then((version) => version, onError: (Object _) => null);
   }
 
   @override
@@ -334,8 +343,10 @@ class _Group extends StatelessWidget {
           child: Semantics(
             container: true,
             header: true,
+            headingLevel: 2,
             child: Text(
               title,
+              semanticsLabel: spokenCaps(title),
               style: const TextStyle(
                 fontFamily: Fonts.plexMono,
                 fontWeight: FontWeight.w500,
@@ -359,15 +370,16 @@ class _StoredNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SectionCard(
-      key: Key('settings-note'),
+    return SectionCard(
+      key: const Key('settings-note'),
       fill: Palette.optionFill,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             storedNoteKicker,
-            style: TextStyle(
+            semanticsLabel: spokenCaps(storedNoteKicker),
+            style: const TextStyle(
               fontFamily: Fonts.plexMono,
               fontWeight: FontWeight.w500,
               fontSize: 9,
@@ -376,8 +388,8 @@ class _StoredNote extends StatelessWidget {
               color: Palette.kicker,
             ),
           ),
-          SizedBox(height: 9),
-          Text(
+          const SizedBox(height: 9),
+          const Text(
             storedNoteText,
             style: TextStyle(
               fontFamily: Fonts.outfit,
@@ -398,7 +410,7 @@ class _StoredNote extends StatelessWidget {
 class _VersionLine extends StatelessWidget {
   const _VersionLine(this.version);
 
-  final Future<String> version;
+  final Future<AppVersion?> version;
 
   static const _size = 9.5;
   static const _lineHeight = 1.6;
@@ -407,21 +419,25 @@ class _VersionLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: _size * _lineHeight,
-      child: FutureBuilder<String>(
+      child: FutureBuilder<AppVersion?>(
         future: version,
-        builder: (context, snapshot) => Text(
-          snapshot.data ?? '',
-          key: const Key('settings-version'),
-          maxLines: 1,
-          style: const TextStyle(
-            fontFamily: Fonts.plexMono,
-            fontWeight: FontWeight.w500,
-            fontSize: _size,
-            height: _lineHeight,
-            letterSpacing: _size * .14,
-            color: Palette.textFaint,
-          ),
-        ),
+        builder: (context, snapshot) {
+          final answered = snapshot.connectionState == ConnectionState.done;
+          return Text(
+            answered ? versionLine(snapshot.data) : '',
+            key: const Key('settings-version'),
+            semanticsLabel: answered ? versionSpeech(snapshot.data) : '',
+            maxLines: 1,
+            style: const TextStyle(
+              fontFamily: Fonts.plexMono,
+              fontWeight: FontWeight.w500,
+              fontSize: _size,
+              height: _lineHeight,
+              letterSpacing: _size * .14,
+              color: Palette.textFaint,
+            ),
+          );
+        },
       ),
     );
   }
@@ -444,7 +460,9 @@ class _Section extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Semantics(
+            container: true,
             header: true,
+            headingLevel: 2,
             child: Text(
               title,
               style: const TextStyle(
@@ -507,6 +525,7 @@ class _Labelled extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           label,
+          semanticsLabel: spokenCaps(label),
           maxLines: 1,
           overflow: TextOverflow.visible,
           softWrap: false,

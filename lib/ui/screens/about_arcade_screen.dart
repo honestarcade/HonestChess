@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../board/board_view.dart' show designWidth;
 import '../brand/honest_mark.dart';
 import '../brand/links.dart';
+import '../game/labels.dart';
 import '../content/about_content.dart';
 import '../theme/palette.dart';
 import '../widgets/external_link.dart';
@@ -148,7 +149,8 @@ class _SupportCard extends StatelessWidget {
     return ExternalLink(
       key: const Key('aboutstudio-support'),
       url: Links.contribute,
-      semanticsLabel: '$supportKicker\n$supportText\n$supportLinkText',
+      semanticsLabel:
+          '${spokenCaps(supportKicker)}\n$supportText\n$supportLinkText',
       builder: (context, pressed) => Container(
         key: const Key('aboutstudio-support-card'),
         padding: EdgeInsets.symmetric(vertical: 14 * s, horizontal: 15 * s),
@@ -230,10 +232,13 @@ class _Promises extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Semantics(
+          container: true,
           header: true,
+          headingLevel: 2,
           child: Text(
             promisesKicker,
             key: const Key('aboutstudio-promises-kicker'),
+            semanticsLabel: spokenCaps(promisesKicker),
             style: _font(
               Fonts.plexMono,
               FontWeight.w500,
@@ -346,6 +351,7 @@ class _Chips extends StatelessWidget {
             ),
             child: Text(
               label,
+              semanticsLabel: spokenCaps(label),
               style: _font(
                 Fonts.plexMono,
                 FontWeight.w500,
@@ -384,7 +390,7 @@ class _Links extends StatelessWidget {
     Widget link(String key, String url, String text) => ExternalLink(
       key: Key('aboutstudio-link-$key'),
       url: url,
-      semanticsLabel: '$text, opens in browser',
+      semanticsLabel: spokenCaps(text),
       builder: (context, pressed) => SizedBox(
         height: height,
         child: Center(

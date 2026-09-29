@@ -223,7 +223,9 @@ class _PauseOverlayState extends State<PauseOverlay>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Semantics(
+                container: true,
                 header: true,
+                headingLevel: 2,
                 child: const Text(
                   'Paused',
                   style: TextStyle(
@@ -239,6 +241,7 @@ class _PauseOverlayState extends State<PauseOverlay>
               Text(
                 pauseMeta(game),
                 key: const Key('pause-meta'),
+                semanticsLabel: spokenCaps(pauseMeta(game)),
                 style: const TextStyle(
                   fontFamily: Fonts.plexMono,
                   fontWeight: FontWeight.w500,
@@ -471,6 +474,7 @@ class _CardLinkButtonState extends State<CardLinkButton> {
       button: true,
       enabled: enabled,
       label: widget.label,
+      onTap: enabled ? _tap : null,
       excludeSemantics: true,
       child: Opacity(
         opacity: enabled ? 1 : disabledPauseButtonOpacity,
@@ -559,6 +563,7 @@ class CardButton extends StatelessWidget {
       button: true,
       enabled: onTap != null,
       label: busy ? '$label, waiting for the answer' : label,
+      onTap: onTap,
       excludeSemantics: true,
       child: Opacity(
         opacity: onTap == null && !busy ? disabledPauseButtonOpacity : 1,

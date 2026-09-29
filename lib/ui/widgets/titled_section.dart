@@ -27,6 +27,7 @@ class TitledSection extends StatelessWidget {
           Semantics(
             container: true,
             header: true,
+            headingLevel: 2,
             child: Text(
               title,
               style: const TextStyle(

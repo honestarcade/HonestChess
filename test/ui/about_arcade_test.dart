@@ -261,11 +261,19 @@ void main() {
     await _reveal(tester, 'aboutstudio-link-github');
     expect(
       tester.getSemantics(_key('aboutstudio-link-site')),
-      isSemantics(isLink: true, label: 'HONESTARCADE.APP, opens in browser'),
+      isSemantics(
+        isLink: true,
+        label: 'honestarcade.app',
+        hint: opensInBrowser,
+      ),
     );
     expect(
       tester.getSemantics(_key('aboutstudio-link-github')),
-      isSemantics(isLink: true, label: 'SOURCE ON GITHUB, opens in browser'),
+      isSemantics(
+        isLink: true,
+        label: 'Source on GitHub',
+        hint: opensInBrowser,
+      ),
     );
     handle.dispose();
   });

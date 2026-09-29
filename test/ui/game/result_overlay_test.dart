@@ -419,7 +419,7 @@ void main() {
       await playAll(tester, h, _foolsMate);
       await cardIn(tester);
       final heading = find.bySemanticsLabel(
-        'BLACK WINS, Black delivers checkmate',
+        'Black wins, Black delivers checkmate',
       );
       expect(heading, findsOneWidget);
       expect(

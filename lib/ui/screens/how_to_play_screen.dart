@@ -7,6 +7,7 @@ import '../app_scope.dart';
 import '../board/board_options.dart';
 import '../board/board_view.dart';
 import '../content/rules_text.dart';
+import '../game/labels.dart';
 import '../theme/palette.dart';
 import '../widgets/screen_header.dart';
 import '../widgets/segmented_tabs.dart';
@@ -253,9 +254,12 @@ class _RuleCards extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Semantics(
+                  container: true,
                   header: true,
+                  headingLevel: 2,
                   child: Text(
                     rule.tag,
+                    semanticsLabel: spokenCaps(rule.tag),
                     style: kicker(i == 0 ? Palette.teal : Palette.kicker),
                   ),
                 ),
@@ -287,8 +291,14 @@ class _RuleCards extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Semantics(
+                container: true,
                 header: true,
-                child: Text(gesturesKicker, style: kicker(Palette.kicker)),
+                headingLevel: 2,
+                child: Text(
+                  gesturesKicker,
+                  semanticsLabel: spokenCaps(gesturesKicker),
+                  style: kicker(Palette.kicker),
+                ),
               ),
               for (final (i, gesture) in gestures.indexed) ...[
                 SizedBox(height: i == 0 ? 11 * s : 8 * s),
@@ -309,6 +319,7 @@ class _RuleCards extends StatelessWidget {
                         ),
                         child: Text(
                           gesture.tag,
+                          semanticsLabel: spokenCaps(gesture.tag),
                           style: _font(
                             Fonts.plexMono,
                             FontWeight.w500,

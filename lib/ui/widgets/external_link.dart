@@ -7,6 +7,9 @@ import '../app_scope.dart';
 import '../board/board_view.dart' show designWidth;
 import '../theme/palette.dart';
 
+/// What a screen reader says after a link's words: the ↗'s meaning.
+const opensInBrowser = 'opens in browser';
+
 /// What shows when nothing on the phone could open a link.
 const noBrowserText = 'No browser found';
 
@@ -36,8 +39,8 @@ class ExternalLink extends StatefulWidget {
 
   final String url;
 
-  /// What a screen reader says: the visible text, with ↗ spoken
-  /// "opens in browser".
+  /// What a screen reader says: the visible text's words, without the ↗,
+  /// which is spoken as the [opensInBrowser] hint.
   final String semanticsLabel;
 
   final LinkBuilder builder;
@@ -90,8 +93,10 @@ class _ExternalLinkState extends State<ExternalLink> {
 
   @override
   Widget build(BuildContext context) => Semantics(
+    container: true,
     link: true,
     label: widget.semanticsLabel,
+    hint: opensInBrowser,
     onTap: _open,
     excludeSemantics: true,
     child: Listener(
