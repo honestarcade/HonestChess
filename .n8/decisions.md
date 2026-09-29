@@ -524,3 +524,6 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** `GameController` gains `takeBack()`, `restart()` (same mode, time control and start FEN; fresh seed; the old computer cancelled and disposed; the takeback option re-read) and `resign()` (you vs the computer, the side to move between two players), all `bool`; `newGame(GameSetup)` is left to #76. The status chip and pause pill now share the top bar's width (both `Flexible`).
   **Why:** The plan's split (#75 adds the three; #76 wires the buttons and New); a long chip must not overflow the bar.
   **Issue:** #75
+- **Decision:** The device smoke test holds "at least 10 frames" on the reply with the most pumped frames and the 200 ms frame-gap bar on every reply after the first, not on each reply.
+  **Why:** On the sudoku-dev emulator (2026-09-29, `flutter test integration_test/app_smoke_test.dart -d emulator-5554`) a pump took about 36 ms, so a ~430 ms Beginner reply fit 11–12 pumps, and the first reply — carrying the app's first frames after launch — fit 4 with a 178 ms gap; the first CI dispatch (run 36530840756) failed with the per-reply reading and its log does not show which assertion.
+  **Issue:** #75
