@@ -28,11 +28,20 @@ flutter:
 
   # Bundled, never fetched (invariant 1); sources and hashes in
   # assets/fonts/SOURCE.md. The OFL texts are assets so the licence page can
-  # read them.
+  # read them. The audio clips are listed one by one, never as the directory,
+  # so LICENSES.md and PROMPTS.md beside them stay out of the app;
+  # test/guards/audio_assets_test.dart holds this list to
+  # lib/feedback/clips.dart.
   assets:
     - assets/fonts/outfit/OFL.txt
     - assets/fonts/plexmono/OFL.txt
     - assets/fonts/pieces/OFL.txt
+    - assets/audio/move.wav
+    - assets/audio/capture.wav
+    - assets/audio/castle.wav
+    - assets/audio/check.wav
+    - assets/audio/end.wav
+    - assets/audio/music.wav
 
   fonts:
     - family: Outfit

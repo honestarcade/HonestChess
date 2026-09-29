@@ -818,3 +818,15 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** `tools/mutation_check.py` now passes `flutter test` the list of files that hold a guard-tagged test, found once before any mutation runs, rather than letting it load the whole test tree to filter by tag. Rule 3.
   **Why:** M4's PR run of the mutations job took 58.3 min of its 60 min limit (PR #129, 2026-09-29). Each suite run compiled every test file, and the UI stories had added most of them. Locally, after a source edit, the suite took 9 s against 4 s with the list (M3 Max, 2026-09-29, `flutter test --no-pub --tags guard --exclude-tags slow`). The alternatives were another timeout raise, which would fail again at M5, or a job matrix, which would rename the required `mutations` check. The tags still select the tests, so what the battery measures is unchanged; the full battery was re-run in a separate worktree to confirm.
   **Issue:** #95
+- **Decision:** The six clips were generated in one take each on 2026-09-29 (`move` first as the probe, then the other five), with the owner's key on the Creator plan, and installed as they came; none was auditioned or regenerated.
+  **Why:** The plan's one-take rule (owner, /n8-plan M5 round one); any clip the owner dislikes is regenerated in M6.
+  **Issue:** #95
+- **Decision:** `check.wav` was installed at −10.6 dBFS peak rather than the −4 dBFS its `MIX_DB` aims at, because the take was quiet enough that the ported ×8 gain cap bound (`tools/sfx.py generate` output and a peak read of the installed files, 2026-09-29).
+  **Why:** The cap is part of the ported polish, and lifting it for one clip would be the auditioning the plan rules out; the level is flagged for the owner's M6 listening pass.
+  **Issue:** #95
+- **Decision:** `tools/sfx.py` differs from Honest Solitaire's in three small ways: an HTTP refusal is reported with its status and the start of its body and is not retried; each raw take is also staged as `build/sfx/<name>.raw.wav` and its length printed; and the key-file parsing is a separate `parse_key` so `tools/test_sfx.py` can test it.
+  **Why:** The readiness pass needs a 401 told apart from a quota error on the probe; the raw length is how the stereo-response assumption was checked (0.48 s raw for a 0.5 s request, read as stereo: the probe's own output, 2026-09-29); the plan asks for key-file parsing to be tested.
+  **Issue:** #95
+- **Decision:** The guard reads `pubspec.yaml`'s `flutter: assets:` with `package:yaml` instead of Solitaire's line regex, and adds a mutation for the README naming LICENSES.md alongside the plan's "not covered by the MIT" one. The stray-file mutation adds a text stand-in `stray.wav` rather than a copy of `move.wav`.
+  **Why:** This repository's guards read YAML structurally (`test/guards/repo_files.dart`); each README assertion is a rule and gets its own mutation; the battery's `adds` writes text, and the stray rule refuses the name before reading any bytes.
+  **Issue:** #95
