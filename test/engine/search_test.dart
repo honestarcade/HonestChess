@@ -265,6 +265,56 @@ void main() {
       expect(found.depth, 1);
     });
 
+    test('out of time stops even the first iteration and still gives a '
+        'legal move', () {
+      final legal = legalMoves(middlegame);
+      for (final exactRootScores in [true, false]) {
+        var firstChecks = 0;
+        _search(
+          middlegame,
+          limits: SearchLimits(depth: 1, exactRootScores: exactRootScores),
+          shouldStop: () {
+            firstChecks++;
+            return null;
+          },
+        );
+        expect(firstChecks, greaterThan(0));
+        for (final after in {1, firstChecks}) {
+          var calls = 0;
+          final found = _found(
+            _search(
+              middlegame,
+              limits: SearchLimits(exactRootScores: exactRootScores),
+              shouldStop: () => ++calls >= after ? StopReason.outOfTime : null,
+            ),
+          );
+          final label = 'exact $exactRootScores, out of time at call $after';
+          expect(calls, after, reason: 'no check after out of time: $label');
+          expect(found.depth, 0, reason: label);
+          expect(legal, contains(found.move), reason: label);
+          expect(found.rootScores, hasLength(legal.length), reason: label);
+        }
+      }
+    });
+
+    test('out of time after the first iteration returns the last finished '
+        'one, as a deadline does', () {
+      var calls = 0;
+      final late = _found(
+        _search(
+          middlegame,
+          limits: const SearchLimits(),
+          shouldStop: () => ++calls >= 40 ? StopReason.outOfTime : null,
+        ),
+      );
+      expect(late.depth, greaterThan(0));
+      final byDepth = _found(
+        _search(middlegame, limits: SearchLimits(depth: late.depth)),
+      );
+      expect(late.move, byDepth.move);
+      expect(late.score, byDepth.score);
+    });
+
     test('no legal move is an ArgumentError; one legal move comes back at '
         'once', () {
       const mated =

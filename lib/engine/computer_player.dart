@@ -81,33 +81,46 @@ const int minMovesToGo = 20;
 const int movesToGoHorizon = 40;
 
 /// The least of the clock the computer keeps back, in milliseconds, for
-/// the messages to and from the worker and the search's last iteration.
+/// the messages to and from the worker and the nodes between two of the
+/// search's stop checks: no search runs into it ([clockLimitMs]).
 const int minClockMarginMs = 50;
 
 /// The share of its remaining clock, in percent, the computer keeps back
 /// when that is more than [minClockMarginMs].
 const int clockMarginPercent = 2;
 
-/// How far past its deadline a worker may run, in milliseconds, before it
-/// is killed and the request fails with a [ComputerError].
+/// How far past its [clockLimitMs] a worker may run, in milliseconds,
+/// before it is killed and the request fails with a [ComputerError].
 const int overrunKillMs = 500;
+
+int _clockMarginMs(int remainingMs) =>
+    max(minClockMarginMs, remainingMs * clockMarginPercent ~/ 100);
 
 /// The most milliseconds a search may take with [remainingMs] on the
 /// computer's clock, [incrementMs] added per move, at move [fullmoveNumber]:
 /// its share of the clock plus half the increment, never more than the
 /// clock less a margin, and 0 — the search's first iteration only — once
-/// the clock is at or below that margin.
+/// the clock is at or below that margin. Past this cap a search still
+/// finishes its first iteration and its step's depth floor, within
+/// [clockLimitMs].
 int clockCapMs({
   required int remainingMs,
   required int incrementMs,
   required int fullmoveNumber,
 }) {
-  final margin = max(minClockMarginMs, remainingMs * clockMarginPercent ~/ 100);
+  final margin = _clockMarginMs(remainingMs);
   if (remainingMs <= margin) return 0;
   final movesToGo = max(minMovesToGo, movesToGoHorizon - fullmoveNumber);
   final share = remainingMs ~/ movesToGo + incrementMs ~/ 2;
   return min(share, remainingMs - margin);
 }
+
+/// The most milliseconds any search may take with [remainingMs] on the
+/// computer's clock: all of it but the margin [clockCapMs] keeps, and 0
+/// once the clock is at or below that margin. At this limit the search
+/// stops whatever it is doing ([StopReason.outOfTime]).
+int clockLimitMs({required int remainingMs}) =>
+    max(0, remainingMs - _clockMarginMs(remainingMs));
 
 /// [clockCapMs] for the side to move in [game] as its clock reads now, or
 /// null in an untimed game.
@@ -168,7 +181,8 @@ final class ComputerPlayer {
   /// The computer's move in [game], for its side to move, searched on the
   /// worker isolate. The same position, step and seed give the same move;
   /// in a timed game the search may stop early, at [gameClockCapMs] from
-  /// this call, so the computer never loses on time.
+  /// this call, and stops whatever it is doing at [clockLimitMs], so the
+  /// computer never loses on time.
   ///
   /// Completes with [MoveCancelled] if cancelled first, or with a
   /// [ComputerError] when the worker fails. Throws a [StateError] when the
@@ -194,6 +208,9 @@ final class ComputerPlayer {
       for (var i = 0; i < ply; i++) game.history[i].position.key,
     ];
     final cap = gameClockCapMs(game);
+    final limit = cap == null
+        ? null
+        : clockLimitMs(remainingMs: game.remaining(game.sideToMove)!);
     return _request(
       (id) => [
         _moveRequest,
@@ -204,8 +221,9 @@ final class ComputerPlayer {
         seed,
         if (cap == null) null else max(0, cap - (_now() - asked)),
         nodeBudget,
+        if (limit == null) null else max(0, limit - (_now() - asked)),
       ],
-      deadlineMs: cap,
+      limitMs: limit,
     ).then((reply) {
       if (reply == null) return const MoveCancelled();
       final Move move;
@@ -297,7 +315,7 @@ final class ComputerPlayer {
 
   Future<List<Object?>?> _request(
     List<Object?> Function(int id) build, {
-    int? deadlineMs,
+    int? limitMs,
   }) {
     final replaced = _pending;
     if (replaced != null) _cancel(notify: false);
@@ -308,12 +326,14 @@ final class ComputerPlayer {
       if (!identical(_pending, pending)) return;
       pending.worker = worker;
       _send(worker, build(pending.id));
-      if (deadlineMs != null) {
+      if (limitMs != null) {
         pending.watchdog = Timer(
-          Duration(milliseconds: deadlineMs + overrunKillMs),
+          Duration(milliseconds: limitMs + overrunKillMs),
           () => _fail(
             pending,
-            ComputerError('the search ran $overrunKillMs ms past its deadline'),
+            ComputerError(
+              'the search ran $overrunKillMs ms past its clock limit',
+            ),
           ),
         );
       }
@@ -472,7 +492,8 @@ final class _Worker {
 }
 
 // Messages are lists of primitives: [kind, request id, ...].
-const _moveRequest = 0; // FEN, history keys, step, seed, deadline ms?, nodes?
+// FEN, history keys, step, seed, deadline ms?, nodes?, clock limit ms?
+const _moveRequest = 0;
 const _drawRequest = 1; // the game's JSON
 const _clearRequest = 2; // no reply
 const _movedReply = 3; // UCI, depth, nodes, isolate port (debug builds)
@@ -505,12 +526,15 @@ List<Object?>? _serve(List<Object?> request) {
         return [_drawReply, id, acceptsDraw(game, table: table)];
       default:
         final deadlineMs = request[6] as int?;
+        final limitMs = request[8] as int?;
         ShouldStop? shouldStop;
-        if (deadlineMs != null) {
+        if (deadlineMs != null && limitMs != null) {
           final elapsed = Stopwatch()..start();
-          shouldStop = () => elapsed.elapsedMilliseconds >= deadlineMs
-              ? StopReason.deadline
-              : null;
+          shouldStop = () {
+            final ms = elapsed.elapsedMilliseconds;
+            if (ms >= limitMs) return StopReason.outOfTime;
+            return ms >= deadlineMs ? StopReason.deadline : null;
+          };
         }
         // Without a cancelling shouldStop, chooseMove always finds a move.
         final choice = chooseMove(
