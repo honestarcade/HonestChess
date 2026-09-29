@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:honest_chess/data/app_loader.dart';
 import 'package:honest_chess/data/app_store.dart';
 import 'package:honest_chess/data/game_saves.dart';
 import 'package:honest_chess/data/settings_store.dart';
@@ -15,13 +16,14 @@ import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/navigation.dart';
 import 'package:honest_chess/ui/screens/menu_screen.dart';
+import 'package:honest_chess/ui/screens/splash_screen.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
 // The launcher-icon guard reads this literal here; Palette.screenBg is the
 // same colour for everything else.
 const _navy = Color(0xFF05285F);
 
-/// Starts the app on the menu. [seed] is every new game's computer seed
+/// Starts the app on the splash, then the menu. [seed] is every new game's computer seed
 /// and [store] replaces the device store, for the device test only: its
 /// memory store never shows a leftover saved game.
 void main({int? seed, AppStore? store}) {
@@ -55,8 +57,8 @@ ThemeData appTheme() => ThemeData(
 );
 
 /// The app root. It owns the store, the settings, the statistics, the
-/// saved games and the game controller, reads the first three at launch
-/// under a plain navy frame, and then opens on the menu.
+/// saved games and the game controller, and loads the saved data at launch
+/// behind the splash, which then hands over to the menu.
 class HonestChessApp extends StatefulWidget {
   const HonestChessApp({
     super.key,
@@ -64,6 +66,7 @@ class HonestChessApp extends StatefulWidget {
     this.seedOverride,
     this.store,
     this.platform,
+    this.skipSplash = false,
   });
 
   /// The device store; null builds the production one over [platform].
@@ -78,6 +81,10 @@ class HonestChessApp extends StatefulWidget {
   /// Every new game's computer seed, so the seed saved is the one played;
   /// fresh per game when null. For tests.
   final int? seedOverride;
+
+  /// For tests: load behind a plain navy frame and open straight on the
+  /// menu once loaded, with no splash, floor, hold or fade.
+  final bool skipSplash;
 
   @override
   State<HonestChessApp> createState() => HonestChessAppState();
@@ -102,12 +109,14 @@ class HonestChessAppState extends State<HonestChessApp> {
   late final GameSaves saves;
   late final StatsRecorder stats;
   late final StatsListener _statsListener;
+  late final AppLoader _loader;
 
   /// Leaving the app pauses the live game, whose pause is saved, and then
   /// waits for the store to write it.
   late final AppLifecycleListener _lifecycle;
 
-  /// Whether the launch load has finished and the menu can show.
+  /// Whether the launch load has finished; only [HonestChessApp.skipSplash]
+  /// waits for it before building the app.
   bool _launched = false;
 
   @override
@@ -130,32 +139,18 @@ class HonestChessAppState extends State<HonestChessApp> {
       saves: saves,
     );
     _lifecycle = AppLifecycleListener(onStateChange: _left);
-    _launch();
+    _loader = AppLoader(
+      store: store,
+      settings: settings,
+      stats: stats,
+      saves: saves,
+    )..start();
+    _loader.done.then((_) {
+      if (mounted) setState(() => _launched = true);
+    });
   }
 
   void _boardChanged() => controller.options = settings.board.value;
-
-  /// Reads the settings, the statistics and the saved games together. A
-  /// read that throws is logged and leaves its part on its defaults, so the
-  /// menu always appears; a damaged document raises the store's notice
-  /// instead, which the menu shows.
-  Future<void> _launch() async {
-    Future<void> guarded(String part, Future<void> Function() load) async {
-      try {
-        await load();
-      } on Object catch (e) {
-        debugPrint('launch: the $part could not be read: $e');
-      }
-    }
-
-    await Future.wait([
-      guarded('settings', () => settings.load(store)),
-      guarded('statistics', stats.load),
-      guarded('saved games', saves.loadAll),
-    ]);
-    if (!mounted) return;
-    setState(() => _launched = true);
-  }
 
   Future<void> _left(AppLifecycleState state) async {
     if (state != AppLifecycleState.inactive &&
@@ -172,6 +167,7 @@ class HonestChessAppState extends State<HonestChessApp> {
   @override
   void dispose() {
     _lifecycle.dispose();
+    _loader.dispose();
     _statsListener.dispose();
     stats.dispose();
     saves.dispose();
@@ -183,9 +179,8 @@ class HonestChessAppState extends State<HonestChessApp> {
 
   @override
   Widget build(BuildContext context) {
-    // A plain navy frame while the launch load runs: no navigator yet, so
-    // back then leaves the app.
-    if (!_launched) return const ColoredBox(color: _navy);
+    // Without the splash, a plain navy frame while the launch load runs.
+    if (widget.skipSplash && !_launched) return const ColoredBox(color: _navy);
     return AppScope(
       store: store,
       platform: platform,
@@ -206,7 +201,9 @@ class HonestChessAppState extends State<HonestChessApp> {
           value: appOverlayStyle,
           child: child ?? const SizedBox.shrink(),
         ),
-        home: const MenuScreen(),
+        home: widget.skipSplash
+            ? const MenuScreen()
+            : SplashScreen(loader: _loader),
       ),
     );
   }

@@ -17,12 +17,12 @@ import 'package:honest_chess/ui/game/game_screen.dart';
 import 'package:honest_chess/ui/screens/menu_screen.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
-import 'support/fake_platform_channel.dart';
+import 'support/app_harness.dart';
 import 'ui/game/fake_computer.dart';
 import 'ui/game/pause_overlay_test.dart' show comeBack, leave;
 import 'ui/game/player_panel_test.dart' show text;
 
-/// Pumps the app on [store] past its launch load, on a 390 × 844 phone.
+/// Pumps the app on [store] past its splash, on a 390 × 844 phone.
 Future<HonestChessAppState> _launch(
   WidgetTester tester,
   AppStore store, {
@@ -42,8 +42,10 @@ Future<HonestChessAppState> _launch(
       platform: platform ?? FakePlatformChannel(),
     ),
   );
-  // The first frame is the loading frame; the launch load runs then.
-  await tester.pump();
+  // The splash shows while the launch load runs, then the menu fades in,
+  // during which the navigating flag ignores taps.
+  await pumpUntilFound(tester, find.byKey(const Key('menu-vs-computer')));
+  await tester.pumpAndSettle();
   return tester.state<HonestChessAppState>(find.byType(HonestChessApp));
 }
 

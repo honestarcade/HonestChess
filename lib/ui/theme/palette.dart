@@ -13,6 +13,9 @@ abstract final class Palette {
   static const teal = Color(0xFF00D6B4);
   static const textDim = Color(0xFF7FA6D8);
 
+  /// The splash's progress label.
+  static const textLabel = Color(0xFF5C7FB0);
+
   /// Piece ink: white pieces are [pieceWhite] outlined in [pieceBlack];
   /// black pieces are [pieceBlack] with a faint light halo.
   static const pieceWhite = Color(0xFFFCFBF7);

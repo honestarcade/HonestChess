@@ -38,8 +38,13 @@ const _entries = [
   (entry: 'menu-about-arcade', back: 'aboutstudio-back'),
 ];
 
-/// The app on [store], past its launch load, on a 390 × 844 phone.
-Future<HonestChessAppState> _launch(WidgetTester tester, AppStore store) async {
+/// The app on [store], past its launch load, on a 390 × 844 phone: through
+/// the splash when [splash], otherwise straight onto the menu.
+Future<HonestChessAppState> _launch(
+  WidgetTester tester,
+  AppStore store, {
+  bool splash = false,
+}) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -49,10 +54,17 @@ Future<HonestChessAppState> _launch(WidgetTester tester, AppStore store) async {
       computerFactory: FakeComputers().call,
       store: store,
       platform: FakePlatformChannel(),
+      skipSplash: !splash,
     ),
   );
-  await tester.pump();
-  await tester.pump();
+  if (splash) {
+    await pumpUntilFound(tester, _key('menu-vs-computer'));
+    // The menu's fade in, during which the navigating flag ignores taps.
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+    await tester.pump();
+  }
   return tester.state<HonestChessAppState>(find.byType(HonestChessApp));
 }
 
@@ -120,7 +132,7 @@ void main() {
   testWidgets('the app opens on the menu: the header, every entry, no '
       'Continue and no banner on a fresh install', (tester) async {
     final handle = tester.ensureSemantics();
-    final root = await _launch(tester, AppStore.memory());
+    final root = await _launch(tester, AppStore.memory(), splash: true);
     expect(_onMenu(), isTrue, reason: 'menu: the app opens on the menu');
     expect(root.controller.isIdle, isTrue, reason: 'menu: no game started');
     expect(

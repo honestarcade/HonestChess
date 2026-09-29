@@ -167,3 +167,21 @@ Future<void> seedSavedGame(
   await saves.flush();
   saves.dispose();
 }
+
+/// Pumps in [step]s until [finder] matches, failing with the finder named
+/// once [timeout] of test time has passed without it.
+Future<void> pumpUntilFound(
+  WidgetTester tester,
+  Finder finder, {
+  Duration timeout = const Duration(seconds: 5),
+  Duration step = const Duration(milliseconds: 50),
+}) async {
+  var waited = Duration.zero;
+  while (finder.evaluate().isEmpty) {
+    if (waited >= timeout) {
+      fail('pumpUntilFound: $finder not found within $timeout');
+    }
+    await tester.pump(step);
+    waited += step;
+  }
+}

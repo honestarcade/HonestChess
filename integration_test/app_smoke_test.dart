@@ -1,5 +1,6 @@
-// The device-level smoke test (#38, rewritten by #75 and #91): the real app,
-// launched on an Android device or emulator, goes menu → vs Computer →
+// The device-level smoke test (#38, rewritten by #75 and #91, and #93 for
+// the splash): the real app, launched on an Android device or emulator,
+// goes splash → menu → vs Computer →
 // Beginner → Start game, plays five moves against the real computer, and
 // the screen keeps drawing frames while it thinks on its background isolate.
 import 'package:flutter/material.dart';
@@ -47,8 +48,19 @@ void main() {
       await tester.pump();
     }
 
-    // Launch reads the saved data under a plain frame first.
-    await waitFor(find.byKey(const Key('menu-vs-computer')));
+    // The splash shows while the saved data loads, then the menu fades in;
+    // the navigating flag ignores taps until the fade ends.
+    final menu = find.byKey(const Key('menu-vs-computer'));
+    final launched = Stopwatch()..start();
+    while (menu.evaluate().isEmpty) {
+      expect(
+        launched.elapsed,
+        lessThan(replyTimeout),
+        reason: 'smoke: the menu follows the splash within $replyTimeout',
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await tester.pumpAndSettle();
     await tapAndWait('menu-vs-computer');
     await waitFor(find.byKey(const Key('csetup-back')));
     await tapAndWait('csetup-strength-beginner');

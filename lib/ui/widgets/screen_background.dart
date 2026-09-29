@@ -41,6 +41,17 @@ class ScreenGradient {
     ],
   );
 
+  /// The splash's: `120% 110% at 50% 18%`, [Palette.screenBg] at 55%.
+  static const splash = ScreenGradient(
+    centre: Offset(0.5, 0.18),
+    radii: Size(1.20, 1.10),
+    stops: [
+      (Palette.gradientInner, 0),
+      (Palette.screenBg, .55),
+      (Palette.gradientOuter, 1),
+    ],
+  );
+
   /// The gradient over [rect]: a circle of radius rx × width about the
   /// centre, squashed vertically into the ellipse by a transform.
   RadialGradient over(Rect rect) {

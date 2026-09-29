@@ -315,6 +315,7 @@ void main() {
         computerFactory: FakeComputers().call,
         store: store,
         platform: FakePlatformChannel(),
+        skipSplash: true,
       ),
     );
     await tester.pump();

@@ -794,3 +794,18 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** M3's screen harnesses (`pumpGame` in `test/ui/game/player_panel_test.dart`, `pumpScreen` in `test/ui/promotion_sheet_test.dart`) now pump `GameScreen` through `pumpUnderScope`, and `test/ui/menu_navigation_test.dart` leaves a live board by back then the pause card's Main menu.
   **Why:** The screen reads `AppScope` whenever back or a card button leads off the board, and back on a live board now pauses instead of popping.
   **Issue:** #92
+- **Decision:** Design differences on the splash: the bar follows real progress over five load steps (`settings`, `stats`, `game-computer`, `game-two`, `meta`, one fifth each) instead of the prototype's 9%-per-80 ms ticks and 350 ms hand-off; the splash shows for at least 0.6 s from its first frame, holds READY for 250 ms while in view, then the menu fades in over 300 ms; the first frame is flat #05285F and the radial gradient fades in over 150 ms; the cut from the native launch screen's centred mark to the splash's larger, higher mark is not animated (the design has no native stage, and animating it would need Android's splash-exit API in native code).
+  **Why:** The plan's discretion lines; the design README asks for every deliberate difference to be logged.
+  **Issue:** #93
+- **Decision:** The splash's mark is #88's `HonestMark.chess` (the launcher's corners-and-rook group, as the menu draws it) at 132 dp, not the design splash SVG's own geometry (corners inset to 10–54 with a 7-wide stroke, the rook unscaled), which the design's menu mark shares.
+  **Why:** The plan names #88's mark, and the menu (#91) already draws that mark for the same design geometry, so the app has one mark.
+  **Issue:** #93
+- **Decision:** `AppLoader` (`lib/data/app_loader.dart`) replaces the root's `_launch`; the root always builds `AppScope` and `MaterialApp` with the splash as `home`, which `pushReplacement`s itself with an unnamed `PageRouteBuilder` menu route. `skipSplash: true` keeps #91's plain navy frame and opens with `MenuScreen` as `home`. Only `test/widget_test.dart` and #91's menu-on-launch test in `test/ui/menu_navigation_test.dart` go through the splash; the rest of that file and `test/ui/settings_look_test.dart` pass `skipSplash: true`, and `test/ui/app_scope_test.dart` is unchanged (it never waits for the menu).
+  **Why:** `MaterialApp.home` is read once, so the splash must be the first route and replace itself; the menu stays the first route after the replacement, so `popUntil(isFirst)` is unchanged.
+  **Issue:** #93
+- **Decision:** "The menu appears" in `test/ui/splash_test.dart` finds the menu with `skipOffstage: false`: the hero controller builds a pushed page offstage for its first frame, so an onstage finder sees the menu one frame (not one millisecond) later.
+  **Why:** The plan defines "appears" as the menu route being in the tree, at any opacity; the 849/851 ms and t + 249/251 ms instants then hold as planned.
+  **Issue:** #93
+- **Decision:** The splash counts as out of view on `detached` as well as `hidden` and `paused`, and back in view only on `resumed`.
+  **Why:** The plan names `hidden` and `paused`; `detached` is no more visible than they are, and `inactive` on the way back leaves the READY hold waiting for `resumed`, as the plan asks.
+  **Issue:** #93
