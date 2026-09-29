@@ -385,7 +385,7 @@ void main() {
     );
   });
 
-  test('search-legal: over 1,000 seeded playout positions, the move is '
+  test('invariant 3: over 1,000 seeded playout positions, the move is '
       'always legal', () {
     final positions = _playoutPositions(1000);
     expect(positions, hasLength(1000));
@@ -415,7 +415,7 @@ void main() {
     );
   }, tags: [..._guard, 'slow']);
 
-  test('search-pure: the search files read no clock and draw no unseeded '
+  test('invariant 4: the search files read no clock and draw no unseeded '
       'random number', () {
     const files = [
       'lib/engine/search.dart',
