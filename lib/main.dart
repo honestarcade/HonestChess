@@ -223,6 +223,12 @@ class HonestChessAppState extends State<HonestChessApp> {
         navigatorObservers: [navigation],
         debugShowCheckedModeBanner: false,
         theme: appTheme(),
+        // One system-bar style for every route; screens set none of their
+        // own.
+        builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+          value: appOverlayStyle,
+          child: child ?? const SizedBox.shrink(),
+        ),
         home: ValueListenableBuilder<BoardOptions>(
           valueListenable: settings.board,
           builder: (context, options, _) => GameScreen(

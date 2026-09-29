@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:honest_chess/data/app_store.dart';
@@ -14,6 +15,7 @@ import 'package:honest_chess/ui/board/board_view.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/game_screen.dart';
+import 'package:honest_chess/ui/theme/palette.dart';
 
 import 'support/fake_platform_channel.dart';
 import 'ui/game/fake_computer.dart';
@@ -100,6 +102,19 @@ void main() {
       app.theme!.textTheme.bodyMedium!.fontFamily,
       'Outfit',
       reason: 'app: Outfit is the app-wide text face',
+    );
+    // One system-bar style at the root wraps every route, the same value
+    // the board set for itself in M3.
+    final region = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(
+      find.byType(AnnotatedRegion<SystemUiOverlayStyle>).first,
+    );
+    expect(region.value, appOverlayStyle);
+    expect(
+      appOverlayStyle,
+      SystemUiOverlayStyle.light.copyWith(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: const Color(0xFF05285F),
+      ),
     );
   });
 

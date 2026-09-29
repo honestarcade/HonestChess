@@ -173,7 +173,7 @@ class _PauseOverlayState extends State<PauseOverlay>
       explicitChildNodes: true,
       child: DecoratedBox(
         decoration: const BoxDecoration(
-          color: Palette.card,
+          color: Palette.cardSurface,
           borderRadius: BorderRadius.all(Radius.circular(20)),
           border: Border.fromBorderSide(BorderSide(color: Palette.cardEdge)),
           boxShadow: [

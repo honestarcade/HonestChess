@@ -257,7 +257,7 @@ class _ResultOverlayState extends State<ResultOverlay>
             // CSS 170°: from just left of top to just right of bottom.
             begin: Alignment(-0.17, -1),
             end: Alignment(0.17, 1),
-            colors: [Palette.card, Palette.resultCardEnd],
+            colors: [Palette.cardSurface, Palette.resultCardEnd],
           ),
           borderRadius: BorderRadius.all(Radius.circular(20)),
           border: Border.fromBorderSide(BorderSide(color: Palette.resultEdge)),
@@ -369,7 +369,7 @@ class _ResultOverlayState extends State<ResultOverlay>
       container: true,
       explicitChildNodes: true,
       child: Material(
-        color: Palette.card,
+        color: Palette.cardSurface,
         shape: const RoundedRectangleBorder(
           borderRadius: radius,
           side: BorderSide(color: Palette.cardEdge),

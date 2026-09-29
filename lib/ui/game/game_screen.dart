@@ -248,7 +248,7 @@ class GameScreenState extends State<GameScreen> {
 const _screenGradient = RadialGradient(
   center: Alignment.topCenter,
   radius: 1.2,
-  colors: [Palette.navyLight, Palette.screenBg, Palette.navyDeep],
+  colors: [Palette.gradientInner, Palette.screenBg, Palette.gradientOuter],
   stops: [0, 0.52, 1],
   transform: _Ellipse(),
 );

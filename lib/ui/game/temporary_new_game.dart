@@ -46,7 +46,7 @@ class TemporaryNewGamePicker extends StatelessWidget {
   static Future<GameSetup?> show(BuildContext context) =>
       showModalBottomSheet<GameSetup>(
         context: context,
-        backgroundColor: Palette.card,
+        backgroundColor: Palette.cardSurface,
         barrierColor: Palette.scrim,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),

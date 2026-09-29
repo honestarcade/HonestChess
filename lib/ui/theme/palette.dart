@@ -1,4 +1,4 @@
-import 'package:flutter/painting.dart';
+import 'package:flutter/services.dart';
 
 /// The design's colour tokens (`ArtSource/design/Honest Chess.dc.html`).
 /// Later screens add theirs here, so a colour has one name across the app.
@@ -6,8 +6,10 @@ abstract final class Palette {
   /// The screen background; `lib/main.dart` keeps its own `_navy` with the
   /// same value because the launcher-icon guard reads it there.
   static const screenBg = Color(0xFF05285F);
-  static const navyLight = Color(0xFF0A3A80);
-  static const navyDeep = Color(0xFF031634);
+
+  /// The two ends of the screens' radial gradients, [screenBg] between.
+  static const gradientInner = Color(0xFF0A3A80);
+  static const gradientOuter = Color(0xFF031634);
   static const teal = Color(0xFF00D6B4);
   static const textDim = Color(0xFF7FA6D8);
 
@@ -37,7 +39,7 @@ abstract final class Palette {
   /// The overlays' scrim and card (the promotion sheet's, the pause
   /// card's): the card's fill, its 1 px inset edge and its drop shadow.
   static const scrim = Color(0xD1030E20); // rgba(3,14,32,.82)
-  static const card = Color(0xFF0B3670);
+  static const cardSurface = Color(0xFF0B3670);
   static const cardEdge = Color(0x1AFFFFFF); // rgba(255,255,255,.1)
   static const cardShadow = Color(0x8C000000); // rgba(0,0,0,.55)
 
@@ -84,7 +86,7 @@ abstract final class Palette {
   static const resignEdge = checkTint;
 
   /// The result card (`isOver`): its darker scrim, the far stop of its
-  /// 170° gradient from [card], its teal inset edge, its body text
+  /// 170° gradient from [cardSurface], its teal inset edge, its body text
   /// ([textLead], also How to play's gesture text), and a
   /// stat tile's fill. The View board button is the design's secondary
   /// outline: [panelDim] fill, [choiceEdge] edge.
@@ -132,7 +134,29 @@ abstract final class Palette {
   static const tealTint = Color(0x1C00D6B4); // rgba(0,214,180,.11)
   static const tealRing = Color(0x5700D6B4); // rgba(0,214,180,.34)
   static const pieceCardSquare = kingChipLight;
+
+  /// About Honest Arcade's: the first paragraph's and the Support card's
+  /// text, the blue ticks and the NO TRACKING chip's text and fill, the
+  /// text links' underline, and the Support card's border and the two ends
+  /// of its 135° wash.
+  static const textBright = Color(0xFFC6DAF0);
+  static const skyBlue = Color(0xFF6FB4FF);
+  static const blueFillChip = Color(0x290076F1); // rgba(0,118,241,.16)
+  static const linkUnderline = Color(0x667FA6D8); // rgba(127,166,216,.4)
+  static const supportBorder = Color(0x4700D6B4); // rgba(0,214,180,.28)
+  static const supportWashStart = Color(0x2100D6B4); // rgba(0,214,180,.13)
+  static const supportWashEnd = Color(0x218448FC); // rgba(132,72,252,.13)
 }
+
+/// The system bars on every route, set once at the app root: light icons
+/// over a transparent status bar, and the navigation bar in [Palette.screenBg].
+const appOverlayStyle = SystemUiOverlayStyle(
+  statusBarColor: Color(0x00000000),
+  statusBarIconBrightness: Brightness.light,
+  statusBarBrightness: Brightness.dark,
+  systemNavigationBarColor: Palette.screenBg,
+  systemNavigationBarIconBrightness: Brightness.light,
+);
 
 /// The colour a chosen option, a pressed option and a switch's track are
 /// drawn in: teal everywhere but the two-player screen, which is violet.
