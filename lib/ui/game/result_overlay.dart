@@ -323,7 +323,7 @@ class _ResultOverlayState extends State<ResultOverlay>
                   fontWeight: FontWeight.w400,
                   fontSize: 12.5,
                   height: 1.55,
-                  color: Palette.resultBody,
+                  color: Palette.textLead,
                 ),
               ),
               const SizedBox(height: 18),

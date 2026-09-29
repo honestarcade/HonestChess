@@ -84,13 +84,14 @@ abstract final class Palette {
   static const resignEdge = checkTint;
 
   /// The result card (`isOver`): its darker scrim, the far stop of its
-  /// 170° gradient from [card], its teal inset edge, its body text, and a
+  /// 170° gradient from [card], its teal inset edge, its body text
+  /// ([textLead], also How to play's gesture text), and a
   /// stat tile's fill. The View board button is the design's secondary
   /// outline: [panelDim] fill, [choiceEdge] edge.
   static const resultScrim = Color(0xD9030E20); // rgba(3,14,32,.85)
   static const resultCardEnd = Color(0xFF04213F);
   static const resultEdge = Color(0x4D00D6B4); // rgba(0,214,180,.3)
-  static const resultBody = Color(0xFFBBD2EC);
+  static const textLead = Color(0xFFBBD2EC);
   static const statFill = choiceFill;
 
   /// The non-board screens (Settings, the setup screens): a section card's
@@ -123,6 +124,14 @@ abstract final class Palette {
   /// design's hover colour), and its header's kicker.
   static const violetPressed = Color(0xFF9A68FF);
   static const kickerViolet = Color(0xFF9E7BFF);
+
+  /// How to play's: a rule's body text, the first rule card's teal tint
+  /// and its 1 px inset ring, and the square behind every other piece
+  /// card's glyph (the rest take the board theme's light colour).
+  static const textPale = Color(0xFFD3E6FF);
+  static const tealTint = Color(0x1C00D6B4); // rgba(0,214,180,.11)
+  static const tealRing = Color(0x5700D6B4); // rgba(0,214,180,.34)
+  static const pieceCardSquare = kingChipLight;
 }
 
 /// The colour a chosen option, a pressed option and a switch's track are
