@@ -609,6 +609,19 @@ MUTATIONS: list[Mutation] = [
                  'print(f"tools/check_aab.sh does not name'),
              "a half-applied rename would leave the identity split across files",
              'rename-app-partial:'),
+
+    # engine -- engine_purity_test.dart (#60)
+    Mutation("engine", "an engine file imports Flutter", "lib/engine/square.dart",
+             sub(r"^(/// A square of the board)",
+                 r"import 'package:flutter/foundation.dart';\n\n\1", flags=re.M),
+             "the engine could no longer run in a plain Dart isolate",
+             'engine-purity: 1 offender'),
+    Mutation("engine", "a nested engine file imports dart:io", "",
+             None,
+             "a file below lib/engine/ would escape a scan of the top level only",
+             'engine-purity: 1 offender',
+             adds=(("lib/engine/internal/io_probe.dart",
+                    "import 'dart:io';\n\nFile? probe;\n"),)),
 ]
 
 

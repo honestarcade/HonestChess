@@ -17,6 +17,8 @@ const createdLater = {
   '.n8/memory/play-console.md': 'the Play Console runbook',
   'android/app/src/release/AndroidManifest.xml':
       'nothing: tools/mutation_check.py writes it for one mutation (#30)',
+  'lib/engine/internal/io_probe.dart':
+      'nothing: tools/mutation_check.py writes it for one mutation (#60)',
   '.github/workflows/template-smoke.yml':
       'nothing in an app: tools/rename_app.py deletes it',
 };

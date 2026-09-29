@@ -311,3 +311,16 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - The CI mutations job may have its timeout raised from 30 to 45 min if a milestone PR's run passes 25 min. The job's own comment asks for this. It is the one CI edit M2–M5 may make, an exception to the owner's infra-before-features rule, and the owner may veto it.
 
 ## /n8-exec M2 — 2026-09-28
+
+- **Decision:** Engine API for #60, which later M2 stories build on: `Square` is an extension type over int (a1 = 0, rank-major) with `Square.at(file, rank)`, `Square.parse`, `file`/`rank`/`bit`/`name`/`isLight`/`isSameFile`/`isSameRank`/`isSameDiagonal` (distinct squares only) and `Square.values`; `Colour` (`opponent`), `PieceKind` (`letter`), `Piece` (12 values, colour-major so `Piece.index == colour.index * 6 + kind.index`, `Piece.of`, `fenLetter`, `fromFenLetter`); `Position` holds one bitboard per `Piece.index`, `castlingRights` as a mask of `Castling.whiteKingside|whiteQueenside|blackKingside|blackQueenside`, `enPassant` (`Square?`), `halfmoveClock`, `fullmoveNumber`, with `bitboard(piece)`, `occupiedBy(colour)`, `occupied`, `pieceAt`, `kingSquare`, `toFen`, `Position.fromFen`, `Position.initial()`, `Position.initialFen` and `Position.unchecked(...)` for make/unmake. `parseFen`/`formatFen` live in `fen.dart`; `isAttacked(position, square, by)` and `isInCheck(position, colour)` in `attacks.dart`; all re-exported from `lib/engine/engine.dart`.
+  **Why:** The plan's Discretion lines, with names settled so #61/#63/#64 can reuse them.
+  **Issue:** #60
+- **Decision:** FEN error tokens: `fen-fields:`, `fen-ranks:` (not 8 ranks), `fen-rank-length:`, `fen-placement:` (digit 0/9 or adjacent digits), `fen-piece:`, `fen-side:`, `fen-castling:` (syntax, or a right without king and rook at home), `fen-en-passant:` (syntax, wrong rank, or no pawn that could have double-pushed), `fen-counter:` (not a plain decimal without leading zeros, > 100000, or fullmove 0), `fen-kings:`, `fen-pawn-rank:`, `fen-piece-count:`, `fen-check:`; `Square.parse` uses `square:`. Syntax is checked field by field before the reachability checks, in that order, and the first fault is reported.
+  **Why:** Stable prefixes the plan asked for; leading-zero counters are refused so output round-trips byte for byte.
+  **Issue:** #60
+- **Decision:** Fixtures in `test/fixtures/fens.dart`: `cpwPerftFens` (a map keyed `initial`, `kiwipete`, `position3`, `position4`, `position4-mirrored`, `position5`, `position6`; only Kiwipete lacked counters on the CPW page, read 2026-09-28) and `extraFens`; `allFens` joins them.
+  **Why:** #61 and #63 reuse the perft positions by name.
+  **Issue:** #60
+- **Decision:** The purity guard has two mutations: a Flutter import in `lib/engine/square.dart`, and a nested `lib/engine/internal/io_probe.dart` importing `dart:io` (added for the run, and listed in the references guard's `createdLater`), so the recursive scan is proven too.
+  **Why:** A top-level-only scan would pass the first mutation and miss the second.
+  **Issue:** #60
