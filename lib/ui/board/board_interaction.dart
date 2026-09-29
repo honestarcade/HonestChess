@@ -2,7 +2,9 @@ import 'package:flutter/widgets.dart';
 
 import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_view.dart';
+import 'package:honest_chess/ui/board/move_animation.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
+import 'package:honest_chess/ui/motion.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
 /// How far above the finger a dragged piece floats, so the finger does not
@@ -21,14 +23,21 @@ const Duration springBackDuration = Duration(milliseconds: 150);
 /// Tap a piece to pick it up and a target to move it; or drag it and drop
 /// it on a target. A drop anywhere else — on the board or off it — flies
 /// the piece back to its square and moves nothing.
+///
+/// Each move slides by [slides] (#98); without one the board runs its own.
 class BoardInteraction extends StatefulWidget {
   const BoardInteraction({
     super.key,
     required this.controller,
     required this.bottom,
+    this.slides,
   });
 
   final GameController controller;
+
+  /// The slide shared with the play screen, which holds the board's
+  /// orientation while it runs.
+  final MoveAnimation? slides;
 
   /// The side drawn at the bottom.
   final Colour bottom;
@@ -38,7 +47,7 @@ class BoardInteraction extends StatefulWidget {
 }
 
 class _BoardInteractionState extends State<BoardInteraction>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _spring = AnimationController(
     vsync: this,
     duration: springBackDuration,
@@ -70,19 +79,39 @@ class _BoardInteractionState extends State<BoardInteraction>
 
   GameController get _controller => widget.controller;
 
+  /// The board's own slide, when none is given.
+  MoveAnimation? _ownSlides;
+
+  MoveAnimation get _slides =>
+      widget.slides ??
+      (_ownSlides ??= MoveAnimation(vsync: this, controller: _controller));
+
+  bool _still = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final motion = Motion.of(context);
+    _still = motion.isOff;
+    _slides.motion = motion;
+  }
+
   @override
   void dispose() {
     _springEntry?.remove();
     _spring.dispose();
+    _ownSlides?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final slides = _slides;
     return ListenableBuilder(
-      listenable: _controller,
+      listenable: Listenable.merge([_controller, slides]),
       builder: (context, _) {
         final state = _controller.state;
+        final hidden = slides.current?.hidden ?? const <Square>{};
         // The listener sees each pointer event before the drag's own
         // recogniser does.
         return Listener(
@@ -101,8 +130,22 @@ class _BoardInteractionState extends State<BoardInteraction>
             options: _controller.options,
             decorate: (square, side, scale) =>
                 _highlights(state, square, side, scale),
-            wrapPiece: _draggable,
+            wrapPiece: (square, piece, child, side) => _draggable(
+              square,
+              piece,
+              hidden.contains(square)
+                  ? Opacity(opacity: 0, child: child)
+                  : child,
+              side,
+            ),
             wrapSquare: _target,
+            above: (cell, side, scale) => MoveSlideLayer(
+              animation: slides,
+              style: _controller.options.pieceStyle,
+              cell: cell,
+              side: side,
+              scale: scale,
+            ),
           ),
         );
       },
@@ -240,7 +283,8 @@ class _BoardInteractionState extends State<BoardInteraction>
     Widget child,
     double side,
   ) {
-    if (!cellContext.mounted) return;
+    // With motion off the piece is simply back on its square.
+    if (!cellContext.mounted || _still) return;
     final overlay = Overlay.of(context);
     final overlayBox = overlay.context.findRenderObject() as RenderBox?;
     final cellBox = cellContext.findRenderObject() as RenderBox?;

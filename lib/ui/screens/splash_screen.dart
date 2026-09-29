@@ -9,6 +9,7 @@ import '../board/board_view.dart' show designWidth;
 import '../brand/honest_mark.dart';
 import '../theme/palette.dart';
 import '../widgets/screen_background.dart';
+import '../motion.dart';
 import 'menu_screen.dart';
 
 /// The splash's texts, as the design writes them.
@@ -97,7 +98,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.didChangeDependencies();
     if (_motionChecked) return;
     _motionChecked = true;
-    if (MediaQuery.disableAnimationsOf(context)) {
+    if (Motion.of(context).isOff) {
       _gradient.value = 1;
     } else {
       _gradient.forward();
@@ -129,7 +130,7 @@ class _SplashScreenState extends State<SplashScreen>
   void _handOver() {
     if (!mounted || _handedOver) return;
     _handedOver = true;
-    final instant = MediaQuery.disableAnimationsOf(context);
+    final instant = Motion.of(context).isOff;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
         transitionDuration: instant ? Duration.zero : splashFade,
@@ -159,7 +160,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    final instant = MediaQuery.disableAnimationsOf(context);
+    final instant = Motion.of(context).isOff;
     return PopScope(
       canPop: false,
       // Screen text ignores the system text scale, as the board does, until

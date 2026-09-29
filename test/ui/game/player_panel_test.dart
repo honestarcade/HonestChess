@@ -10,6 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/board/board_view.dart';
+import 'package:honest_chess/ui/board/move_animation.dart'
+    show moveSlideDuration;
 import 'package:honest_chess/ui/board/promotion_sheet.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
@@ -303,6 +305,10 @@ void main() {
     testWidgets('the ticking clock never rebuilds the board', (tester) async {
       final h = await pumpGame(tester, timeControl: Timed.blitz);
       await play(tester, h.controller, 'e2e4');
+      // The move's slide rebuilds the board as it ends, a frame after its
+      // duration.
+      await tester.pump(moveSlideDuration);
+      await tester.pump(const Duration(milliseconds: 16));
       final board = tester.widget<BoardView>(find.byType(BoardView));
       for (var i = 0; i < 5; i++) {
         await h.clock.advance(const Duration(seconds: 1));

@@ -61,6 +61,12 @@ final _rows =
         read: (o) => o.rotateEachTurn,
       ),
       (
+        key: 'settings-toggle-anim',
+        label: 'Piece animations',
+        description: 'Slide pieces to their square instead of jumping.',
+        read: (o) => o.animations,
+      ),
+      (
         key: 'settings-toggle-check-flag',
         label: 'Flag check on the board',
         description: 'Redden the king square whenever it is in check.',
@@ -213,13 +219,14 @@ void main() {
         greaterThan(tester.getTopLeft(find.text('Flag check on the board')).dy),
         reason: 'settings-options: SOUND comes after DISPLAY',
       );
-      for (final hidden in ['Piece animations']) {
-        expect(
-          find.textContaining(hidden),
-          findsNothing,
-          reason: 'settings-options: "$hidden" is not built yet',
-        );
-      }
+      expect(
+        tester.getTopLeft(find.text('Piece animations')).dy,
+        allOf(
+          greaterThan(tester.getTopLeft(find.text('DISPLAY')).dy),
+          lessThan(tester.getTopLeft(find.text('Flag check on the board')).dy),
+        ),
+        reason: 'settings-options: Piece animations is first under DISPLAY',
+      );
     },
   );
 
@@ -273,6 +280,7 @@ void main() {
         takebackAllowed: false,
         autoQueen: true,
         rotateEachTurn: true,
+        animations: false,
         flagCheck: false,
         sfx: false,
         music: true,

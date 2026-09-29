@@ -63,8 +63,7 @@ typedef _Toggle = ({
   BoardOptions Function(BoardOptions, bool) write,
 });
 
-/// The design's `SETTING_ROWS` that this build has: M5 adds piece
-/// animations when it builds them.
+/// The design's `SETTING_ROWS`.
 final List<_Toggle> _toggles = [
   (
     id: 'dots',
@@ -105,6 +104,14 @@ final List<_Toggle> _toggles = [
     description: 'Two-player only. Faces the board at whoever moves.',
     read: (o) => o.rotateEachTurn,
     write: (o, v) => o.copyWith(rotateEachTurn: v),
+  ),
+  (
+    id: 'anim',
+    group: 'DISPLAY',
+    label: 'Piece animations',
+    description: 'Slide pieces to their square instead of jumping.',
+    read: (o) => o.animations,
+    write: (o, v) => o.copyWith(animations: v),
   ),
   (
     id: 'check-flag',

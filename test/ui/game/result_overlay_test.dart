@@ -259,7 +259,9 @@ void main() {
       expect(_card, findsNothing, reason: 'result-card: a cancelled card');
     });
 
-    testWidgets('with system animations off, no wait', (tester) async {
+    testWidgets('with system animations off, the same wait and no rise', (
+      tester,
+    ) async {
       tester.platformDispatcher.accessibilityFeaturesTestValue =
           const FakeAccessibilityFeatures(disableAnimations: true);
       addTearDown(
@@ -267,7 +269,14 @@ void main() {
       );
       final h = await pumpGame(tester);
       await playAll(tester, h, _foolsMate);
-      expect(_card, findsOneWidget, reason: 'result-card: waited anyway');
+      await tester.pump(resultDelay - const Duration(milliseconds: 1));
+      expect(
+        _card,
+        findsNothing,
+        reason: 'result-card: motion off keeps the pacing delay',
+      );
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(_card, findsOneWidget, reason: 'result-card: in after the wait');
       final fade = tester.widget<FadeTransition>(
         find.byKey(const Key('result-overlay')),
       );

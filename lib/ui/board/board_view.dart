@@ -60,6 +60,15 @@ typedef PieceWrapper = Widget Function(
 /// Wraps everything drawn on [square] above the board's colours.
 typedef SquareWrapper = Widget Function(Square square, Widget child);
 
+/// A layer over the whole board, above every square's layers and inside
+/// the board's clip; [cell] is where a square is drawn, [side] a square's
+/// size and [scale] the board's scale from the design.
+typedef BoardLayer = Widget Function(
+  Rect Function(Square square) cell,
+  double side,
+  double scale,
+);
+
 /// What a screen reader says for [square]: its name and what stands on it.
 String squareLabel(Square square, Piece? piece) => piece == null
     ? '${square.name}, empty'
@@ -76,7 +85,8 @@ String squareLabel(Square square, Piece? piece) => piece == null
 /// The board knows nothing of a game. The play screen's highlights and
 /// gestures come in through three hooks, each called per square:
 /// [decorate] adds layers under the coordinates and the piece, [wrapPiece]
-/// wraps the square's piece and [wrapSquare] the whole square.
+/// wraps the square's piece and [wrapSquare] the whole square; [above] is
+/// one layer over all of them, which takes no touches.
 class BoardView extends StatelessWidget {
   const BoardView({
     super.key,
@@ -86,6 +96,7 @@ class BoardView extends StatelessWidget {
     this.decorate,
     this.wrapPiece,
     this.wrapSquare,
+    this.above,
   });
 
   final Position position;
@@ -94,6 +105,7 @@ class BoardView extends StatelessWidget {
   final SquareDecorator? decorate;
   final PieceWrapper? wrapPiece;
   final SquareWrapper? wrapSquare;
+  final BoardLayer? above;
 
   @override
   Widget build(BuildContext context) {
@@ -202,6 +214,7 @@ class BoardView extends StatelessWidget {
       );
     }
     final pattern = options.surface.pattern;
+    final layer = above;
     return Stack(
       children: [
         ...squares,
@@ -215,6 +228,19 @@ class BoardView extends StatelessWidget {
             ),
           ),
         ...overlays,
+        if (layer != null)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: layer(
+                (square) {
+                  final (column, row) = _viewCell(square);
+                  return Rect.fromLTWH(column * side, row * side, side, side);
+                },
+                side,
+                scale,
+              ),
+            ),
+          ),
         // The design's ring sits on the board's edge; drawn over the
         // squares it stays visible inside the clip.
         const Positioned.fill(
@@ -257,16 +283,32 @@ class BoardView extends StatelessWidget {
     );
   }
 
-  Widget _piece(Square square, Piece piece, double side, double scale) {
-    final flat = options.pieceStyle == PieceStyle.flat;
-    return PieceGlyph(
-      piece: piece,
-      style: options.pieceStyle,
-      fontSize: (side * (flat ? 0.62 : 0.92)).roundToDouble(),
-      scale: scale,
-      textKey: Key('piece-${square.name}'),
-    );
-  }
+  Widget _piece(Square square, Piece piece, double side, double scale) =>
+      boardPiece(
+        piece,
+        options.pieceStyle,
+        side,
+        scale,
+        textKey: Key('piece-${square.name}'),
+      );
+}
+
+/// [piece] as the board draws it on a square of [side] in [style].
+PieceGlyph boardPiece(
+  Piece piece,
+  PieceStyle style,
+  double side,
+  double scale, {
+  Key? textKey,
+}) {
+  final flat = style == PieceStyle.flat;
+  return PieceGlyph(
+    piece: piece,
+    style: style,
+    fontSize: (side * (flat ? 0.62 : 0.92)).roundToDouble(),
+    scale: scale,
+    textKey: textKey,
+  );
 }
 
 /// One piece as the board draws it: [piece]'s glyph in [style] at

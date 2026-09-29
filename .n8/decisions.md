@@ -872,3 +872,24 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** The `FlutterHaptics` test covers the `PlatformException` path only. `SystemChannels.platform` is an `OptionalMethodChannel`, so a missing handler answers null rather than throwing `MissingPluginException`; the catch for it stays, as in Honest Solitaire's port.
   **Why:** You cannot make a missing plugin throw through that channel in a test. The catch costs nothing and still protects a platform whose channel does throw.
   **Issue:** #97
+- **Decision:** The slides, which the design does not specify: 180 ms with `Curves.easeOutCubic` (`moveSlideDuration`, `moveSlideCurve` in `lib/ui/board/move_animation.dart`). A capture, or en passant's passed pawn, fades by opacity only over the same 180 ms. Castling slides the rook with the king. A promotion slides the pawn after the choice, then the new piece shows on its square. A dropped move does not slide: its capture vanishes at once, and only a castling rook still slides.
+  **Why:** These are the owner's round-one "about 180 ms, castling together" and the planner's pass-1 spec. They are logged here because the design gives no slide spec.
+  **Issue:** #98
+- **Decision:** `Motion.of(context)` combines two live reads: `MotionScope` (Settings' Piece animations, which `SettingsMotion` puts in from `MaterialApp.builder` in both the root and the test harness), and `MediaQuery.disableAnimations` read at the call site. The builder does not fold both into one value.
+  **Why:** A `MediaQuery` override below the builder (as in a test, or any subtree) is still honoured, and the result is the same one value the plan asks for. Without a scope, as on the splash before settings load, only the phone setting counts, which is the behaviour the plan asks for there.
+  **Issue:** #98
+- **Decision:** `MoveAnimation` (one `AnimationController`) is owned by `GameScreenState` and passed to `BoardInteraction` (`slides:`), so the play screen's panels and board can hold their orientation while it runs. `BoardInteraction` builds its own when it is given none. It draws through a new `BoardView.above` layer, inside the board's clip and above the squares' layers, and takes no touches. It hides the sliding pieces' target squares until the end.
+  **Why:** The plan says a rotating two-player board flips after the slide ends. The flip is decided above the board in `_PanelsAndBoard`, so that code needs to see the slide.
+  **Issue:** #98
+- **Decision:** The slide ends at once on every event other than `GameMoved`, except a `GameEnded` that the move itself caused. Those events are takeback, restart and new game, restore, pause, and a resign, flag or draw ending. It also ends at once when the app leaves `resumed`, or when motion turns off. The motion-off case notifies through a microtask, because it is read from `didChangeDependencies` during a build.
+  **Why:** The planner's pass-1 rules. A mate's `GameEnded` arrives straight after its `GameMoved` and must not cut the mating move's slide.
+  **Issue:** #98
+- **Decision:** `GameController.lastMoveWasDrop` is set in `_play` from the drop path, and a pending promotion carries it to `choosePromotion`. It is false for a tap or the computer.
+  **Why:** This is the plan's pass-2 wording. Keeping it on the controller means the slide layer reads it at the `moved` event.
+  **Issue:** #98
+- **Decision:** The M3/M4 animations now read `Motion` in place of `MediaQuery.disableAnimations`. These are the spring-back, the promotion, pause and result cards, the Statistics reset card, the splash's gradient, bar and hand-off fade, the switch knob, and the stepper reveal. The promotion and pause cards had not honoured the phone setting before; they do now. With motion off the result card keeps #78's 600 ms delay and then appears without rising (previously the phone setting skipped the delay too). `test/ui/game/result_overlay_test.dart`'s "no wait" test is rewritten to match.
+  **Why:** Plan pass 2: "Motion off skips animations only; pacing delays stay (#78's 600 ms before the result card…)". Rule 2 applies for the two cards that ignored the phone setting.
+  **Issue:** #98
+- **Decision:** `test/ui/game/player_panel_test.dart`'s "the ticking clock never rebuilds the board" now waits out the move's slide before it takes the board it compares against. Settings' hidden-row check for "Piece animations" is replaced by an order check (first under DISPLAY), and the toggle walk's expected options now include `animations: false`.
+  **Why:** Both are behaviour changes the plan asks for. A slide ending rebuilds the board once, and the row is now shown.
+  **Issue:** #98

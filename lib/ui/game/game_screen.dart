@@ -11,6 +11,7 @@ import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_interaction.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/board/board_view.dart' show boardMargin;
+import 'package:honest_chess/ui/board/move_animation.dart';
 import 'package:honest_chess/ui/board/orientation.dart';
 import 'package:honest_chess/ui/app_scope.dart';
 import 'package:honest_chess/ui/board/promotion_sheet.dart';
@@ -22,6 +23,7 @@ import 'package:honest_chess/ui/game/pause_overlay.dart';
 import 'package:honest_chess/ui/game/player_panel.dart';
 import 'package:honest_chess/ui/game/result_overlay.dart';
 import 'package:honest_chess/ui/game/tool_row.dart';
+import 'package:honest_chess/ui/motion.dart';
 import 'package:honest_chess/ui/navigation.dart';
 import 'package:honest_chess/ui/screens/how_to_play_screen.dart' show HowToTab;
 import 'package:honest_chess/ui/theme/palette.dart';
@@ -114,8 +116,15 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => GameScreenState();
 }
 
-class GameScreenState extends State<GameScreen> {
+class GameScreenState extends State<GameScreen>
+    with SingleTickerProviderStateMixin {
   late final GameController controller = widget.controller ?? _newGame();
+
+  /// Each move's slide, shared by the board and the orientation it holds.
+  late final MoveAnimation _slides = MoveAnimation(
+    vsync: this,
+    controller: controller,
+  );
 
   /// Leaving the app — another app, a call, the screen off — pauses the
   /// game; coming back leaves it paused.
@@ -138,6 +147,12 @@ class GameScreenState extends State<GameScreen> {
     super.initState();
     _lifecycle = AppLifecycleListener(onStateChange: _left);
     controller.addListener(_idleChanged);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _slides.motion = Motion.of(context);
   }
 
   void _idleChanged() {
@@ -263,6 +278,7 @@ class GameScreenState extends State<GameScreen> {
   void dispose() {
     _lifecycle.dispose();
     _lossTimer?.cancel();
+    _slides.dispose();
     controller.removeListener(_idleChanged);
     if (widget.controller == null) controller.dispose();
     super.dispose();
@@ -304,6 +320,7 @@ class GameScreenState extends State<GameScreen> {
                     Expanded(
                       child: _PanelsAndBoard(
                         controller: controller,
+                        slides: _slides,
                         onNew: _new,
                         onRestart: () => _restart().ignore(),
                       ),
@@ -503,11 +520,13 @@ class _TopBar extends StatelessWidget {
 class _PanelsAndBoard extends StatelessWidget {
   const _PanelsAndBoard({
     required this.controller,
+    required this.slides,
     required this.onNew,
     required this.onRestart,
   });
 
   final GameController controller;
+  final MoveAnimation slides;
   final VoidCallback onNew;
   final VoidCallback onRestart;
 
@@ -524,12 +543,19 @@ class _PanelsAndBoard extends StatelessWidget {
         );
         final gap = ((spare - board) / 3).clamp(minBoardGap, boardGap);
         return ListenableBuilder(
-          listenable: controller,
+          listenable: Listenable.merge([controller, slides]),
           builder: (context, _) {
-            final bottom = boardBottomOf(
-              controller.game,
-              rotate: controller.options.rotateEachTurn,
-            );
+            final game = controller.game;
+            final rotate = controller.options.rotateEachTurn;
+            // A turning board turns once the move has slid: meanwhile it
+            // faces the side that moved.
+            final bottom = slides.sliding
+                ? boardBottom(
+                    game.mode,
+                    game.sideToMove.opponent,
+                    rotate: rotate,
+                  )
+                : boardBottomOf(game, rotate: rotate);
             Widget panel(Colour side) => Padding(
               padding: const EdgeInsets.symmetric(horizontal: boardMargin),
               child: PlayerPanel(controller: controller, side: side),
@@ -546,6 +572,7 @@ class _PanelsAndBoard extends StatelessWidget {
                     child: BoardInteraction(
                       controller: controller,
                       bottom: bottom,
+                      slides: slides,
                     ),
                   ),
                 ),

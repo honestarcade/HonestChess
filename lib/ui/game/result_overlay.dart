@@ -6,6 +6,7 @@ import 'package:honest_chess/ui/board/board_view.dart' show boardMargin;
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/pause_overlay.dart';
 import 'package:honest_chess/ui/game/result_text.dart';
+import 'package:honest_chess/ui/motion.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
 /// How long after a game-ending move the card appears, so the final move
@@ -72,7 +73,8 @@ class ResultOverlayState extends State<ResultOverlay>
   bool _tracked = false;
   Timer? _delay;
 
-  /// The system's animations are off: no delay, no rise, no fade.
+  /// Motion is off: no rise and no fade. The delay is pacing, not motion,
+  /// and stays.
   bool _still = false;
 
   GameController get _controller => widget.controller;
@@ -89,7 +91,7 @@ class ResultOverlayState extends State<ResultOverlay>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    _still = Motion.of(context).isOff;
     if (!_tracked) {
       _tracked = true;
       _track();
@@ -128,8 +130,7 @@ class ResultOverlayState extends State<ResultOverlay>
     _delay?.cancel();
     _delay = null;
     switch (view) {
-      case ResultView.card
-          when before == null && !_still && endedByMove(_controller.game):
+      case ResultView.card when before == null && endedByMove(_controller.game):
         _delay = Timer(resultDelay, () {
           if (mounted) setState(_appear);
         });
@@ -164,7 +165,7 @@ class ResultOverlayState extends State<ResultOverlay>
 
   @override
   Widget build(BuildContext context) {
-    _still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    _still = Motion.of(context).isOff;
     final state = _controller.state;
     final view = state.resultView;
     return Stack(

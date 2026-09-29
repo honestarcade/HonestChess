@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../game/defaults.dart';
 import '../theme/palette.dart';
+import '../motion.dart';
 import 'option_button.dart';
 
 /// The name each time choice is shown under on the setup screens (the
@@ -83,7 +84,7 @@ class _TimeControlPickerState extends State<TimeControlPicker> {
     Scrollable.ensureVisible(
       context,
       alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
-      duration: MediaQuery.disableAnimationsOf(context)
+      duration: Motion.of(context).isOff
           ? Duration.zero
           : stepperRevealDuration,
       curve: Curves.easeOut,

@@ -218,6 +218,11 @@ class GameController extends ChangeNotifier {
   Square? _selection;
   PendingPromotion? _pendingPromotion;
   ResultView? _resultView;
+
+  /// A move is being made by a drop; a promotion it opens keeps that.
+  bool _dropping = false;
+  bool _promotionDropped = false;
+  bool _lastMoveWasDrop = false;
   List<Move> _legal = const [];
 
   Game get _game =>
@@ -236,6 +241,12 @@ class GameController extends ChangeNotifier {
 
   /// Whether no game has been started or restored yet.
   bool get isIdle => _current == null;
+
+  /// Whether the last move played was dropped on its square by a drag —
+  /// a promotion chosen after a drop included — so the board shows it
+  /// already there rather than sliding it (#98). False after a tap's or
+  /// the computer's move.
+  bool get lastMoveWasDrop => _lastMoveWasDrop;
 
   /// Every change of game, for the saved games (#81) and statistics (#82).
   Stream<GameEvent> get events => _events.stream;
@@ -344,7 +355,13 @@ class GameController extends ChangeNotifier {
   /// move was played or a promotion opened.
   bool drop(Square from, Square? to) {
     if (to != null && canDrop(from, to)) {
-      return to == from ? false : move(from, to);
+      if (to == from) return false;
+      _dropping = true;
+      try {
+        return move(from, to);
+      } finally {
+        _dropping = false;
+      }
     }
     // Only a drag that still owns the selection was refused; one that
     // outlived a position change, or a lock, just ends.
@@ -377,6 +394,7 @@ class GameController extends ChangeNotifier {
       }
       _selection = from;
       _pendingPromotion = (from: from, to: to);
+      _promotionDropped = _dropping;
       _state = _viewState();
       notifyListeners();
       return true;
@@ -839,6 +857,11 @@ class GameController extends ChangeNotifier {
       return false;
     }
     final played = next.history.length > _game.history.length;
+    if (played) {
+      _lastMoveWasDrop =
+          !byComputer &&
+          (_pendingPromotion != null ? _promotionDropped : _dropping);
+    }
     final state = _recordedState;
     // Set before `moved` is raised, so the save of this very move says so.
     if (played &&

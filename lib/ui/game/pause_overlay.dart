@@ -6,6 +6,7 @@ import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/labels.dart';
 import 'package:honest_chess/ui/game/result_overlay.dart' show resultMaxWidth;
+import 'package:honest_chess/ui/motion.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
 /// How long the pause card and its scrim take to fade in, and out.
@@ -92,6 +93,10 @@ class _PauseOverlayState extends State<PauseOverlay>
 
   bool get _open => _controller.state.paused && !_controller.state.over;
 
+  /// Motion is off: the card appears and goes at once.
+  bool _still = false;
+  bool _tracked = false;
+
   @override
   void initState() {
     super.initState();
@@ -99,7 +104,16 @@ class _PauseOverlayState extends State<PauseOverlay>
     _show.addStatusListener((status) {
       if (status == AnimationStatus.dismissed && mounted) setState(() {});
     });
-    _track();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _still = Motion.of(context).isOff;
+    if (!_tracked) {
+      _tracked = true;
+      _track();
+    }
   }
 
   @override
@@ -123,7 +137,13 @@ class _PauseOverlayState extends State<PauseOverlay>
 
   void _track() {
     if (_open) {
-      if (!_show.isForwardOrCompleted) _show.forward();
+      if (_still) {
+        _show.value = 1;
+      } else if (!_show.isForwardOrCompleted) {
+        _show.forward();
+      }
+    } else if (_still) {
+      _show.value = 0;
     } else if (_show.isForwardOrCompleted) {
       _show.reverse();
     }

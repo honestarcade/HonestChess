@@ -10,6 +10,7 @@ import '../content/stats_view.dart';
 import '../game/pause_overlay.dart' show disabledPauseButtonOpacity;
 import '../theme/palette.dart';
 import '../widgets/option_button.dart';
+import '../motion.dart';
 import '../widgets/screen_header.dart';
 import '../widgets/segmented_tabs.dart';
 
@@ -86,7 +87,7 @@ class _StatsScreenState extends State<StatsScreen>
     super.dispose();
   }
 
-  bool get _instant => MediaQuery.disableAnimationsOf(context);
+  bool get _instant => Motion.of(context).isOff;
 
   void _show(PlayMode tab) {
     setState(() => _tab = tab);
