@@ -2,14 +2,15 @@ import 'package:flutter/widgets.dart';
 
 import '../data/app_store.dart';
 import '../data/game_saves.dart';
+import '../data/settings_store.dart';
 import '../data/stats.dart';
 import '../platform/platform_channel.dart';
 import 'game/game_controller.dart';
 
 /// What the whole app shares, above the `MaterialApp` so every route, dialog
 /// and overlay sees it: the store and the platform bridge (#80), the game
-/// controller and the saved games (#81), and the statistics (#82). Later stories add their own
-/// fields. The root creates each object once, and live
+/// controller and the saved games (#81), the statistics (#82) and the
+/// settings (#83). Later stories add their own fields. The root creates each object once, and live
 /// changes reach widgets through those objects' own listenables.
 class AppScope extends InheritedWidget {
   const AppScope({
@@ -19,6 +20,7 @@ class AppScope extends InheritedWidget {
     required this.controller,
     required this.saves,
     required this.stats,
+    required this.settings,
     required super.child,
   });
 
@@ -34,6 +36,9 @@ class AppScope extends InheritedWidget {
 
   /// The statistics, recorded from [controller]'s games (#82).
   final StatsRecorder stats;
+
+  /// The board options and the setup screens' last choices (#83).
+  final SettingsStore settings;
 
   /// The nearest scope. It does not register a dependency, so it works in
   /// `initState` and callbacks; there is no `maybeOf`, because a widget
@@ -55,5 +60,6 @@ class AppScope extends InheritedWidget {
       !identical(platform, oldWidget.platform) ||
       !identical(controller, oldWidget.controller) ||
       !identical(saves, oldWidget.saves) ||
-      !identical(stats, oldWidget.stats);
+      !identical(stats, oldWidget.stats) ||
+      !identical(settings, oldWidget.settings);
 }

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import 'package:honest_chess/data/app_store.dart';
 import 'package:honest_chess/data/game_saves.dart';
+import 'package:honest_chess/data/settings_store.dart';
 import 'package:honest_chess/data/stats.dart';
 import 'package:honest_chess/data/stats_listener.dart';
 import 'package:honest_chess/engine/engine.dart';
@@ -68,10 +69,10 @@ ThemeData appTheme() => ThemeData(
   fontFamily: Fonts.outfit,
 );
 
-/// The app root. It holds the board options in memory with the design's
-/// defaults until M4's Settings saves them, owns the game controller and
-/// the saved games, and opens on the saved game Continue would offer —
-/// paused — or, with none, on a new [firstGame].
+/// The app root. It owns the settings, the game controller and the saved
+/// games; it reads the settings and the saved games before the first board
+/// and opens on the saved game Continue would offer — paused — or, with
+/// none, on a new [firstGame].
 class HonestChessApp extends StatefulWidget {
   const HonestChessApp({
     super.key,
@@ -106,7 +107,9 @@ class HonestChessApp extends StatefulWidget {
 }
 
 class HonestChessAppState extends State<HonestChessApp> {
-  BoardOptions boardOptions = const BoardOptions();
+  /// The board options and setup choices; every change to the board options
+  /// reaches the controller and the board at once.
+  final settings = SettingsStore();
 
   /// Built once, never rebuilt: a test injecting only a platform gets a
   /// store resolved through it.
@@ -131,8 +134,9 @@ class HonestChessAppState extends State<HonestChessApp> {
     store = widget.store ?? AppStore.onDevice(platform);
     controller = GameController.idle(
       computerFactory: widget.computerFactory,
-      options: boardOptions,
+      options: settings.board.value,
     );
+    settings.board.addListener(_boardChanged);
     saves = GameSaves(store)..attach(controller.events);
     stats = StatsRecorder(store: store);
     // Before the launch load, so a finished game found there is counted.
@@ -145,14 +149,19 @@ class HonestChessAppState extends State<HonestChessApp> {
     _launch();
   }
 
+  void _boardChanged() => controller.options = settings.board.value;
+
   Future<void> _launch() async {
     stats.load().ignore();
+    // Read before the first game, which takes its takeback rule from them.
+    final settingsLoaded = settings.load(store);
     try {
       await saves.loadAll();
     } on Object catch (e) {
       // The app starts without the saved games rather than not at all.
       debugPrint('launch: the saved games could not be read: $e');
     }
+    await settingsLoaded;
     if (!mounted) return;
     final offered = widget.resumeSaved ? saves.offered : null;
     final game = offered == null ? null : saves.load(offered.mode);
@@ -182,6 +191,8 @@ class HonestChessAppState extends State<HonestChessApp> {
     _statsListener.dispose();
     stats.dispose();
     saves.dispose();
+    settings.board.removeListener(_boardChanged);
+    settings.dispose();
     controller.dispose();
     super.dispose();
   }
@@ -196,15 +207,19 @@ class HonestChessAppState extends State<HonestChessApp> {
       controller: controller,
       saves: saves,
       stats: stats,
+      settings: settings,
       child: MaterialApp(
         title: 'Honest Chess',
         debugShowCheckedModeBanner: false,
         theme: appTheme(),
-        home: GameScreen(
-          options: boardOptions,
-          controller: controller,
-          seed: widget.seed,
-          computerFactory: widget.computerFactory,
+        home: ValueListenableBuilder<BoardOptions>(
+          valueListenable: settings.board,
+          builder: (context, options, _) => GameScreen(
+            options: options,
+            controller: controller,
+            seed: widget.seed,
+            computerFactory: widget.computerFactory,
+          ),
         ),
       ),
     );

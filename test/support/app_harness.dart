@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:honest_chess/data/app_store.dart';
 import 'package:honest_chess/data/game_saves.dart';
+import 'package:honest_chess/data/settings_store.dart';
 import 'package:honest_chess/data/stats.dart';
 import 'package:honest_chess/main.dart' show appTheme;
 import 'package:honest_chess/ui/app_scope.dart';
@@ -20,6 +21,7 @@ class AppHarness {
     this.controller,
     this.saves,
     this.stats,
+    this.settings,
   );
 
   final AppStore store;
@@ -27,6 +29,7 @@ class AppHarness {
   final GameController controller;
   final GameSaves saves;
   final StatsRecorder stats;
+  final SettingsStore settings;
 }
 
 /// Pumps [child] as the home of a `MaterialApp` with the app's theme, under
@@ -35,7 +38,8 @@ class AppHarness {
 /// one whose computer never moves) and [saves] (by default over the store,
 /// attached to the controller, as the root builds them) and [stats] (by
 /// default a recorder over the store, with no listener wiring it to the
-/// controller, so nothing is recorded). What the harness
+/// controller, so nothing is recorded) and [settings] (by default on the
+/// defaults, not loaded from the store). What the harness
 /// builds it also disposes; what the test passes, the test disposes.
 Future<AppHarness> pumpUnderScope(
   WidgetTester tester,
@@ -45,19 +49,25 @@ Future<AppHarness> pumpUnderScope(
   GameController? controller,
   GameSaves? saves,
   StatsRecorder? stats,
+  SettingsStore? settings,
   List<NavigatorObserver> observers = const [],
 }) async {
   final theStore = store ?? AppStore.memory();
   final theController = controller ?? GameController.idle();
   final theSaves = saves ?? (GameSaves(theStore)..attach(theController.events));
   final theStats = stats ?? StatsRecorder(store: theStore);
-  if (saves == null || controller == null || stats == null) {
+  final theSettings = settings ?? SettingsStore();
+  if (saves == null ||
+      controller == null ||
+      stats == null ||
+      settings == null) {
     addTearDown(() async {
       // Nothing may still be listening when they go.
       await tester.pumpWidget(const SizedBox());
       if (saves == null) theSaves.dispose();
       if (controller == null) theController.dispose();
       if (stats == null) theStats.dispose();
+      if (settings == null) theSettings.dispose();
     });
   }
   final harness = AppHarness(
@@ -66,6 +76,7 @@ Future<AppHarness> pumpUnderScope(
     theController,
     theSaves,
     theStats,
+    theSettings,
   );
   await tester.pumpWidget(
     AppScope(
@@ -74,6 +85,7 @@ Future<AppHarness> pumpUnderScope(
       controller: harness.controller,
       saves: harness.saves,
       stats: harness.stats,
+      settings: harness.settings,
       child: MaterialApp(
         theme: appTheme(),
         navigatorObservers: observers,

@@ -91,6 +91,56 @@ abstract final class Palette {
   static const resultEdge = Color(0x4D00D6B4); // rgba(0,214,180,.3)
   static const resultBody = Color(0xFFBBD2EC);
   static const statFill = choiceFill;
+
+  /// The non-board screens (Settings, the setup screens): a section card's
+  /// fill, a choice's idle fill, the soft and idle choice borders, the
+  /// strong border of the header's back button, caption and idle-choice
+  /// text, and the small upper-case kicker over a group.
+  static const cardFill = panelDim;
+  static const optionFill = Color(0x0AFFFFFF); // rgba(255,255,255,.04)
+  static const borderSoft = boardRing;
+  static const borderIdle = pillEdge;
+  static const borderStrong = choiceEdge;
+  static const textMuted = Color(0xFF87A9D0);
+  static const textChoice = toolInk;
+  static const kicker = Color(0xFF6E93C4);
+
+  /// The two accents a choice is selected in ([Accent]): teal's fills (the
+  /// soft one is [accentFill]) and the two-player screen's violet.
+  static const tealFillSelected = panelLit;
+  static const violet = Color(0xFF8448FC);
+  static const violetText = Color(0xFFB48CFF);
+  static const violetFillSelected = Color(0x298448FC); // rgba(132,72,252,.16)
+}
+
+/// The colour a chosen option, a pressed option and a switch's track are
+/// drawn in: teal everywhere but the two-player screen, which is violet.
+enum Accent {
+  teal(
+    main: Palette.teal,
+    fillSelected: Palette.tealFillSelected,
+    text: Palette.teal,
+  ),
+  violet(
+    main: Palette.violet,
+    fillSelected: Palette.violetFillSelected,
+    text: Palette.violetText,
+  );
+
+  const Accent({
+    required this.main,
+    required this.fillSelected,
+    required this.text,
+  });
+
+  /// The selected and pressed border, and a switch's track when on.
+  final Color main;
+
+  /// A selected setup choice's fill.
+  final Color fillSelected;
+
+  /// A selected choice's label and a stepper's value.
+  final Color text;
 }
 
 /// The app's font families, as pubspec.yaml declares them.

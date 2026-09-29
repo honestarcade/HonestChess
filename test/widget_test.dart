@@ -73,7 +73,7 @@ void main() {
       find.byType(HonestChessApp),
     );
     expect(
-      state.boardOptions,
+      state.settings.board.value,
       const BoardOptions(),
       reason: 'app: the root holds the board options',
     );
