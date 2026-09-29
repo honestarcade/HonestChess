@@ -893,3 +893,68 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** `test/ui/game/player_panel_test.dart`'s "the ticking clock never rebuilds the board" now waits out the move's slide before it takes the board it compares against. Settings' hidden-row check for "Piece animations" is replaced by an order check (first under DISPLAY), and the toggle walk's expected options now include `animations: false`.
   **Why:** Both are behaviour changes the plan asks for. A slide ending rebuilds the board once, and the row is now shown.
   **Issue:** #98
+- **Decision:** Contrast is checked by computation, as in Solitaire. `lib/ui/theme/contrast.dart` holds the WCAG 2.x maths (0.03928 limit), compositing, `TextSize` (large at 18 dp, or at 14 dp when bold ≥ w700), and the CIELAB lightness search. `Palette.textPairs` has one row per text colour per surface. A row's surface is a stack of fills from the opaque bottom up (`Surfaces.*`), so a translucent fill is composited over what it really sits on. The gradient screens (the menu, About Honest Arcade, the splash and the play screen) take `gradientInner` as their bottom. `test/support/checked_text_guideline.dart` walks every `RenderParagraph`. It folds any ancestor `Opacity` into the colour and requires the result to be a `textPairs` foreground of its size class. It exempts piece glyphs (the piece font or a `PieceGlyph`), disabled controls (the three 0.4 disabled opacities) and fully transparent text.
+  **Why:** This is the plan's pass-1 and pass-2 design. Folding `Opacity` in is needed because two texts are dimmed that way rather than by a token: the waiting side's clock and Continue's meta line.
+  **Issue:** #99
+- **Decision:** The first run of `test/guards/contrast_test.dart` against the design's values (2026-09-29, local) failed as follows. Board pair: bone #F1EFE7/#6B7788 at 3.95:1. Text rows:
+  - teal on the lit panel 4.50 and on the finished status chip 4.33;
+  - Continue's meta (onTeal at .7 on teal) 4.43;
+  - white on the reset red #E05A4E 3.66;
+  - textFaint 2.90 on navy and 2.22 on the gradient;
+  - textLabel 2.65;
+  - kicker 3.44–4.50;
+  - skyBlue 4.28–4.38;
+  - textDim 3.79–4.45, and 2.32 for the waiting side's clock at .6;
+  - textMuted 3.70–3.84;
+  - violetText 3.69–4.26;
+  - dangerText 4.34 on the check chip, and 2.32 for a waiting low clock at .6;
+  - the pause card's draw hint (white .5) 4.15;
+  - every coordinate label: dark squares 2.35–4.32, light squares 2.89–2.97.
+
+  Every other row passed as designed.
+  **Why:** The plan asks for the first failing run's results to be recorded here.
+  **Issue:** #99
+- **Decision:** Each failing colour moved just enough, and the new ratios on the worst surface come from the same guard after the change (2026-09-29, local). A design difference in each case:
+  - **Bone's dark square:** #6B7788 → #6A7586, 4.05:1. It went darker in L*, with only the dark square moved.
+  - **Coordinate labels** (the alpha changes, never the hue) are now per theme on `BoardTheme` as `labelOnLight`/`labelOnDark`, replacing `Palette.coordOnLight`/`coordOnDark`. On light squares, rgba(0,0,0,.42) → #8D (navy, teal), #8F (violet) and #8C (bone) black, 4.57–4.61. On dark squares, rgba(255,255,255,.5) → #95 (navy), #B6 (teal), #86 (violet) and #FB (bone) white, 4.58–4.59.
+  - **Lighter in L*,** at their own hue and chroma:
+    - textFaint #4E739F → #87AAD9 (4.55 on the gradient);
+    - textLabel #5C7FB0 → #88AADD (4.58);
+    - kicker #6E93C4 → #86AADC (4.56);
+    - skyBlue #6FB4FF → #7DB9FF (4.55 on its chip; the Statistics bar in sky blue follows);
+    - textDim #7FA6D8 → #8FB6E9 (4.55 on a gradient card);
+    - textMuted #87A9D0 → #9ABCE3 (4.58 on the menu bar);
+    - violetText #B48CFF → #C5A3FF (4.56);
+    - dangerText #FF8C7E → #FF9486 (4.58 on the check chip).
+  - **The draw hint:** now `Palette.hintInk`, moved out of pause_overlay.dart. White .5 → #8A white, 4.58.
+  - **The reset button's red:** `danger` #E05A4E → #CC493F, darker, so its white label reads 4.57. `dangerPressed` #C94A3F already passed at 4.63 and is unchanged, so it now differs only slightly from the idle red.
+  **Why:** The owner's round-one rule ("failing colours adjusted just enough within the same hue") and the plan's pass-1/pass-2 search: L* in steps of 0.1, chroma reduced only when a value would fall outside sRGB, stopping at the first 8-bit value ≥ threshold + 0.05. `Palette.shifts` records each design value, and the guard re-derives each shift from the rows that use it.
+  **Issue:** #99
+- **Decision:** The brand teal #00D6B4 stays unchanged everywhere it passes. A new text token `Palette.tealOnTint` #16DBB8 (4.56 on the finished status chip) is used only where teal text sits on a teal tint over the play screen's gradient (the lit panel's subtitle, the status chip once the game is over) and on About Honest Arcade's NO ADS chip.
+  **Why:** AC 2 keeps the brand sheet's swatches unchanged. Moving `teal` itself would have recoloured every teal button, ring and fill to fix two text surfaces. `test/ui/game/player_panel_test.dart`'s two teal-text expectations now read `tealOnTint`, the behaviour change this story makes.
+  **Issue:** #99
+- **Decision:** Two dimming opacities rise instead of their inks. `Palette.clockDimOpacity` for the waiting side's clock goes .6 → .75, which gives the moved textDim 3.28:1 and a waiting low clock (dangerText) 3.09:1, both at the large-text 3:1. `Palette.continueMetaOpacity` for Continue's meta goes .7 → .71. Each is the first hundredth that clears its threshold + 0.05, and the text-pair rows prove both. They are not re-derived, because `shifts` covers colours only.
+  **Why:** At .6 opacity, the textDim and dangerText shades the search reached were #A2C9FC and #FFBAAF, close to white. That would have flattened every dim label to fix one dimmed clock. The plan's rule for a translucent label ("changes its alpha, not hue") fits a dimming opacity better.
+  **Issue:** #99
+- **Decision:** `test/guards/contrast_test.dart` has five tests, with a mutation for each guard rule:
+  - the reference maths (black/white 21:1 and #777/#fff 4.48:1 within ±0.01, compositing, size classes) — mutation: the luminance curve's 2.4 exponent becomes 2.2;
+  - the brand sheet's six swatches;
+  - the board pairs at 4:1 — mutation: bone's old dark square is restored;
+  - every text pair at its threshold — mutation: textFaint's design value is restored;
+  - every shift re-derived as the nearest pass — mutation: textMuted overshoots.
+
+  **Why:** The plan names a mutation for "the reference maths constant changed". Changing 0.03928 itself is invisible to any 8-bit reference pair: no channel value k/255 falls between 0.03928 and 0.04045. The exponent is the constant a mutation can move. The re-derivation test is a fourth guard rule, so it has its own mutation.
+  **Issue:** #99
+- **Decision:** `test/ui/contrast_screens_test.dart` checks every screen at 390 × 844 on the navy theme, scrolled end to end:
+  - the menu, with Continue and the damaged-data banner;
+  - both setups;
+  - Settings, with its four switches;
+  - How to play, both tabs;
+  - both About screens;
+  - Statistics and its reset card;
+  - the splash;
+  - the board bare, paused, in check, with the promotion card, with the result card and with the result bar.
+
+  A last test proves that the check fails for a colour no row covers.
+  **Why:** These are the plan's states. The in-check board also exercises the red status chip.
+  **Issue:** #99

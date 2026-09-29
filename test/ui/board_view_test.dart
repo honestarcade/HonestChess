@@ -109,7 +109,7 @@ void main() {
       BoardTheme.navy: (Color(0xFFDCE9F8), Color(0xFF0F3E86)),
       BoardTheme.teal: (Color(0xFFD6F0EB), Color(0xFF0B615A)),
       BoardTheme.violet: (Color(0xFFE4DAFB), Color(0xFF3B2076)),
-      BoardTheme.bone: (Color(0xFFF1EFE7), Color(0xFF6B7788)),
+      BoardTheme.bone: (Color(0xFFF1EFE7), Color(0xFF6A7586)),
     };
     for (final MapEntry(key: theme, value: (light, dark)) in expected.entries) {
       testWidgets('${theme.name}: a1 dark, h1 light', (tester) async {
@@ -290,7 +290,7 @@ void main() {
       });
     }
 
-    testWidgets('labels read the square, in the design\'s contrast', (
+    testWidgets('labels read the square, in the theme\'s label colours', (
       tester,
     ) async {
       await pumpBoard(tester);
@@ -299,8 +299,16 @@ void main() {
       final h1File = tester.widget<Text>(find.byKey(const Key('file-h1')));
       expect(a1Rank.data, '1');
       expect(h1File.data, 'h');
-      expect(a1Rank.style!.color, Palette.coordOnDark, reason: 'a1 is dark');
-      expect(a2Rank.style!.color, Palette.coordOnLight, reason: 'a2 is light');
+      expect(
+        a1Rank.style!.color,
+        BoardTheme.navy.labelOnDark,
+        reason: 'a1 is dark',
+      );
+      expect(
+        a2Rank.style!.color,
+        BoardTheme.navy.labelOnLight,
+        reason: 'a2 is light',
+      );
       expect(a1Rank.style!.fontFamily, 'PlexMono');
       expect(a1Rank.style!.fontSize, 8);
       final a1 = squareRect(tester, 'a1');

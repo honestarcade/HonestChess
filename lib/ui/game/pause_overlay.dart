@@ -45,7 +45,6 @@ String? drawHint(DrawOffer offer) => switch (offer) {
 const double disabledPauseButtonOpacity = 0.4;
 
 /// The card text colour at half strength: the draw hint's colour.
-const Color _hintInk = Color(0x80FFFFFF);
 
 /// The design's Paused card over a scrim that also covers the top bar,
 /// shown while [controller] is paused and the game goes on. The board stays
@@ -306,7 +305,7 @@ class _PauseOverlayState extends State<PauseOverlay>
                     fontFamily: Fonts.plexMono,
                     fontSize: 11,
                     height: 1,
-                    color: _hintInk,
+                    color: Palette.hintInk,
                   ),
                 ),
               ],

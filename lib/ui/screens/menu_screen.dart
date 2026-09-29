@@ -467,7 +467,7 @@ class _ContinueButton extends StatelessWidget {
             ),
             SizedBox(width: 12 * s),
             Opacity(
-              opacity: .7,
+              opacity: Palette.continueMetaOpacity,
               child: Text(
                 meta,
                 key: const Key('menu-continue-meta'),

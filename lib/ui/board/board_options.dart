@@ -1,17 +1,51 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
-/// The four square colour pairs of the design's `THEMES`.
+/// The four square colour pairs of the design's `THEMES`, with the
+/// coordinate labels drawn on each: the design's rgba(0,0,0,.42) on a light
+/// square and rgba(255,255,255,.5) on a dark one, each made just opaque
+/// enough to read on its theme's square, and bone's dark square darkened
+/// to hold the brand sheet's 4:1 (#99; `Palette.shifts` has the design
+/// values).
 enum BoardTheme {
-  navy(light: Color(0xFFDCE9F8), dark: Color(0xFF0F3E86)),
-  teal(light: Color(0xFFD6F0EB), dark: Color(0xFF0B615A)),
-  violet(light: Color(0xFFE4DAFB), dark: Color(0xFF3B2076)),
-  bone(light: Color(0xFFF1EFE7), dark: Color(0xFF6B7788));
+  navy(
+    light: Color(0xFFDCE9F8),
+    dark: Color(0xFF0F3E86),
+    labelOnLight: Color(0x8D000000),
+    labelOnDark: Color(0x95FFFFFF),
+  ),
+  teal(
+    light: Color(0xFFD6F0EB),
+    dark: Color(0xFF0B615A),
+    labelOnLight: Color(0x8D000000),
+    labelOnDark: Color(0xB6FFFFFF),
+  ),
+  violet(
+    light: Color(0xFFE4DAFB),
+    dark: Color(0xFF3B2076),
+    labelOnLight: Color(0x8F000000),
+    labelOnDark: Color(0x86FFFFFF),
+  ),
+  bone(
+    light: Color(0xFFF1EFE7),
+    dark: Color(0xFF6A7586),
+    labelOnLight: Color(0x8C000000),
+    labelOnDark: Color(0xFBFFFFFF),
+  );
 
-  const BoardTheme({required this.light, required this.dark});
+  const BoardTheme({
+    required this.light,
+    required this.dark,
+    required this.labelOnLight,
+    required this.labelOnDark,
+  });
 
   final Color light;
   final Color dark;
+
+  /// A coordinate label on a [light] square, and on a [dark] one.
+  final Color labelOnLight;
+  final Color labelOnDark;
 
   /// The name Settings shows: NAVY, CLASSIC, FELT….
   String get label => name.toUpperCase();

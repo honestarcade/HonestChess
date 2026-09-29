@@ -331,7 +331,7 @@ class _Chips extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = scale;
     const looks = [
-      (Palette.tealFillSelected, Palette.teal),
+      (Palette.tealFillSelected, Palette.tealOnTint),
       (Palette.blueFillChip, Palette.skyBlue),
       (Palette.violetFillSelected, Palette.violetText),
     ];

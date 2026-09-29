@@ -277,7 +277,9 @@ class BoardView extends StatelessWidget {
           fontWeight: FontWeight.w600,
           fontSize: 8 * scale,
           height: 1,
-          color: onLight ? Palette.coordOnLight : Palette.coordOnDark,
+          color: onLight
+              ? options.theme.labelOnLight
+              : options.theme.labelOnDark,
         ),
       ),
     );

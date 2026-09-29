@@ -241,7 +241,7 @@ void main() {
       );
       expect(
         [for (final c in barColours) c.toARGB32()],
-        [0xFF00D6B4, 0xFF0076F1, 0xFF8448FC, 0xFF6FB4FF, 0xFFC6483D],
+        [0xFF00D6B4, 0xFF0076F1, 0xFF8448FC, 0xFF7DB9FF, 0xFFC6483D],
       );
     });
 

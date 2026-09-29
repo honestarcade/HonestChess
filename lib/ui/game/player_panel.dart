@@ -96,7 +96,7 @@ class PlayerPanel extends StatelessWidget {
                     fontSize: 9,
                     height: 1,
                     letterSpacing: 9 * .14,
-                    color: lit ? Palette.teal : Palette.textDim,
+                    color: lit ? Palette.tealOnTint : Palette.textDim,
                   ),
                 ),
               ],
@@ -260,7 +260,7 @@ class _ClockDisplayState extends State<ClockDisplay>
       label: _spoken,
       excludeSemantics: true,
       child: Opacity(
-        opacity: lit ? 1 : 0.6,
+        opacity: lit ? 1 : Palette.clockDimOpacity,
         child: Text(
           _text,
           key: Key('clock-${widget.side.name}'),

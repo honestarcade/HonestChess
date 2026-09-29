@@ -420,7 +420,7 @@ class _TopBar extends StatelessWidget {
           computerFailed: failed,
         );
         final (fill, ink) = switch (game.status) {
-          _ when game.isOver => (Palette.statusOverFill, Palette.teal),
+          _ when game.isOver => (Palette.statusOverFill, Palette.tealOnTint),
           _ when failed => (Palette.statusCheckFill, Palette.dangerText),
           Ongoing(inCheck: true) when !state.thinking => (
             Palette.statusCheckFill,

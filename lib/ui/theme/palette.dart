@@ -1,8 +1,25 @@
 import 'package:flutter/services.dart';
 
+import '../board/board_options.dart';
+import 'contrast.dart';
+
 /// The design's colour tokens (`ArtSource/design/Honest Chess.dc.html`).
 /// Later screens add theirs here, so a colour has one name across the app.
+/// A text colour the design drew below WCAG AA on a surface it sits on is
+/// moved in its own hue just far enough to pass (#99): [shifts] records
+/// each one's design value, and [textPairs] every text colour on every
+/// surface, for test/guards/contrast_test.dart.
 abstract final class Palette {
+  /// The brand sheet's six swatches, exactly.
+  static const List<Color> brandSheet = [
+    teal,
+    brandBlue,
+    violet,
+    screenBg,
+    barRed,
+    artInkLight,
+  ];
+
   /// The screen background; `lib/main.dart` keeps its own `_navy` with the
   /// same value because the launcher-icon guard reads it there.
   static const screenBg = Color(0xFF05285F);
@@ -11,10 +28,10 @@ abstract final class Palette {
   static const gradientInner = Color(0xFF0A3A80);
   static const gradientOuter = Color(0xFF031634);
   static const teal = Color(0xFF00D6B4);
-  static const textDim = Color(0xFF7FA6D8);
+  static const textDim = Color(0xFF8FB6E9);
 
   /// The splash's progress label.
-  static const textLabel = Color(0xFF5C7FB0);
+  static const textLabel = Color(0xFF88AADD);
 
   /// Piece ink: white pieces are [pieceWhite] outlined in [pieceBlack];
   /// black pieces are [pieceBlack] with a faint light halo.
@@ -25,9 +42,8 @@ abstract final class Palette {
   static const boardShadow = Color(0x73000000); // rgba(0,0,0,.45)
   static const boardRing = Color(0x1FFFFFFF); // rgba(255,255,255,.12)
 
-  /// Coordinate labels, per the colour of the square they sit on.
-  static const coordOnDark = Color(0x80FFFFFF); // rgba(255,255,255,.5)
-  static const coordOnLight = Color(0x6B000000); // rgba(0,0,0,.42)
+  /// Coordinate labels are the board theme's own, per square colour:
+  /// `BoardTheme.labelOnLight` and `labelOnDark`.
 
   /// Square highlights (`renderVals`' `hl`, `ring` and `dot`): the selected
   /// square's tint and ring, a king in check, the last move's two squares,
@@ -60,7 +76,13 @@ abstract final class Palette {
   static const statusCheckFill = Color(0x33E05A4E); // rgba(224,90,78,.2)
 
   /// Red text: a side in check on the status chip, a clock under 30 s.
-  static const dangerText = Color(0xFFFF8C7E);
+  static const dangerText = Color(0xFFFF9486);
+
+  /// [teal] as text on a teal tint over the play screen's gradient (the
+  /// lit panel's line, the status chip once the game is over) and on About
+  /// Honest Arcade's NO ADS chip: the brand teal moved lighter in its own
+  /// hue for contrast (#99, [shifts]), the swatch itself kept.
+  static const tealOnTint = Color(0xFF16DBB8);
 
   /// A player panel: lit for the side to move (fill and 1 px inset edge),
   /// dim otherwise; the king chip's two faces.
@@ -69,6 +91,9 @@ abstract final class Palette {
   static const panelDim = Color(0x0DFFFFFF); // rgba(255,255,255,.05)
   static const kingChipLight = Color(0xFFF1EFE7);
   static const kingChipDark = pieceBlack;
+
+  /// The side not to move: its clock is drawn at this opacity.
+  static const double clockDimOpacity = 0.75;
 
   /// The tool row under the board (`renderVals`' `T`): a neutral tool's
   /// fill, edge and ink, and the accented New tool's.
@@ -87,6 +112,12 @@ abstract final class Palette {
   static const drawEdge = Color(0x2EFFFFFF); // rgba(255,255,255,.18)
   static const resignFill = Color(0x1FE05A4E); // rgba(224,90,78,.12)
   static const resignEdge = checkTint;
+
+  /// The menu's Continue: its meta line is [onTeal] at this opacity.
+  static const double continueMetaOpacity = 0.71;
+
+  /// The pause card's hint under Claim a draw: translucent white.
+  static const hintInk = Color(0x8AFFFFFF);
 
   /// The result card (`isOver`): its darker scrim, the far stop of its
   /// 170° gradient from [cardSurface], its teal inset edge, its body text
@@ -108,12 +139,12 @@ abstract final class Palette {
   static const borderSoft = boardRing;
   static const borderIdle = pillEdge;
   static const borderStrong = choiceEdge;
-  static const textMuted = Color(0xFF87A9D0);
+  static const textMuted = Color(0xFF9ABCE3);
   static const textChoice = toolInk;
-  static const kicker = Color(0xFF6E93C4);
+  static const kicker = Color(0xFF86AADC);
 
   /// The faintest text: Settings' version line.
-  static const textFaint = Color(0xFF4E739F);
+  static const textFaint = Color(0xFF87AAD9);
 
   /// A filled teal button while pressed (the design's hover colour).
   static const tealPressed = Color(0xFF31E7CB);
@@ -122,7 +153,7 @@ abstract final class Palette {
   /// soft one is [accentFill]) and the two-player screen's violet.
   static const tealFillSelected = panelLit;
   static const violet = Color(0xFF8448FC);
-  static const violetText = Color(0xFFB48CFF);
+  static const violetText = Color(0xFFC5A3FF);
   static const violetFillSelected = Color(0x298448FC); // rgba(132,72,252,.16)
 
   /// The two-player screen's own: its Start game while pressed (the
@@ -143,7 +174,7 @@ abstract final class Palette {
   /// text links' underline, and the Support card's border and the two ends
   /// of its 135° wash.
   static const textBright = Color(0xFFC6DAF0);
-  static const skyBlue = Color(0xFF6FB4FF);
+  static const skyBlue = Color(0xFF7DB9FF);
   static const blueFillChip = Color(0x290076F1); // rgba(0,118,241,.16)
   static const linkUnderline = Color(0x667FA6D8); // rgba(127,166,216,.4)
   static const supportBorder = Color(0x4700D6B4); // rgba(0,214,180,.28)
@@ -162,7 +193,7 @@ abstract final class Palette {
   static const brandBlue = Color(0xFF0076F1);
   static const barRed = Color(0xFFC6483D);
   static const barTrack = Color(0x17FFFFFF); // rgba(255,255,255,.09)
-  static const danger = Color(0xFFE05A4E);
+  static const danger = Color(0xFFCC493F);
   static const dangerPressed = Color(0xFFC94A3F);
   static const cancelEdge = Color(0x33FFFFFF); // rgba(255,255,255,.2)
   static const confirmShadow = Color(0x80000000); // rgba(0,0,0,.5)
@@ -184,6 +215,438 @@ abstract final class Palette {
   static const twoArtDark = Color(0xFF3B2076);
   static const artInkDark = Color(0xFF10161F);
   static const artInkLight = Color(0xFFF7F5EF);
+
+  static const _white = Color(0xFFFFFFFF);
+
+  /// Every colour this story moved from the design, with the design's
+  /// value: test/guards/contrast_test.dart re-derives each from [textPairs]
+  /// (and the board pairs), so a hand edit that overshoots is caught.
+  static final List<ColourShift> shifts = [
+    ColourShift(
+      'bone dark square',
+      BoardTheme.bone.dark,
+      Color(0xFF6B7788),
+      ShiftWay.darker,
+    ),
+    for (final theme in BoardTheme.values) ...[
+      ColourShift(
+        '${theme.name} label, light square',
+        theme.labelOnLight,
+        Color(0x6B000000),
+        ShiftWay.alpha,
+      ),
+      ColourShift(
+        '${theme.name} label, dark square',
+        theme.labelOnDark,
+        Color(0x80FFFFFF),
+        ShiftWay.alpha,
+      ),
+    ],
+    const ColourShift(
+      'dangerText',
+      dangerText,
+      Color(0xFFFF8C7E),
+      ShiftWay.lighter,
+    ),
+    const ColourShift(
+      'textFaint',
+      textFaint,
+      Color(0xFF4E739F),
+      ShiftWay.lighter,
+    ),
+    const ColourShift(
+      'textLabel',
+      textLabel,
+      Color(0xFF5C7FB0),
+      ShiftWay.lighter,
+    ),
+    const ColourShift('kicker', kicker, Color(0xFF6E93C4), ShiftWay.lighter),
+    const ColourShift('skyBlue', skyBlue, Color(0xFF6FB4FF), ShiftWay.lighter),
+    const ColourShift('textDim', textDim, Color(0xFF7FA6D8), ShiftWay.lighter),
+    const ColourShift(
+      'textMuted',
+      textMuted,
+      Color(0xFF87A9D0),
+      ShiftWay.lighter,
+    ),
+    const ColourShift(
+      'violetText',
+      violetText,
+      Color(0xFFB48CFF),
+      ShiftWay.lighter,
+    ),
+    const ColourShift('tealOnTint', tealOnTint, teal, ShiftWay.lighter),
+    const ColourShift(
+      'the draw hint',
+      hintInk,
+      Color(0x80FFFFFF),
+      ShiftWay.alpha,
+    ),
+    const ColourShift('danger', danger, Color(0xFFE05A4E), ShiftWay.darker),
+  ];
+
+  /// Every text colour on every surface it is drawn on. A surface's
+  /// translucent fills are composited over the one below; on the gradient
+  /// screens (the menu, About Honest Arcade, the splash, the play screen)
+  /// the bottom is the gradient's brightest stop, [gradientInner], the
+  /// worst case for light text. The coordinate labels follow, per theme.
+  static final List<TextPair> textPairs = [
+    const TextPair(
+      'wordmark Chess',
+      teal,
+      Surfaces.gradient,
+      size: TextSize.large,
+    ),
+    const TextPair('teal on a promise chip', teal, Surfaces.promiseChip),
+    const TextPair('teal on the menu bar', teal, Surfaces.gradientTealBar),
+    const TextPair('teal on the promises panel', teal, Surfaces.promisePanel),
+    const TextPair('teal on the first rule card', teal, Surfaces.tealRuleCard),
+    const TextPair(
+      'teal on a soft chosen option',
+      teal,
+      Surfaces.tealChosenSoft,
+    ),
+    const TextPair('teal on a chosen option', teal, Surfaces.tealChosen),
+    const TextPair('teal on an option', teal, Surfaces.option),
+    const TextPair(
+      'teal stat value',
+      teal,
+      Surfaces.tealTile,
+      size: TextSize.large,
+    ),
+    const TextPair('teal on a gradient card', teal, Surfaces.gradientCard),
+    const TextPair(
+      'teal on the support wash',
+      teal,
+      Surfaces.gradientSupportTeal,
+    ),
+    const TextPair(
+      'teal on the support wash, violet end',
+      teal,
+      Surfaces.gradientSupportViolet,
+    ),
+    const TextPair('teal on a card', teal, Surfaces.overlayCard),
+    const TextPair('teal on the New tool', teal, Surfaces.gradientAccent),
+    const TextPair('teal on the lit panel', tealOnTint, Surfaces.gradientLit),
+    const TextPair(
+      'teal on the finished status chip',
+      tealOnTint,
+      Surfaces.gradientStatusOver,
+    ),
+    const TextPair('ink on teal', onTeal, Surfaces.teal),
+    TextPair(
+      'Continue\'s meta',
+      onTeal.withValues(alpha: continueMetaOpacity),
+      Surfaces.teal,
+    ),
+    const TextPair('white on the gradient', _white, Surfaces.gradient),
+    const TextPair('white on the screen', _white, Surfaces.screen),
+    const TextPair('white on a menu button', _white, Surfaces.gradientOption),
+    const TextPair('white on a gradient card', _white, Surfaces.gradientCard),
+    const TextPair(
+      'white on the support wash',
+      _white,
+      Surfaces.gradientSupportTeal,
+    ),
+    const TextPair(
+      'white on the support wash, violet end',
+      _white,
+      Surfaces.gradientSupportViolet,
+    ),
+    const TextPair('white on a card', _white, Surfaces.card),
+    const TextPair('white on an overlay card', _white, Surfaces.overlayCard),
+    const TextPair(
+      'white on an overlay choice',
+      _white,
+      Surfaces.overlayChoice,
+    ),
+    const TextPair('white on an overlay button', _white, Surfaces.overlayDim),
+    const TextPair('white on violet', _white, Surfaces.violet),
+    const TextPair('white on the reset red', _white, Surfaces.danger),
+    const TextPair(
+      'white on the reset red, pressed',
+      _white,
+      Surfaces.dangerPressed,
+    ),
+    const TextPair('faint text', textFaint, Surfaces.screen),
+    const TextPair('faint text on the gradient', textFaint, Surfaces.gradient),
+    const TextPair('splash label', textLabel, Surfaces.gradient),
+    const TextPair('kicker', kicker, Surfaces.screen),
+    const TextPair('kicker on the gradient', kicker, Surfaces.gradient),
+    const TextPair('kicker on a card', kicker, Surfaces.card),
+    const TextPair('kicker on a note', kicker, Surfaces.optionBare),
+    const TextPair('violet kicker', kickerViolet, Surfaces.screen),
+    const TextPair('sky blue on its chip', skyBlue, Surfaces.gradientBlueChip),
+    const TextPair(
+      'sky blue on a gradient card',
+      skyBlue,
+      Surfaces.gradientCard,
+    ),
+    const TextPair('dim text on the gradient', textDim, Surfaces.gradient),
+    const TextPair('dim text', textDim, Surfaces.screen),
+    const TextPair('dim text on a card', textDim, Surfaces.card),
+    const TextPair(
+      'dim text on a gradient card',
+      textDim,
+      Surfaces.gradientCard,
+    ),
+    const TextPair('dim text on a teal tile', textDim, Surfaces.tealTile),
+    const TextPair(
+      'dim text on an overlay card',
+      textDim,
+      Surfaces.overlayCard,
+    ),
+    const TextPair(
+      'dim text on an overlay choice',
+      textDim,
+      Surfaces.overlayChoice,
+    ),
+    TextPair(
+      'the waiting side\'s clock',
+      textDim.withValues(alpha: clockDimOpacity),
+      Surfaces.gradientCard,
+      size: TextSize.large,
+    ),
+    const TextPair(
+      'muted text on the menu bar',
+      textMuted,
+      Surfaces.gradientTealBar,
+    ),
+    const TextPair('muted text on a teal tile', textMuted, Surfaces.tealTile),
+    const TextPair(
+      'muted text on a chosen option',
+      textMuted,
+      Surfaces.tealChosen,
+    ),
+    const TextPair('muted text on an option', textMuted, Surfaces.option),
+    const TextPair('muted text on a note', textMuted, Surfaces.optionBare),
+    const TextPair('muted text on a card', textMuted, Surfaces.card),
+    const TextPair(
+      'body text on the status chip',
+      textBody,
+      Surfaces.gradientStatus,
+    ),
+    const TextPair(
+      'body text on a card link',
+      textBody,
+      Surfaces.overlayOption,
+    ),
+    const TextPair(
+      'body text on a gradient card',
+      textBody,
+      Surfaces.gradientCard,
+    ),
+    const TextPair('body text on a card', textBody, Surfaces.card),
+    const TextPair('body text', textBody, Surfaces.screen),
+    const TextPair(
+      'body text on an overlay choice',
+      textBody,
+      Surfaces.overlayChoice,
+    ),
+    const TextPair(
+      'violet on its chip',
+      violetText,
+      Surfaces.gradientVioletChip,
+    ),
+    const TextPair(
+      'violet on a chosen option',
+      violetText,
+      Surfaces.violetChosen,
+    ),
+    const TextPair(
+      'violet on a gradient card',
+      violetText,
+      Surfaces.gradientCard,
+    ),
+    const TextPair('lead text on a card', textLead, Surfaces.card),
+    const TextPair(
+      'lead text on an overlay card',
+      textLead,
+      Surfaces.overlayCard,
+    ),
+    const TextPair('lead text', textLead, Surfaces.screen),
+    const TextPair(
+      'bright text on the gradient',
+      textBright,
+      Surfaces.gradient,
+    ),
+    const TextPair(
+      'bright text on the support wash',
+      textBright,
+      Surfaces.gradientSupportTeal,
+    ),
+    const TextPair(
+      'bright text on the support wash, violet end',
+      textBright,
+      Surfaces.gradientSupportViolet,
+    ),
+    const TextPair(
+      'pale text on a promise chip',
+      textPale,
+      Surfaces.promiseChip,
+    ),
+    const TextPair(
+      'pale text on the first rule card',
+      textPale,
+      Surfaces.tealRuleCard,
+    ),
+    const TextPair('pale text on a card', textPale, Surfaces.card),
+    const TextPair('choice text on an option', textChoice, Surfaces.option),
+    const TextPair('choice text on a card', textChoice, Surfaces.card),
+    const TextPair('tool ink on a tool', toolInk, Surfaces.gradientTool),
+    const TextPair(
+      'panel names on the lit panel',
+      pieceWhite,
+      Surfaces.gradientLit,
+    ),
+    const TextPair(
+      'panel names on the dim panel',
+      pieceWhite,
+      Surfaces.gradientCard,
+    ),
+    const TextPair('the pause pill', pieceWhite, Surfaces.gradientPill),
+    const TextPair(
+      'red text on the banner',
+      dangerText,
+      Surfaces.gradientBanner,
+    ),
+    const TextPair(
+      'red text on the reset button',
+      dangerText,
+      Surfaces.resetButton,
+    ),
+    const TextPair('red text on Resign', dangerText, Surfaces.overlayResign),
+    const TextPair(
+      'red text on the check chip',
+      dangerText,
+      Surfaces.gradientStatusCheck,
+    ),
+    const TextPair(
+      'red text on an overlay card',
+      dangerText,
+      Surfaces.overlayCard,
+    ),
+    const TextPair('red text', dangerText, Surfaces.screen),
+    const TextPair(
+      'a low clock on the lit panel',
+      dangerText,
+      Surfaces.gradientLit,
+      size: TextSize.large,
+    ),
+    TextPair(
+      'a low clock on the waiting side',
+      dangerText.withValues(alpha: clockDimOpacity),
+      Surfaces.gradientCard,
+      size: TextSize.large,
+    ),
+    const TextPair('the draw hint', hintInk, Surfaces.overlayCard),
+    for (final theme in BoardTheme.values) ...[
+      TextPair('${theme.name} label, light square', theme.labelOnLight, [
+        theme.light,
+      ]),
+      TextPair('${theme.name} label, dark square', theme.labelOnDark, [
+        theme.dark,
+      ]),
+    ],
+  ];
+}
+
+/// Which way a colour was moved to reach its contrast.
+enum ShiftWay { lighter, darker, alpha }
+
+/// A colour [value] moved from the design's [design] for contrast (#99).
+final class ColourShift {
+  const ColourShift(this.name, this.value, this.design, this.way);
+
+  final String name;
+  final Color value;
+  final Color design;
+  final ShiftWay way;
+}
+
+/// The surfaces text sits on, as stacks of fills from the opaque bottom up
+/// (see [TextPair]).
+abstract final class Surfaces {
+  static const screen = [Palette.screenBg];
+  static const card = [Palette.screenBg, Palette.cardFill];
+  static const option = [
+    Palette.screenBg,
+    Palette.cardFill,
+    Palette.optionFill,
+  ];
+
+  /// A note straight on the screen in an option's fill.
+  static const optionBare = [Palette.screenBg, Palette.optionFill];
+  static const tealChosen = [
+    Palette.screenBg,
+    Palette.cardFill,
+    Palette.tealFillSelected,
+  ];
+  static const tealChosenSoft = [
+    Palette.screenBg,
+    Palette.cardFill,
+    Palette.accentFill,
+  ];
+  static const violetChosen = [
+    Palette.screenBg,
+    Palette.cardFill,
+    Palette.violetFillSelected,
+  ];
+
+  /// Statistics' highlighted card.
+  static const tealTile = [Palette.screenBg, Palette.accentFill];
+  static const tealRuleCard = [Palette.screenBg, Palette.tealTint];
+  static const promisePanel = [Palette.screenBg, Palette.tealPanelFill];
+  static const promiseChip = [
+    Palette.screenBg,
+    Palette.tealPanelFill,
+    Palette.statusFill,
+  ];
+  static const resetButton = [Palette.screenBg, Palette.resignFill];
+  static const teal = [Palette.teal];
+  static const violet = [Palette.violet];
+  static const danger = [Palette.danger];
+  static const dangerPressed = [Palette.dangerPressed];
+
+  static const gradient = [Palette.gradientInner];
+  static const gradientCard = [Palette.gradientInner, Palette.cardFill];
+  static const gradientOption = [Palette.gradientInner, Palette.optionFill];
+  static const gradientTealBar = [Palette.gradientInner, Palette.tealPanelFill];
+  static const gradientLit = [Palette.gradientInner, Palette.panelLit];
+  static const gradientPill = [Palette.gradientInner, Palette.pillFill];
+  static const gradientTool = [Palette.gradientInner, Palette.toolFill];
+  static const gradientStatus = [Palette.gradientInner, Palette.statusFill];
+  static const gradientStatusOver = [
+    Palette.gradientInner,
+    Palette.statusOverFill,
+  ];
+  static const gradientStatusCheck = [
+    Palette.gradientInner,
+    Palette.statusCheckFill,
+  ];
+  static const gradientAccent = [Palette.gradientInner, Palette.accentFill];
+  static const gradientBlueChip = [Palette.gradientInner, Palette.blueFillChip];
+  static const gradientVioletChip = [
+    Palette.gradientInner,
+    Palette.violetFillSelected,
+  ];
+  static const gradientSupportTeal = [
+    Palette.gradientInner,
+    Palette.supportWashStart,
+  ];
+  static const gradientSupportViolet = [
+    Palette.gradientInner,
+    Palette.supportWashEnd,
+  ];
+  static const gradientBanner = [Palette.gradientInner, Palette.resignFill];
+
+  /// The overlays' cards (the pause, promotion and reset cards, and the
+  /// result card at its brighter stop) and what sits on them.
+  static const overlayCard = [Palette.cardSurface];
+  static const overlayChoice = [Palette.cardSurface, Palette.choiceFill];
+  static const overlayOption = [Palette.cardSurface, Palette.optionFill];
+  static const overlayDim = [Palette.cardSurface, Palette.panelDim];
+  static const overlayResign = [Palette.cardSurface, Palette.resignFill];
 }
 
 /// The system bars on every route, set once at the app root: light icons

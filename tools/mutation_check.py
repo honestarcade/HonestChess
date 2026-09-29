@@ -1007,6 +1007,32 @@ MUTATIONS: list[Mutation] = [
                  "await HapticFeedback.selectionClick();"),
              "the tick would not be the light impact the design asks for",
              'haptics-scan: lib/feedback/haptics.dart no longer ticks with lightImpact'),
+    # ---- #99: contrast -------------------------------------------------------
+    Mutation("contrast", "bone's dark square goes back to the design's",
+             "lib/ui/board/board_options.dart",
+             sub(r"dark: Color\(0xFF6A7586\)", "dark: Color(0xFF6B7788)"),
+             "the bone board's squares would fall under the brand sheet's 4:1",
+             'contrast-board: below'),
+    Mutation("contrast", "the faint text goes back to the design's",
+             "lib/ui/theme/palette.dart",
+             sub(r"static const textFaint = Color\(0xFF87AAD9\);",
+                 "static const textFaint = Color(0xFF4E739F);"),
+             "Settings' version line would fall under 4.5:1 on the navy",
+             'contrast-text: below WCAG AA'),
+    Mutation("contrast", "the luminance curve uses gamma 2.2",
+             "lib/ui/theme/contrast.dart",
+             sub(r"(double _linear\(double channel\) => channel <= wcagLinearLimit\n"
+                 r"    \? channel / 12\.92\n"
+                 r"    : math\.pow\(\(channel \+ 0\.055\) / 1\.055, )2\.4",
+                 r"\g<1>2.2"),
+             "every ratio the guard proves would be computed on the wrong curve",
+             'contrast-maths: #777 on white'),
+    Mutation("contrast", "a moved colour overshoots its nearest pass",
+             "lib/ui/theme/palette.dart",
+             sub(r"static const textMuted = Color\(0xFF9ABCE3\);",
+                 "static const textMuted = Color(0xFFA6C8F0);"),
+             "the muted text would drift further from the design than contrast needs",
+             'contrast-shift: not the nearest pass'),
 ]
 
 

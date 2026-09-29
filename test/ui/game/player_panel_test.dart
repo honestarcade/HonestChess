@@ -262,7 +262,7 @@ void main() {
       final h = await pumpGame(tester, timeControl: Timed.blitz);
       expect(isLit(tester, Colour.white), isTrue);
       expect(textColour(tester, 'clock-white'), Palette.pieceWhite);
-      expect(textColour(tester, 'sub-white'), Palette.teal);
+      expect(textColour(tester, 'sub-white'), Palette.tealOnTint);
       expect(textColour(tester, 'clock-black'), Palette.textDim);
       expect(textColour(tester, 'sub-black'), Palette.textDim);
       await play(tester, h.controller, 'e2e4');
@@ -369,7 +369,7 @@ void main() {
         const Win(Colour.white, GameEndReason.flag),
       );
       expect(text(tester, 'status-text'), 'FLAG FALL');
-      expect(textColour(tester, 'status-text'), Palette.teal);
+      expect(textColour(tester, 'status-text'), Palette.tealOnTint);
       // Resign turning disabled at the flag gives up its focus, which asks
       // for one more frame, and the result card (#78) rises in, ending a
       // frame after its length; neither is the clock's tick.
