@@ -32,11 +32,14 @@ import '../ui/game/fake_computer.dart';
 
 /// One screen in one state: [pump] builds it from nothing under the
 /// harness, at whatever view size the test set, and checks it arrived.
+/// [controls] is how many controls the screen draws, the board's squares
+/// aside: #104's guideline suite finds at least that many tappable nodes.
 class A11yCase {
-  const A11yCase(this.name, this.pump);
+  const A11yCase(this.name, this.pump, {this.controls = 0});
 
   final String name;
   final Future<void> Function(WidgetTester tester) pump;
+  final int controls;
 
   @override
   String toString() => name;
@@ -80,13 +83,20 @@ StatsDocument get _fullStats => StatsDocument(
   ),
 );
 
-/// Setup choices with Custom picked on both setups.
-SettingsStore _customSettings() {
+/// Setup choices with Custom picked on both setups; with [atLimits], its
+/// minutes at their most and its increment at its least.
+SettingsStore _customSettings({bool atLimits = false}) {
   final settings = SettingsStore();
   settings.updateSetup(
-    (c) => c.copyWith(
+    (c) => SetupChoices(
       computer: c.computer.copyWith(time: TimeChoice.custom),
       two: c.two.copyWith(time: TimeChoice.custom),
+      custom: atLimits
+          ? const CustomTime(
+              minutes: customMinutesMax,
+              increment: customIncrementMin,
+            )
+          : c.custom,
     ),
   );
   return settings;
@@ -121,7 +131,7 @@ Future<GameController> _board(
   addTearDown(controller.dispose);
   await pumpUnderScope(
     tester,
-    GameScreen(options: const BoardOptions(), controller: controller),
+    GameScreen(options: controller.options, controller: controller),
     controller: controller,
   );
   await settleCase(tester);
@@ -129,13 +139,40 @@ Future<GameController> _board(
 }
 
 /// A game against the computer at Club, you White and to move, the
-/// computer never answering.
-GameController _vsComputer({String? fen}) => GameController(
-  fen: fen,
-  mode: _vsClub,
-  timeControl: Timed.rapid,
-  computer: FakeComputers().call,
-);
+/// computer never answering unless the test answers through [computers].
+GameController _vsComputer({String? fen, FakeComputers? computers}) =>
+    GameController(
+      fen: fen,
+      mode: _vsClub,
+      timeControl: Timed.rapid,
+      computer: (computers ?? FakeComputers()).call,
+    );
+
+/// A result card over a game you ended: resigned against the computer
+/// (a loss), or a draw agreed between two players.
+Future<void> _ended(WidgetTester tester, {required bool draw}) async {
+  final c = await _board(
+    tester,
+    draw
+        ? GameController(mode: const TwoPlayer(), timeControl: Timed.rapid)
+        : _vsComputer(),
+  );
+  if (draw) {
+    for (final uci in ['e2e4', 'e7e5']) {
+      final move = Move.fromUci(c.game.position, uci);
+      c.move(move.from, move.to);
+    }
+    c.pause();
+    await c.offerDraw();
+    expect(c.game.status, const Draw(GameEndReason.agreement));
+  } else {
+    c.resign();
+    expect(c.game.status, isA<Win>());
+  }
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 1500));
+  expect(_key('result-card'), findsOneWidget);
+}
 
 /// A result card over a game White won on time.
 Future<void> _result(WidgetTester tester, {required bool viewBoard}) async {
@@ -166,7 +203,7 @@ final a11yCases = <A11yCase>[
   A11yCase('the menu', (tester) async {
     await _menu(tester, AppStore.memory());
     expect(_key('menu-continue'), findsNothing);
-  }),
+  }, controls: 7),
   for (final mode in PlayMode.values)
     A11yCase('the menu, Continue ${mode.name} and the banner', (tester) async {
       final store = AppStore.memory();
@@ -179,7 +216,7 @@ final a11yCases = <A11yCase>[
       await settleCase(tester);
       expect(_key('menu-continue'), findsOneWidget);
       expect(_key('menu-banner'), findsOneWidget);
-    }),
+    }, controls: 9),
   A11yCase('the vs-computer setup, Custom, Keep playing and the loss warning', (
     tester,
   ) async {
@@ -204,10 +241,23 @@ final a11yCases = <A11yCase>[
       settings: settings,
     );
     await settleCase(tester);
-    expect(_key('csetup-loss-warning'), findsOneWidget);
-    expect(_key('csetup-keep-playing'), findsOneWidget);
-    expect(_key('csetup-minutes-value'), findsOneWidget);
-  }),
+    // Built only once scrolled to, on a short screen: seen, then back to
+    // the top where the case starts.
+    final scroll = find.descendant(
+      of: _key('csetup-scroll'),
+      matching: find.byType(Scrollable),
+    );
+    for (final key in [
+      'csetup-minutes-value',
+      'csetup-loss-warning',
+      'csetup-keep-playing',
+    ]) {
+      await tester.scrollUntilVisible(_key(key), 100, scrollable: scroll);
+      expect(_key(key), findsOneWidget);
+    }
+    tester.state<ScrollableState>(scroll).position.jumpTo(0);
+    await settleCase(tester);
+  }, controls: 20),
   A11yCase('the two-player setup, Custom', (tester) async {
     final settings = _customSettings();
     addTearDown(settings.dispose);
@@ -218,7 +268,20 @@ final a11yCases = <A11yCase>[
     );
     await settleCase(tester);
     expect(_key('psetup-minutes-value'), findsOneWidget);
-  }),
+  }, controls: 12),
+  A11yCase('the two-player setup, Custom, its steppers at their limits', (
+    tester,
+  ) async {
+    final settings = _customSettings(atLimits: true);
+    addTearDown(settings.dispose);
+    await pumpUnderScope(
+      tester,
+      const TwoPlayerSetupScreen(),
+      settings: settings,
+    );
+    await settleCase(tester);
+    expect(_key('psetup-minutes-value'), findsOneWidget);
+  }, controls: 10),
   A11yCase('Settings, a game in progress', (tester) async {
     final controller = _vsComputer();
     addTearDown(controller.dispose);
@@ -228,23 +291,27 @@ final a11yCases = <A11yCase>[
       controller: controller,
     );
     await settleCase(tester);
-  }),
+  }, controls: 21),
   A11yCase(
     'How to play, the pieces',
     (tester) => _screen(tester, const HowToPlayScreen()),
+    controls: 3,
   ),
   A11yCase(
     'How to play, the rules',
     (tester) =>
         _screen(tester, const HowToPlayScreen(initialTab: HowToTab.rules)),
+    controls: 3,
   ),
   A11yCase(
     'About the app',
     (tester) => _screen(tester, const AboutAppScreen()),
+    controls: 4,
   ),
   A11yCase(
     'About Honest Arcade',
     (tester) => _screen(tester, const AboutArcadeScreen()),
+    controls: 4,
   ),
   for (final mode in PlayMode.values)
     A11yCase('Statistics, ${mode.name}', (tester) async {
@@ -260,7 +327,12 @@ final a11yCases = <A11yCase>[
         stats: stats,
       );
       await settleCase(tester);
-    }),
+    }, controls: 4),
+  A11yCase('Statistics, nothing played yet', (tester) async {
+    await pumpUnderScope(tester, const StatsScreen());
+    await settleCase(tester);
+    expect(_key('stats-scroll'), findsOneWidget);
+  }, controls: 4),
   A11yCase('Statistics, its reset card', (tester) async {
     await pumpUnderScope(tester, const StatsScreen());
     await settleCase(tester);
@@ -273,10 +345,13 @@ final a11yCases = <A11yCase>[
         matching: find.byType(Scrollable),
       ),
     );
+    // At its top, so nothing drawn at the screen's foot covers it.
+    await tester.ensureVisible(reset);
+    await tester.pump();
     await tester.tap(reset);
     await settleCase(tester);
     expect(_key('stats-reset-card'), findsOneWidget);
-  }),
+  }, controls: 3),
   A11yCase('the splash, its store never answering', (tester) async {
     final store = GatedStore();
     final settings = SettingsStore();
@@ -301,19 +376,39 @@ final a11yCases = <A11yCase>[
   A11yCase('the board, you to move', (tester) async {
     final c = await _board(tester, _vsComputer());
     expect(c.game.position.sideToMove, Colour.white);
-  }),
+  }, controls: 4),
   A11yCase('the board, a piece selected', (tester) async {
     await _board(tester, _vsComputer());
     await tester.tap(_key('cell-e2'));
     await settleCase(tester);
     expect(_key('ring-selected-e2'), findsOneWidget);
-  }),
+  }, controls: 4),
   A11yCase('the board, two players', (tester) async {
     await _board(
       tester,
       GameController(mode: const TwoPlayer(), timeControl: Timed.blitz),
     );
-  }),
+  }, controls: 4),
+  A11yCase('the board, two players, turned round with Black at the bottom', (
+    tester,
+  ) async {
+    final c = await _board(
+      tester,
+      GameController(
+        mode: const TwoPlayer(),
+        timeControl: Timed.blitz,
+        options: const BoardOptions(rotateEachTurn: true),
+      ),
+    );
+    c.move(Square.parse('e2'), Square.parse('e4'));
+    await settleCase(tester);
+    expect(c.game.position.sideToMove, Colour.black);
+    expect(
+      tester.getTopLeft(_key('cell-h1')).dy,
+      lessThan(tester.getTopLeft(_key('cell-h8')).dy),
+      reason: 'a11y cases: Black is at the bottom',
+    );
+  }, controls: 5),
   A11yCase('the board in check', (tester) async {
     final c = await _board(
       tester,
@@ -323,7 +418,7 @@ final a11yCases = <A11yCase>[
       ),
     );
     expect(c.state.inCheck, isNotNull);
-  }),
+  }, controls: 4),
   A11yCase('the board, its promotion card', (tester) async {
     final c = await _board(
       tester,
@@ -337,13 +432,33 @@ final a11yCases = <A11yCase>[
     await tester.pump(promotionEnterDuration);
     await tester.pump();
     expect(_key('promo-card'), findsOneWidget);
-  }),
+  }, controls: 9),
   A11yCase('the board, its pause card', (tester) async {
     await _board(tester, _vsComputer());
     await tester.tap(_key('pause-pill'));
     await settleCase(tester);
     expect(_key('pause-card'), findsOneWidget);
-  }),
+  }, controls: 8),
+  A11yCase('the board, its pause card after a declined draw', (tester) async {
+    final fakes = FakeComputers();
+    final c = await _board(tester, _vsComputer(computers: fakes));
+    c.move(Square.parse('e2'), Square.parse('e4'));
+    await tester.pump();
+    fakes.current.last.move('e7e5');
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+    expect(c.game.position.sideToMove, Colour.white);
+    await tester.tap(_key('pause-pill'));
+    await settleCase(tester);
+    final offer = c.offerDraw();
+    await tester.pump();
+    fakes.current.draws.single.decline();
+    await offer;
+    // Held, as leaving the app holds it, so the message outlasts the test.
+    c.autoPause();
+    await settleCase(tester);
+    expect(_key('pause-declined'), findsOneWidget);
+  }, controls: 9),
   A11yCase('the board, the computer could not move', (tester) async {
     final fakes = FakeComputers();
     final c = GameController(
@@ -361,13 +476,25 @@ final a11yCases = <A11yCase>[
     fakes.current.last.fail();
     await settleCase(tester);
     expect(c.state.computerFailed, isTrue);
-  }),
+  }, controls: 5),
   A11yCase(
     'the board, its result card',
     (tester) => _result(tester, viewBoard: false),
+    controls: 7,
+  ),
+  A11yCase(
+    'the board, its result card after a loss',
+    (tester) => _ended(tester, draw: false),
+    controls: 7,
+  ),
+  A11yCase(
+    'the board, its result card after a draw',
+    (tester) => _ended(tester, draw: true),
+    controls: 7,
   ),
   A11yCase(
     'the board, View board',
     (tester) => _result(tester, viewBoard: true),
+    controls: 5,
   ),
 ];

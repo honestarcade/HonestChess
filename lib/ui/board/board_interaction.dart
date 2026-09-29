@@ -190,6 +190,7 @@ class _BoardInteractionState extends State<BoardInteraction>
           child: Semantics(
             container: true,
             explicitChildNodes: true,
+            tagForChildren: a11yExemptSquare,
             label: boardLabel(_controller.game.mode, widget.bottom),
             child: BoardView(
               position: state.position,

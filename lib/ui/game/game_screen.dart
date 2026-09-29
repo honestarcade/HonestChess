@@ -436,8 +436,10 @@ class _TopBar extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: topBarHeight),
           child: Align(
             heightFactor: 1,
+            // The bar's 4 dp above and below is inside each slot rather
+            // than around the row, so the pill's hit area can reach it.
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -448,7 +450,7 @@ class _TopBar extends StatelessWidget {
                       label: pausePillLabel,
                       onTap: game.isOver ? null : onPause,
                       excludeSemantics: true,
-                      child: GestureDetector(
+                      child: _BarSlot(
                         onTap: game.isOver ? null : onPause,
                         child: Container(
                           key: const Key('pause-pill'),
@@ -483,7 +485,7 @@ class _TopBar extends StatelessWidget {
                   Flexible(
                     child: Semantics(
                       button: failed,
-                      child: GestureDetector(
+                      child: _BarSlot(
                         onTap: failed ? controller.retryComputer : null,
                         child: Container(
                           key: const Key('status-chip'),
@@ -712,4 +714,31 @@ class _LossNotice extends StatelessWidget {
       ),
     );
   }
+}
+
+/// One of the top bar's two slots: at least [cardMinTouch] tall and taking
+/// taps across all of it, its [child] drawn at the design's size, centred
+/// with the bar's 4 dp above and below.
+class _BarSlot extends StatelessWidget {
+  const _BarSlot({required this.onTap, required this.child});
+
+  final VoidCallback? onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    behavior: HitTestBehavior.opaque,
+    onTap: onTap,
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: cardMinTouch),
+      child: Align(
+        widthFactor: 1,
+        heightFactor: 1,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: child,
+        ),
+      ),
+    ),
+  );
 }

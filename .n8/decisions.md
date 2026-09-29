@@ -1040,3 +1040,37 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
   - `settings_look_test`: the label colour is read from the `RichText` under a `Text` that now has a `semanticsLabel`.
   **Why:** The plan changes these readings.
   **Issue:** #103
+- **Decision:** `test/a11y/guidelines_test.dart` (tag `a11y`, declared in `dart_test.yaml`) runs every case of #103's `a11y_cases.dart` at 320 × 568, 360 × 640 and 390 × 844 dp (24/48 dp insets) and text scale 1.0 and 1.3. Each screen is checked at its top and then after each half-viewport step down every vertical scrollable, to its end. The plan said "top and end". A short screen builds some controls only once scrolled to them, so top and end alone never checked the middle of the vs-computer setup or Settings at 320 × 568.
+  Three checks run at every step: a recording subclass of the stock `androidTapTargetGuideline`, `labeledTapTargetGuideline`, and #99's `CheckedTextGuideline`. Each case now carries its expected control count (`A11yCase.controls`). The suite runs in about 6 s locally (2026-09-29, `flutter test test/a11y/guidelines_test.dart`).
+  **Why:** The plan's pass 1 and pass 2 matrix. Stepping covers what top-and-end cannot.
+  **Issue:** #104
+- **Decision:** The tap-target check is `MinimumTapTargetGuideline` with `shouldSkipNode` overridden. It leaves out nodes tagged `a11yExemptSquare` and records them; the tag is in `lib/ui/board/board_view.dart` and is set by the board's semantics container through `tagForChildren`.
+  It also skips a node touching the edge of a scrolling view with both rects in screen space. The stock check compares a rect already moved into the scroll view's parent's space with the view's own rect. On the first run that failed How to play's tabs where they were half scrolled out of view.
+  Every recorded node must carry a square's label. At least 64 are recorded on every board case, and none on any other case. The run must also find a recorded square under 48 dp, so the exemption is needed. A fixture group proves the check fails an undersized control and an unlabelled one, and fails a tag on something that is not a square.
+  **Why:** The plan's `RecordingTapTargetGuideline`, reusing the framework's own traversal instead of copying it (Solitaire copied it). The scroll-edge fix is the stock check's own stated intent.
+  **Issue:** #104
+- **Decision:** First failing run, before any fix (2026-09-29, 77 of 177 tests failed):
+  - The pause pill ("Pause game", about 28 dp drawn) failed on every board case.
+  - The result bar's Rematch (38 dp) and "Show the result" (33 dp) failed on View board.
+  - How to play's tabs failed when half scrolled out (a checker artifact, above).
+  - The vs-computer setup and the reset-card cases could not find their controls on a short screen. Those are harness fixes: scroll to the control, and tap Reset once it is at the top.
+  - Squares measured 30 dp at 320 × 568 and 39 dp at 360 × 640.
+  Fixes, with the drawn layout unchanged:
+  - The top bar's 4 dp vertical padding moved inside each slot. The pill and the status chip each sit in a `_BarSlot` at least 48 dp tall that takes taps across all of it, so the bar's height is the same at every text size.
+  - The result bar's 8 dp padding moved inside its two controls (`_FullHeight`). Each control's node and hit area is the bar's full height, and Rematch's also reaches the bar's right edge.
+  **Why:** AC 3 (fix what fails), by M4's convention of growing hit areas without moving what is drawn.
+  **Issue:** #104
+- **Decision (needs owner):** The squares' floors (≥ 43 dp at 360 × 640, ≥ 38 dp at 320 × 568) hold only when the app has the whole screen. With the 24/48 dp system bars the plan's matrix uses, the board is limited by height, not width: 39 dp at 360 × 640 and 30 dp at 320 × 568 (at 1.3: 36–38 and 24–27 dp; 46 dp at 390 × 844 either way). Measured by this suite on 2026-09-29.
+  The floors come from a board as wide as the screen, floor((w − 16) / 8). Reaching them with the bars in means taking 32 dp (at 360) or 64 dp (at 320) of height from the top bar, panels or tool row, which is a redesign of M3's play screen. That is outside this story, and the plan says not to change the drawn layout.
+  The suite asserts the floors with no system bars, where the numbers hold, and reports the sizes with bars in. AC 2 is left unticked, and the question is on #104.
+  **Why:** Choosing between a redesign of the play screen and a lower floor is the owner's call. Guessing either way changes the design or the owner's number.
+  **Issue:** #104
+- **Decision:** `test/a11y/flutter_test_config.dart` replaces the root config for this folder only, because flutter_test uses the nearest config. It runs the root config's font loading and turns motion off through `FakeAccessibilityFeatures(disableAnimations: true)`, reset after each test. #102's and #103's tests in this folder pass under it unchanged. The `A11yCase` table gained `controls` and five states the plan lists that it lacked:
+  - two players, turned round with Black at the bottom;
+  - the pause card after a declined draw (held by `autoPause`, so its 2 s timer cannot outlive the case);
+  - result cards after a loss (resignation) and after a draw (agreed between two players);
+  - the two-player setup's steppers at their limits;
+  - empty Statistics.
+  #103's labels test runs them too.
+  **Why:** The plan's pass 1 state list and pass 2's folder-scoped config.
+  **Issue:** #104

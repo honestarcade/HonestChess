@@ -434,20 +434,21 @@ class ResultBar extends StatelessWidget {
           excludeFromSemantics: true,
           borderRadius: radius,
           onTap: controller.showResult,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: resultBarHeight),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Semantics(
-                      button: true,
-                      label:
-                          'Show the result: ${spokenCaps(text.tag)}, '
-                          '${text.title}',
-                      onTap: controller.showResult,
-                      excludeSemantics: true,
+          // Each control's node and hit area is the bar's full height: the
+          // bar's 8 dp padding is inside them, not around them.
+          child: Padding(
+            padding: const EdgeInsets.only(left: 14),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Semantics(
+                    button: true,
+                    label:
+                        'Show the result: ${spokenCaps(text.tag)}, '
+                        '${text.title}',
+                    onTap: controller.showResult,
+                    excludeSemantics: true,
+                    child: _FullHeight(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -483,48 +484,79 @@ class ResultBar extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Semantics(
-                    button: true,
-                    label: 'Rematch',
+                ),
+                const SizedBox(width: 10),
+                Semantics(
+                  button: true,
+                  label: 'Rematch',
+                  onTap: controller.restart,
+                  excludeSemantics: true,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
                     onTap: controller.restart,
-                    excludeSemantics: true,
-                    child: Material(
-                      color: Palette.teal,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(11)),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        key: const Key('result-bar-rematch'),
-                        onTap: controller.restart,
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          child: Text(
-                            'Rematch',
-                            style: TextStyle(
-                              fontFamily: Fonts.outfit,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                              height: 1,
-                              color: Palette.onTeal,
+                    child: _FullHeight(
+                      right: 8,
+                      child: Material(
+                        color: Palette.teal,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(11)),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          key: const Key('result-bar-rematch'),
+                          onTap: controller.restart,
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            child: Text(
+                              'Rematch',
+                              style: TextStyle(
+                                fontFamily: Fonts.outfit,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                                height: 1,
+                                color: Palette.onTeal,
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
       ),
     );
   }
+}
+
+/// A result-bar slot: at least [resultBarHeight] tall, its [child] drawn
+/// where the bar's 8 dp padding (and [right] more) puts it, centred
+/// vertically.
+class _FullHeight extends StatelessWidget {
+  const _FullHeight({required this.child, this.right = 0});
+
+  final Widget child;
+  final double right;
+
+  @override
+  Widget build(BuildContext context) => ConstrainedBox(
+    constraints: const BoxConstraints(minHeight: resultBarHeight),
+    child: Align(
+      alignment: AlignmentDirectional.centerStart,
+      heightFactor: 1,
+      widthFactor: right == 0 ? null : 1,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(0, 8, right, 8),
+        child: child,
+      ),
+    ),
+  );
 }
 
 /// One of the card's numbers: its label over its value, read aloud as

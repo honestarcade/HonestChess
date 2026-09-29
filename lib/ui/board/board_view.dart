@@ -89,6 +89,12 @@ class SquareSemantics {
 /// [square]'s semantics, given its [piece].
 typedef SquareDescriber = SquareSemantics Function(Square square, Piece? piece);
 
+/// Tags each square's semantics node as the one tap target allowed under
+/// 48 × 48 dp: eight squares must fit across the phone, so a square cannot
+/// grow without the board shrinking (owner, #104's approval gate,
+/// 2026-09-28). The accessibility tests exempt only nodes carrying it.
+const SemanticsTag a11yExemptSquare = SemanticsTag('a11yExemptSquare');
+
 /// What a screen reader says for [square]: its name and what stands on it.
 String squareLabel(Square square, Piece? piece) => piece == null
     ? '${square.name}, empty'
