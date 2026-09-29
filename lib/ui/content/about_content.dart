@@ -86,3 +86,74 @@ const promiseChips = ['NO ADS', 'NO TRACKING', 'OPEN SOURCE'];
 
 const siteLinkText = 'HONESTARCADE.APP';
 const githubLinkText = 'SOURCE ON GITHUB';
+
+typedef Feature = ({String title, String body});
+
+const aboutAppTitle = 'About the App';
+
+const appDescription =
+    'Chess, complete and offline. The full rule set — castling, en passant, '
+    'promotion, stalemate, the fifty-move draw — a computer opponent with '
+    'five honest strength steps, and pass-and-play for two people on one '
+    'phone. Nothing is unlocked with money, because there is nothing to '
+    'buy.';
+
+const featuresKicker = "WHAT'S IN IT";
+
+/// The design's `FEATURES`, the first and last corrected to what was
+/// built: threefold repetition is a draw too, and the statistics wording
+/// stays true under Android's system backup.
+const List<Feature> features = [
+  (
+    title: 'Every rule, no shortcuts',
+    body:
+        'Castling both sides, en passant, promotion to any piece, '
+        'stalemate, threefold repetition, fifty-move and '
+        'insufficient-material draws.',
+  ),
+  (
+    title: 'Five strength steps',
+    body:
+        'Beginner to Master. The dial changes how deep it looks, and it says '
+        'so.',
+  ),
+  (
+    title: 'Pass-and-play for two',
+    body: 'One phone, two clocks, an optional board rotation between turns.',
+  ),
+  (
+    title: 'Clocks that behave',
+    body: 'Untimed, blitz, rapid, classical or your own time and increment.',
+  ),
+  (
+    title: 'Board you can live with',
+    body: 'Four colour pairs, three piece styles, plain, felt or wood surface.',
+  ),
+  (
+    title: 'Honest statistics',
+    body:
+        'Results by strength step and by time control. Kept on this phone; '
+        'the app sends them nowhere.',
+  ),
+];
+
+const appPromisesKicker = 'THE HONEST PROMISES';
+
+/// About the App's seven chips: the design's `promiseChips` list.
+/// [promiseChips], above, is About Honest Arcade's three.
+const appPromiseChips = [
+  'NO ADS',
+  'NO TRACKING',
+  'NO ACCOUNTS',
+  'NO PURCHASES',
+  'NO PERMISSIONS',
+  'OPEN SOURCE',
+  'WORKS OFFLINE',
+];
+
+const appPromisesButtonText = 'Honest Arcade Promises';
+
+const madeByText = 'MADE BY';
+
+/// The MADE BY links' text, without their ↗.
+const arcadeLinkText = 'HONEST ARCADE';

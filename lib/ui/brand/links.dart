@@ -5,3 +5,6 @@ abstract final class Links {
   static const site = 'https://honestarcade.app';
   static const github = 'https://github.com/honestarcade';
 }
+
+/// This app's own source, linked from About the App.
+const appSourceUrl = 'https://github.com/honestarcade/HonestChess';

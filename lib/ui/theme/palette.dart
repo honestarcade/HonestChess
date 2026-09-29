@@ -146,6 +146,10 @@ abstract final class Palette {
   static const supportBorder = Color(0x4700D6B4); // rgba(0,214,180,.28)
   static const supportWashStart = Color(0x2100D6B4); // rgba(0,214,180,.13)
   static const supportWashEnd = Color(0x218448FC); // rgba(132,72,252,.13)
+
+  /// About the App's promises panel: its fill and its inset ring.
+  static const tealPanelFill = Color(0x1A00D6B4); // rgba(0,214,180,.1)
+  static const tealPanelRing = Color(0x5200D6B4); // rgba(0,214,180,.32)
 }
 
 /// The system bars on every route, set once at the app root: light icons
