@@ -429,14 +429,14 @@ void main() {
     await _back(tester);
     await tester.tap(find.byKey(const Key('cell-e2')));
     await tester.pump();
-    expect(find.byKey(const Key('selected-e2')), findsOneWidget);
+    expect(find.byKey(const Key('ring-selected-e2')), findsOneWidget);
     expect(find.byKey(const Key('dot-e4')), findsOneWidget);
 
     await _openSettings(tester);
     await _toggle(tester, 'settings-toggle-dots');
     expect(root.controller.options.legalMoveDots, isFalse);
     await _back(tester);
-    expect(find.byKey(const Key('selected-e2')), findsOneWidget);
+    expect(find.byKey(const Key('ring-selected-e2')), findsOneWidget);
     expect(
       find.byKey(const Key('dot-e4')),
       findsNothing,

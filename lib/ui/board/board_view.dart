@@ -83,10 +83,11 @@ String squareLabel(Square square, Piece? piece) => piece == null
 /// play screen and its tests can find them.
 ///
 /// The board knows nothing of a game. The play screen's highlights and
-/// gestures come in through three hooks, each called per square:
-/// [decorate] adds layers under the coordinates and the piece, [wrapPiece]
-/// wraps the square's piece and [wrapSquare] the whole square; [above] is
-/// one layer over all of them, which takes no touches.
+/// gestures come in through hooks, each called per square: [decorate] adds
+/// layers under the coordinates and the piece, [decorateAbove] layers over
+/// the piece, each filling the square and taking no touches, [wrapPiece] wraps the square's piece
+/// and [wrapSquare] the whole square; [above] is one layer over all of
+/// them, which takes no touches.
 class BoardView extends StatelessWidget {
   const BoardView({
     super.key,
@@ -94,6 +95,7 @@ class BoardView extends StatelessWidget {
     required this.bottom,
     this.options = const BoardOptions(),
     this.decorate,
+    this.decorateAbove,
     this.wrapPiece,
     this.wrapSquare,
     this.above,
@@ -103,6 +105,7 @@ class BoardView extends StatelessWidget {
   final Colour bottom;
   final BoardOptions options;
   final SquareDecorator? decorate;
+  final SquareDecorator? decorateAbove;
   final PieceWrapper? wrapPiece;
   final SquareWrapper? wrapSquare;
   final BoardLayer? above;
@@ -198,6 +201,14 @@ class BoardView extends StatelessWidget {
             ),
           if (pieceLayer != null)
             Positioned.fill(key: const ValueKey(#piece), child: pieceLayer),
+          // Over the piece, so a layer here would otherwise take the touch
+          // that starts the piece's drag.
+          for (final layer
+              in decorateAbove?.call(square, side, scale) ?? const <Widget>[])
+            Positioned.fill(
+              key: ValueKey((#above, layer.key)),
+              child: IgnorePointer(child: layer),
+            ),
         ],
       );
       cell = Semantics(

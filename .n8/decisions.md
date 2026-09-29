@@ -958,3 +958,21 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
   A last test proves that the check fails for a colour no row covers.
   **Why:** These are the plan's states. The in-check board also exercises the red status chip.
   **Issue:** #99
+- **Decision:** The highlight keys follow the plan's pass-1/pass-2 names: `selected-<sq>` is now `ring-selected-<sq>` and `ring-<sq>` is now `ring-capture-<sq>`. `dot-<sq>` and `tint-<sq>` are unchanged; `mark-last-<sq>` and `badge-check-<sq>` are new. The tests in test/ui/board/board_interaction_test.dart and test/ui/settings_options_test.dart now read the new names, the behaviour change this story makes.
+  **Why:** The plan names the keys, and a bare `ring-` prefix would match both rings.
+  **Issue:** #100
+- **Decision:** The selected ring is drawn over the piece, as pass 2's paint order puts it. It goes through a new `BoardView.decorateAbove` hook, whose layers fill the square under an `IgnorePointer`. The other shapes stay in `decorate`, under the coordinates and the piece.
+  **Why:** A layer over the piece that took touches would swallow the press that starts the selected piece's drag. test/ui/board_shapes_test.dart drags a selected pawn from under its ring.
+  **Issue:** #100
+- **Decision:** Design differences, as `ArtSource/design/README.md` asks: the selected ring is 4 dp, where the design draws 2 dp; the capture ring stays 3 dp. The last-move corner mark (an 8 dp triangle, bottom-left, teal at .7 on a light square, white at .7 on a dark one) and the check's "!" badge are new. The "!" is white Outfit 700 at 0.22 of a square, in a circle 0.34 of a square across, top-right. New tokens: `Palette.lastMoveMarkOnLight`, `lastMoveMarkOnDark` and `checkBadgeInk`.
+  **Why:** These are the owner's round-one choices, with the planner's sizes.
+  **Issue:** #100
+- **Decision:** The badge's circle is `Palette.danger` as #99 left it (#CC493F), not the #E05A4E the plan quotes. A `Palette.textPairs` row, "the check badge", proves the white "!" on that surface.
+  **Why:** #99 darkened `danger` so that white text on it passes 4.5:1. The plan names the token, and it was written before #99 moved the token's value.
+  **Issue:** #100
+- **Decision:** `shapesFor(tint, mark, inCheck:)` takes the last-move mark from the last-move tint, and `GameViewState.inCheck` is a square of its own. The selection and check tints can never cover a last-move square: both fall on the side to move's pieces, and the last move's two squares hold the other side's piece or nothing.
+  **Why:** This keeps the plan's signature. Only the check's badge needs to outlive a tint that takes precedence (the selected king in check), and the separate field covers it.
+  **Issue:** #100
+- **Decision:** The piece check is arithmetic on what `PieceGlyph` actually draws, not a rendered greyscale image. For each style, theme and square colour: the white and black inks differ by at least 3:1, and each piece shows at least 3:1 against its square through its ink or its edge (white's dark outline, black's light halo at its alpha).
+  **Why:** The M5 conventions make contrast maths a unit test. Reading the glyph's own style ties the numbers to the code.
+  **Issue:** #100

@@ -55,6 +55,13 @@ abstract final class Palette {
   static const captureRing = Color(0x9900D6B4); // rgba(0,214,180,.6)
   static const moveDot = Color(0x9E00D6B4); // rgba(0,214,180,.62)
 
+  /// The shapes that carry each highlight without colour (#100): the last
+  /// move's corner mark on a light and on a dark square; a king in check's
+  /// badge is a white "!" on [danger].
+  static const lastMoveMarkOnLight = Color(0xB300D6B4); // teal at .7
+  static const lastMoveMarkOnDark = Color(0xB3FFFFFF); // white at .7
+  static const checkBadgeInk = _white;
+
   /// The overlays' scrim and card (the promotion sheet's, the pause
   /// card's): the card's fill, its 1 px inset edge and its drop shadow.
   static const scrim = Color(0xD1030E20); // rgba(3,14,32,.82)
@@ -363,6 +370,7 @@ abstract final class Palette {
     const TextPair('white on an overlay button', _white, Surfaces.overlayDim),
     const TextPair('white on violet', _white, Surfaces.violet),
     const TextPair('white on the reset red', _white, Surfaces.danger),
+    const TextPair('the check badge', checkBadgeInk, Surfaces.danger),
     const TextPair(
       'white on the reset red, pressed',
       _white,

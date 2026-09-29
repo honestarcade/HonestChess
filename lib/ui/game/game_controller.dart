@@ -69,6 +69,7 @@ final class GameViewState {
     required this.tints,
     required this.marks,
     required this.lastMove,
+    required this.inCheck,
     required this.pendingPromotion,
     required this.thinking,
     required this.computerFailed,
@@ -93,6 +94,12 @@ final class GameViewState {
   /// The move that led to [position], whether or not it is tinted; null at
   /// the start of the game.
   final Move? lastMove;
+
+  /// The square of the side to move's king when it is in check and "Flag
+  /// check on the board" is on; null otherwise. Kept apart from [tints]
+  /// because the selection's tint hides the check tint, and the check's
+  /// badge must show all the same.
+  final Square? inCheck;
 
   final PendingPromotion? pendingPromotion;
 
@@ -914,9 +921,10 @@ class GameController extends ChangeNotifier {
       tints[lastMove.from.index] = SquareTint.lastMove;
       tints[lastMove.to.index] = SquareTint.lastMove;
     }
-    if (_options.flagCheck && inCheck(position)) {
-      tints[position.kingSquare(position.sideToMove).index] = SquareTint.check;
-    }
+    final checked = _options.flagCheck && inCheck(position)
+        ? position.kingSquare(position.sideToMove)
+        : null;
+    if (checked != null) tints[checked.index] = SquareTint.check;
     final selected = _selection;
     if (selected != null) {
       tints[selected.index] = SquareTint.selected;
@@ -932,6 +940,7 @@ class GameController extends ChangeNotifier {
       tints: List.unmodifiable(tints),
       marks: List.unmodifiable(marks),
       lastMove: lastMove,
+      inCheck: checked,
       pendingPromotion: _pendingPromotion,
       thinking: _turns?.thinking ?? false,
       computerFailed: _turns?.failed ?? false,
