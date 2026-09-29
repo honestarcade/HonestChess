@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../engine/engine.dart';
+import '../../feedback/clips.dart';
 import '../../platform/platform_channel.dart';
 import '../app_scope.dart';
 import '../board/board_options.dart';
@@ -62,7 +63,7 @@ typedef _Toggle = ({
 });
 
 /// The design's `SETTING_ROWS` that this build has: M5 adds piece
-/// animations and the SOUND group when it builds them.
+/// animations and haptics when it builds them.
 final List<_Toggle> _toggles = [
   (
     id: 'dots',
@@ -112,7 +113,28 @@ final List<_Toggle> _toggles = [
     read: (o) => o.flagCheck,
     write: (o, v) => o.copyWith(flagCheck: v),
   ),
+  (
+    id: 'sfx',
+    group: 'SOUND',
+    label: 'Sound effects',
+    description: sfxDescription,
+    read: (o) => o.sfx,
+    write: (o, v) => o.copyWith(sfx: v),
+  ),
+  (
+    id: 'music',
+    group: 'SOUND',
+    label: 'Background music',
+    description: 'Quiet loop while you play.',
+    read: (o) => o.music,
+    write: (o, v) => o.copyWith(music: v),
+  ),
 ];
+
+/// Sound effects' description, reworded from the design's to name what
+/// plays: there is no separate piece tap or mate chime (#96).
+const sfxDescription =
+    'Moves, captures, castling, check and the end of a game.';
 
 /// Settings: how the board looks, the switches it obeys, where the data
 /// lives and which version this is. Every choice applies at once, except
@@ -241,7 +263,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                     ],
                   ),
-                  for (final group in ['PLAY', 'DISPLAY']) ...[
+                  for (final group in ['PLAY', 'DISPLAY', 'SOUND']) ...[
                     const SizedBox(height: 12),
                     _Group(
                       title: group,
@@ -254,8 +276,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ? takebackNextGame
                                 : t.description,
                             value: t.read(options),
-                            onChanged: () =>
-                                update((o) => t.write(o, !t.read(o))),
+                            onChanged: () {
+                              final before = options.sfx;
+                              update((o) => t.write(o, !t.read(o)));
+                              // Turning effects on plays a sample of them.
+                              if (!before && settings.board.value.sfx) {
+                                scope.sound.play(Clip.move);
+                              }
+                            },
                           ),
                       ],
                     ),

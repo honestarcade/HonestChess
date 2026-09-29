@@ -127,6 +127,8 @@ BoardOptions decodeBoard(Object? raw) {
     autoQueen: _bool(json['autoQueen'], d.autoQueen),
     rotateEachTurn: _bool(json['rotateEachTurn'], d.rotateEachTurn),
     animations: _bool(json['animations'], d.animations),
+    sfx: _bool(json['sfx'], d.sfx),
+    music: _bool(json['music'], d.music),
     flagCheck: _bool(json['flagCheck'], d.flagCheck),
   );
 }
@@ -143,6 +145,8 @@ Map<String, Object?> encodeBoard(BoardOptions options, [Object? raw]) =>
       'autoQueen': options.autoQueen,
       'rotateEachTurn': options.rotateEachTurn,
       'animations': options.animations,
+      'sfx': options.sfx,
+      'music': options.music,
       'flagCheck': options.flagCheck,
     }, raw);
 

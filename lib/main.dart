@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -10,6 +11,10 @@ import 'package:honest_chess/data/game_saves.dart';
 import 'package:honest_chess/data/settings_store.dart';
 import 'package:honest_chess/data/stats.dart';
 import 'package:honest_chess/data/stats_listener.dart';
+import 'package:honest_chess/feedback/clips.dart';
+import 'package:honest_chess/feedback/game_feedback.dart';
+import 'package:honest_chess/feedback/music_controller.dart';
+import 'package:honest_chess/feedback/sound_player.dart';
 import 'package:honest_chess/platform/platform_channel.dart';
 import 'package:honest_chess/ui/app_scope.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
@@ -66,6 +71,7 @@ class HonestChessApp extends StatefulWidget {
     this.seedOverride,
     this.store,
     this.platform,
+    this.sound,
     this.skipSplash = false,
   });
 
@@ -74,6 +80,9 @@ class HonestChessApp extends StatefulWidget {
 
   /// The Android bridge; null builds the production channel.
   final PlatformChannel? platform;
+
+  /// The sound bridge; null builds the production channel.
+  final SoundPlayer? sound;
 
   /// Builds the computer for each game against it; tests pass a fake.
   final ComputerFactory computerFactory;
@@ -110,6 +119,16 @@ class HonestChessAppState extends State<HonestChessApp> {
   late final StatsRecorder stats;
   late final StatsListener _statsListener;
   late final AppLoader _loader;
+  late final SoundPlayer sound;
+
+  /// False from the moment the app starts leaving the foreground
+  /// (inactive, hidden, paused or detached) until it is back.
+  final foreground = ValueNotifier<bool>(true);
+
+  /// Whether the board is the page on top, for the music's gate.
+  final boardRoutes = BoardRouteObserver();
+  late final GameFeedback _feedback;
+  late final MusicController music;
 
   /// Leaving the app pauses the live game, whose pause is saved, and then
   /// waits for the store to write it.
@@ -139,6 +158,23 @@ class HonestChessAppState extends State<HonestChessApp> {
       saves: saves,
     );
     _lifecycle = AppLifecycleListener(onStateChange: _left);
+    sound = widget.sound ?? ChannelSoundPlayer();
+    // Once, beside the launch load rather than a step of it: a clip that
+    // fails to load stays silent, and nothing waits on it.
+    unawaited(sound.load(clips));
+    _feedback = GameFeedback(
+      events: controller.events,
+      board: settings.board,
+      foreground: foreground,
+      player: sound,
+    );
+    music = MusicController(
+      controller: controller,
+      board: settings.board,
+      boardVisible: boardRoutes.visible,
+      foreground: foreground,
+      player: sound,
+    );
     _loader = AppLoader(
       store: store,
       settings: settings,
@@ -153,6 +189,7 @@ class HonestChessAppState extends State<HonestChessApp> {
   void _boardChanged() => controller.options = settings.board.value;
 
   Future<void> _left(AppLifecycleState state) async {
+    foreground.value = state == AppLifecycleState.resumed;
     if (state != AppLifecycleState.inactive &&
         state != AppLifecycleState.hidden) {
       return;
@@ -166,6 +203,11 @@ class HonestChessAppState extends State<HonestChessApp> {
 
   @override
   void dispose() {
+    music.dispose();
+    _feedback.dispose();
+    unawaited(sound.dispose());
+    boardRoutes.dispose();
+    foreground.dispose();
     _lifecycle.dispose();
     _loader.dispose();
     _statsListener.dispose();
@@ -190,9 +232,11 @@ class HonestChessAppState extends State<HonestChessApp> {
       settings: settings,
       navigation: navigation,
       random: random,
+      sound: sound,
+      music: music,
       child: MaterialApp(
         title: 'Honest Chess',
-        navigatorObservers: [navigation],
+        navigatorObservers: [navigation, boardRoutes],
         debugShowCheckedModeBanner: false,
         theme: appTheme(),
         // One system-bar style for every route; screens set none of their

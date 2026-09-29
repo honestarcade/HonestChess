@@ -833,3 +833,24 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision (Rule 3):** `references_test.dart` and `template_leftovers_test.dart` now skip `.wav` files alongside `.png`, `.jar` and `.ttf`: both read every tracked file as UTF-8 text and threw on the first committed clip.
   **Why:** A WAV holds no file reference or placeholder name to scan; the skip lists already exist for binary files, and the WAVs are the first binary type this story added.
   **Issue:** #95
+- **Decision (Rule 1):** The hub pairs a game's end with its move by the end itself — a `GameEnded` whose game ended on its last move (`endedByMove`, the same test the result card uses) plays nothing more; any other `GameEnded` plays `end` — instead of pass 2's "ply count equal to the last `moved` event's".
+  **Why:** A resignation, an agreed draw or a flag adds no ply, so under the ply rule every resignation made after a move would have been silent; `endedByMove` tells the two apart exactly, and `test/feedback/sound_priority_test.dart` holds both cases.
+  **Issue:** #96
+- **Decision:** "On the board route" is read by a `BoardRouteObserver` (`lib/feedback/music_controller.dart`), a navigator observer registered beside the navigation guard that keeps the stack of page routes and reports whether the top one is named `board`, rather than a `RouteObserver` with a `RouteAware` board screen.
+  **Why:** The gate then needs nothing from `GameScreen`, dialogs and sheets over the board (popup routes) do not count as leaving without a special case, and the harness wires the same observer; the pause and result cards are layers of the board page, read from the controller's state.
+  **Issue:** #96
+- **Decision:** The music's "a new game, restart or rematch starts from the beginning" is detected by the game's statistics id changing (`controller.recorded['id']`), not by the `GameStarted` event; a refused start is retried only when the gate closes and opens again, not on every controller change.
+  **Why:** The controller notifies its listeners before it raises `GameStarted`, so the event arrived after the gate had already started the loop and cost a start–stop–start; and `musicStart` may wait up to a second on the Android side after an effect, so retrying on every move would stall it again and again. The first game after launch has no loop to rewind.
+  **Issue:** #96
+- **Decision:** The Kotlin channel name lives in `SoundBridge.kt` (top-level `private const val SOUND_CHANNEL`), and the bridge registers its own channel through `SoundBridge.attach(messenger)`; `MainActivity.kt` only creates it, so its own `when` still holds exactly the platform channel's three branches.
+  **Why:** A file-private constant cannot be read from `MainActivity.kt`, and the guard reads each channel's name and branches from one file each.
+  **Issue:** #96
+- **Decision:** The guard's Kotlin network scan now reads every `.kt` file under the app package and reports as "network API in the app's Kotlin"; the existing MainActivity mutation's `expect` follows the new reason.
+  **Why:** The plan widens the scan to every Kotlin file; one rule, one reason.
+  **Issue:** #96
+- **Decision:** Design difference: the Sound effects row reads "Moves, captures, castling, check and the end of a game." instead of the design's "Piece taps, captures, castling and the mate chime." (planner, pass 2); Background music keeps the design's "Quiet loop while you play."
+  **Why:** There is no separate tap or chime clip: the five effects are `move`, `capture`, `castle`, `check` and `end`, and `end` plays for every ending, not only mate.
+  **Issue:** #96
+- **Decision:** Every widget test that pumps `HonestChessApp` through `test/widget_test.dart`'s `_launch` passes a `FakeSoundPlayer`; the few other tests that pump the root without one get the production `ChannelSoundPlayer`, which finds no channel under test, logs once and stays silent.
+  **Why:** That is the player's own failure path (a sound never throws into the UI), and adding a parameter to tests unrelated to sound would be churn.
+  **Issue:** #96

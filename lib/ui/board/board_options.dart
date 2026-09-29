@@ -99,6 +99,8 @@ final class BoardOptions {
     this.autoQueen = false,
     this.rotateEachTurn = false,
     this.animations = true,
+    this.sfx = true,
+    this.music = false,
     this.flagCheck = true,
   });
 
@@ -124,6 +126,12 @@ final class BoardOptions {
   /// Slide pieces to their square instead of jumping.
   final bool animations;
 
+  /// Play a sound for each move and for the end of a game.
+  final bool sfx;
+
+  /// Play the quiet loop while a game is live on the board.
+  final bool music;
+
   /// Redden the king's square whenever it is in check.
   final bool flagCheck;
 
@@ -137,6 +145,8 @@ final class BoardOptions {
     bool? autoQueen,
     bool? rotateEachTurn,
     bool? animations,
+    bool? sfx,
+    bool? music,
     bool? flagCheck,
   }) => BoardOptions(
     theme: theme ?? this.theme,
@@ -148,6 +158,8 @@ final class BoardOptions {
     autoQueen: autoQueen ?? this.autoQueen,
     rotateEachTurn: rotateEachTurn ?? this.rotateEachTurn,
     animations: animations ?? this.animations,
+    sfx: sfx ?? this.sfx,
+    music: music ?? this.music,
     flagCheck: flagCheck ?? this.flagCheck,
   );
 
@@ -163,6 +175,8 @@ final class BoardOptions {
       other.autoQueen == autoQueen &&
       other.rotateEachTurn == rotateEachTurn &&
       other.animations == animations &&
+      other.sfx == sfx &&
+      other.music == music &&
       other.flagCheck == flagCheck;
 
   @override
@@ -176,6 +190,8 @@ final class BoardOptions {
     autoQueen,
     rotateEachTurn,
     animations,
+    sfx,
+    music,
     flagCheck,
   );
 }
