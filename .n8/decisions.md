@@ -476,3 +476,18 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** `lib/ui/game/game_screen.dart` (`GameScreen(options:)`, state `GameScreenState.controller`, two-player, board only, oriented by `boardBottomOf`) replaces `BoardPreviewScreen` as `main.dart`'s home. The takeback half of "after takeback the tint is the previous move" is not tested here: the controller has no takeback until #75/#76; the tint reads `history.last.move`, which a takeback restores.
   **Why:** The plan's Demo must run on a device; takeback is a later story's controller method.
   **Issue:** #72
+- **Decision:** The promotion card's pieces use a new public `PieceGlyph(piece:, style:, fontSize:, scale:, textKey:)` extracted from `BoardView`'s private piece builder (the board now draws through it, unchanged), so the card shows the board's own ink and outline (`Palette.pieceWhite`/`pieceBlack`) rather than the design mock's slightly different sheet colours (`#F9F7F2`, a lighter shadow). All four choices are drawn at 28 dp in every style, as the design draws them.
+  **Why:** The plan says the sheet reuses #71's piece widget; one widget keeps the pieces identical wherever they appear.
+  **Issue:** #73
+- **Decision:** The design's card and choice colours became `Palette` tokens (`scrim`, `card` 0B3670, `cardEdge`, `cardShadow`, `choiceFill`, `choiceEdge`, `choiceLabel`) for #77's pause card to reuse. The card's title and "PAWN TO E8" line are excluded from semantics because the card's live-region label ("Promote pawn on E8") already says them.
+  **Why:** Palette's rule that a colour has one name; without the exclusion a screen reader reads the heading twice.
+  **Issue:** #73
+- **Decision:** No spring-back on a cancelled drag-promotion: a drop on the promotion square is an accepted drop, the pawn is drawn on its origin square while the card is open, so on cancel there is nothing in flight to fly back — the pawn is simply put down where it stands.
+  **Why:** The plan's "a cancelled drag's pawn springs back" assumed the pawn left its square; #72's controller keeps it there (the plan's own "the pawn stays on its origin square").
+  **Issue:** #73
+- **Decision:** `GameScreen` gains an optional `fen` (the Demo's test position) and its body becomes a `Stack` with the sheet as a full-body layer; #74 adds the top bar above it. Android back is a `PopScope` (`canPop` false only while a promotion is pending) inside the sheet layer.
+  **Why:** The plan's layer-not-route line; the top bar does not exist yet.
+  **Issue:** #73
+- **Decision:** (Rule 1) `GameController._play` now returns `false` when `Game.play` hands back a flag-ended game without the move (a pick after the flag fell), while still adopting that game so the card closes and the result shows.
+  **Why:** It returned `true` for a move that was never played; the plan requires the controller to refuse a late pick.
+  **Issue:** #73

@@ -259,11 +259,43 @@ class BoardView extends StatelessWidget {
 
   Widget _piece(Square square, Piece piece, double side, double scale) {
     final flat = options.pieceStyle == PieceStyle.flat;
+    return PieceGlyph(
+      piece: piece,
+      style: options.pieceStyle,
+      fontSize: (side * (flat ? 0.62 : 0.92)).roundToDouble(),
+      scale: scale,
+      textKey: Key('piece-${square.name}'),
+    );
+  }
+}
+
+/// One piece as the board draws it: [piece]'s glyph in [style] at
+/// [fontSize], in its side's colour with the design's outline or halo,
+/// whose widths scale by [scale]. [textKey] keys the glyph's [Text].
+class PieceGlyph extends StatelessWidget {
+  const PieceGlyph({
+    super.key,
+    required this.piece,
+    required this.style,
+    required this.fontSize,
+    this.scale = 1,
+    this.textKey,
+  });
+
+  final Piece piece;
+  final PieceStyle style;
+  final double fontSize;
+  final double scale;
+  final Key? textKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final flat = style == PieceStyle.flat;
     final white = piece.colour == Colour.white;
     return ExcludeSemantics(
       child: Text(
-        pieceGlyph(piece, options.pieceStyle),
-        key: Key('piece-${square.name}'),
+        pieceGlyph(piece, style),
+        key: textKey,
         textScaler: TextScaler.noScaling,
         textAlign: TextAlign.center,
         style: TextStyle(
@@ -272,7 +304,7 @@ class BoardView extends StatelessWidget {
           // system font's piece — on Android that would be colour emoji.
           fontFamilyFallback: const [],
           fontWeight: flat ? FontWeight.w600 : FontWeight.w400,
-          fontSize: (side * (flat ? 0.62 : 0.92)).roundToDouble(),
+          fontSize: fontSize,
           height: 1,
           color: white ? Palette.pieceWhite : Palette.pieceBlack,
           shadows: white ? _whiteShadows(scale) : _blackShadows(scale),

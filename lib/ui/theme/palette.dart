@@ -33,6 +33,18 @@ abstract final class Palette {
   static const lastMoveTint = Color(0x3300D6B4); // rgba(0,214,180,.2)
   static const captureRing = Color(0x9900D6B4); // rgba(0,214,180,.6)
   static const moveDot = Color(0x9E00D6B4); // rgba(0,214,180,.62)
+
+  /// The overlays' scrim and card (the promotion sheet's, the pause
+  /// card's): the card's fill, its 1 px inset edge and its drop shadow.
+  static const scrim = Color(0xD1030E20); // rgba(3,14,32,.82)
+  static const card = Color(0xFF0B3670);
+  static const cardEdge = Color(0x1AFFFFFF); // rgba(255,255,255,.1)
+  static const cardShadow = Color(0x8C000000); // rgba(0,0,0,.55)
+
+  /// A choice button on a card: its fill, its edge and its label.
+  static const choiceFill = Color(0x0FFFFFFF); // rgba(255,255,255,.06)
+  static const choiceEdge = Color(0x29FFFFFF); // rgba(255,255,255,.16)
+  static const choiceLabel = Color(0xFF9FC3EE);
 }
 
 /// The app's font families, as pubspec.yaml declares them.

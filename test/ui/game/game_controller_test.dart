@@ -297,4 +297,131 @@ void main() {
       expect(mated.state.selection, isNull);
     });
   });
+
+  group('promotion (#73)', () {
+    const fen = '7k/4P3/8/8/8/8/8/K7 w - - 0 1';
+
+    GameController pending({BoardOptions options = const BoardOptions()}) {
+      final c = GameController(fen: fen, options: options);
+      c.tapSquare(sq('e7'));
+      c.tapSquare(sq('e8'));
+      return c;
+    }
+
+    test('choosePromotion plays the chosen piece', () {
+      for (final kind in [
+        PieceKind.queen,
+        PieceKind.rook,
+        PieceKind.bishop,
+        PieceKind.knight,
+      ]) {
+        final c = pending();
+        expect(c.choosePromotion(kind), isTrue);
+        expect(c.game.moves.single.promotion, kind);
+        expect(c.state.pendingPromotion, isNull);
+        expect(c.state.selection, isNull, reason: 'promote: tint cleared');
+      }
+    });
+
+    test('a king or a pawn is refused and the choice stays open', () {
+      final c = pending();
+      expect(c.choosePromotion(PieceKind.king), isFalse);
+      expect(c.choosePromotion(PieceKind.pawn), isFalse);
+      expect(c.state.pendingPromotion, (from: sq('e7'), to: sq('e8')));
+      expect(c.game.moves, isEmpty);
+    });
+
+    test('cancel puts the pawn down: same position, same side to move', () {
+      final c = pending();
+      var notified = 0;
+      c.addListener(() => notified++);
+      expect(c.cancelPromotion(), isTrue);
+      expect(notified, 1);
+      expect(c.state.pendingPromotion, isNull);
+      expect(c.state.selection, isNull, reason: 'cancel: pawn deselected');
+      expect(c.state.tintAt(sq('e7')), SquareTint.none);
+      expect(c.state.position.toFen(), fen, reason: 'cancel: unchanged');
+      expect(c.game.moves, isEmpty, reason: 'cancel: nothing played');
+      expect(c.inputLocked, isFalse, reason: 'cancel: still White to move');
+    });
+
+    test('with nothing pending both are silent no-ops', () {
+      final c = GameController(fen: fen);
+      var notified = 0;
+      c.addListener(() => notified++);
+      expect(c.choosePromotion(PieceKind.queen), isFalse);
+      expect(c.cancelPromotion(), isFalse);
+      expect(notified, 0, reason: 'promote: a refusal changes nothing');
+      expect(c.game.moves, isEmpty);
+    });
+
+    test('while it is open the origin keeps its tint; nothing else moves', () {
+      final c = pending();
+      expect(c.state.tintAt(sq('e7')), SquareTint.selected);
+      expect(c.tapSquare(sq('a1')), isFalse);
+      expect(c.pickUp(sq('a1')), isFalse);
+      expect(c.canDrag(sq('e7')), isFalse);
+      expect(c.move(sq('a1'), sq('a2')), isFalse);
+      expect(c.drop(sq('e7'), sq('e8')), isFalse);
+      expect(c.state.pendingPromotion, (from: sq('e7'), to: sq('e8')));
+      expect(c.game.moves, isEmpty);
+    });
+
+    test('auto-queen plays the queen at once, read at each move', () {
+      final c = pending(options: const BoardOptions(autoQueen: true));
+      expect(c.state.pendingPromotion, isNull, reason: 'auto-queen: no ask');
+      expect(c.game.moves.single.toUci(), 'e7e8q');
+
+      final later = GameController(fen: fen);
+      later.options = const BoardOptions(autoQueen: true);
+      later.tapSquare(sq('e7'));
+      later.tapSquare(sq('e8'));
+      expect(later.game.moves.single.toUci(), 'e7e8q');
+    });
+
+    test("the mover's clock keeps running while the choice is open", () {
+      var now = 0;
+      final c = GameController(
+        fen: '7k/8/8/8/8/8/4p3/K7 w - - 0 1',
+        timeControl: Timed(5, 0),
+        now: () => now,
+      );
+      expect(c.move(sq('a1'), sq('a2')), isTrue);
+      now = 1000;
+      expect(c.move(sq('e2'), sq('e1')), isTrue);
+      expect(c.state.pendingPromotion, isNotNull);
+      now = 4000;
+      expect(
+        c.game.remaining(Colour.black),
+        300000 - 4000,
+        reason: "promote: Black's clock runs while the card is open",
+      );
+      expect(c.game.clock.phase, ClockPhase.running);
+      now = 6000;
+      expect(c.choosePromotion(PieceKind.rook), isTrue);
+      expect(
+        c.game.remaining(Colour.black),
+        300000 - 6000,
+        reason: 'promote: the time spent choosing was charged to Black',
+      );
+    });
+
+    test('a pick after the flag fell is refused and the game is over', () {
+      var now = 0;
+      final c = GameController(
+        fen: '7k/8/8/8/8/8/4p3/K7 w - - 0 1',
+        timeControl: Timed(1, 0),
+        now: () => now,
+      );
+      c.move(sq('a1'), sq('a2'));
+      c.move(sq('e2'), sq('e1'));
+      now = 61000;
+      expect(c.choosePromotion(PieceKind.queen), isFalse);
+      expect(c.game.moves.length, 1, reason: 'flag: the pick was dropped');
+      expect(c.state.pendingPromotion, isNull, reason: 'flag: card closes');
+      expect(c.state.over, isTrue);
+      // White has a lone king: Black's flag is a draw, not a loss.
+      expect(c.game.status, const Draw(GameEndReason.flagNoMatingMaterial));
+    });
+  });
 }

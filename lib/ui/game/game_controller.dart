@@ -180,8 +180,9 @@ class GameController extends ChangeNotifier {
   }
 
   /// Plays the legal move from [from] to [to]. A pawn reaching its last
-  /// rank opens a pending promotion instead, the pawn still selected on its
-  /// square, and waits for its piece.
+  /// rank becomes a queen at once when [BoardOptions.autoQueen] is on;
+  /// otherwise it opens a pending promotion, the pawn still selected on its
+  /// square, and waits for [choosePromotion] or [cancelPromotion].
   bool move(Square from, Square to) {
     if (inputLocked) return false;
     final moves = [
@@ -190,6 +191,9 @@ class GameController extends ChangeNotifier {
     ];
     if (moves.isEmpty) return false;
     if (moves.first.promotion != null) {
+      if (_options.autoQueen) {
+        return _play(moves.firstWhere((m) => m.promotion == PieceKind.queen));
+      }
       _selection = from;
       _pendingPromotion = (from: from, to: to);
       _state = _viewState();
@@ -199,6 +203,32 @@ class GameController extends ChangeNotifier {
     return _play(moves.single);
   }
 
+  /// Completes the pending promotion with [kind]. Refused when nothing is
+  /// pending or [kind] is not a piece a pawn can become. The mover's clock
+  /// ran all the while the choice was open.
+  bool choosePromotion(PieceKind kind) {
+    final pending = _pendingPromotion;
+    if (pending == null || _state.thinking || _state.paused || _state.over) {
+      return false;
+    }
+    for (final m in _movesFrom(pending.from)) {
+      if (m.to == pending.to && m.promotion == kind) return _play(m);
+    }
+    return false;
+  }
+
+  /// Drops the pending promotion: the pawn stays where it was, put down,
+  /// and it is still the same side's move.
+  bool cancelPromotion() {
+    if (_pendingPromotion == null) return false;
+    _pendingPromotion = null;
+    _select(null);
+    return true;
+  }
+
+  /// Plays [move]. When a flag fell before it, the game the engine hands
+  /// back is the flag-ended one without the move: it is taken, and the move
+  /// counts as refused.
   bool _play(Move move) {
     final Game next;
     try {
@@ -206,10 +236,11 @@ class GameController extends ChangeNotifier {
     } on GameActionError {
       return false;
     }
+    final played = next.history.length > _game.history.length;
     _game = next;
     _refresh();
     notifyListeners();
-    return true;
+    return played;
   }
 
   void _select(Square? square) {
