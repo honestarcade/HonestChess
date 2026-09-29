@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:honest_chess/data/game_event.dart';
 import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_interaction.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
@@ -76,7 +78,7 @@ class GameScreen extends StatefulWidget {
   final String? fen;
 
   /// A game to show instead of a new one from [setup]; its owner disposes
-  /// it.
+  /// it. While it is idle the screen is a plain navy frame.
   final GameController? controller;
 
   /// The game the screen starts; an untimed two-player game when null.
@@ -103,19 +105,34 @@ class GameScreenState extends State<GameScreen> {
   /// Whether the new-game picker is open over the screen.
   bool _picking = false;
 
+  late bool _idle = controller.isIdle;
+  late final StreamSubscription<GameEvent> _events;
+
   @override
   void initState() {
     super.initState();
     _lifecycle = AppLifecycleListener(onStateChange: _left);
+    controller.addListener(_idleChanged);
+    // A restored game replaces whatever the picker was choosing for.
+    _events = controller.events.listen((event) {
+      if (event is GameRestored) _closePicker();
+    });
   }
 
+  void _idleChanged() {
+    if (_idle != controller.isIdle) setState(() => _idle = controller.isIdle);
+  }
+
+  /// The app root does the same and then saves; both are safe to run, in
+  /// either order, since a second pause changes nothing.
   void _left(AppLifecycleState state) {
     if (state != AppLifecycleState.inactive &&
         state != AppLifecycleState.hidden) {
       return;
     }
+    controller.checkFlag();
     controller.autoPause();
-    if (controller.state.paused) _closePicker();
+    if (!controller.isIdle && controller.state.paused) _closePicker();
   }
 
   GameController _newGame() {
@@ -172,12 +189,15 @@ class GameScreenState extends State<GameScreen> {
   @override
   void dispose() {
     _lifecycle.dispose();
+    _events.cancel();
+    controller.removeListener(_idleChanged);
     if (widget.controller == null) controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_idle) return const ColoredBox(color: Palette.navy);
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
         statusBarColor: Colors.transparent,

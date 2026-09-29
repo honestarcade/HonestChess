@@ -3,16 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:honest_chess/data/app_store.dart';
+import 'package:honest_chess/data/play_mode.dart';
 import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/main.dart';
 import 'package:honest_chess/ui/app_scope.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/board/board_view.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
+import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/game_screen.dart';
 
 import 'support/fake_platform_channel.dart';
 import 'ui/game/fake_computer.dart';
+import 'ui/game/pause_overlay_test.dart' show comeBack, leave;
 import 'ui/game/player_panel_test.dart' show text;
 
 void main() {
@@ -32,6 +35,8 @@ void main() {
         platform: platform,
       ),
     );
+    // The first frame is the loading frame; the saved games are read then.
+    await tester.pump();
 
     final board = tester.widget<BoardView>(find.byType(BoardView));
     expect(
@@ -111,6 +116,7 @@ void main() {
         platform: FakePlatformChannel(),
       ),
     );
+    await tester.pump();
     expect(fakes.current.seed, 42, reason: 'app: the seed override is used');
     await tester.tap(find.byKey(const Key('cell-e2')));
     await tester.pump();
@@ -125,6 +131,97 @@ void main() {
     ], reason: 'app: the computer answers on the home board');
     // The running clock keeps a ticker alive; leaving stops it.
     await tester.pumpWidget(const SizedBox());
+  });
+
+  group('saved games', () {
+    Future<(GameController, FakeComputers)> launch(
+      WidgetTester tester,
+      AppStore store, {
+      bool resumeSaved = true,
+      int? seed,
+    }) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final fakes = FakeComputers();
+      await tester.pumpWidget(
+        HonestChessApp(
+          key: UniqueKey(),
+          computerFactory: fakes.call,
+          store: store,
+          platform: FakePlatformChannel(),
+          resumeSaved: resumeSaved,
+          seed: seed,
+        ),
+      );
+      await tester.pump();
+      final root = tester.state<HonestChessAppState>(
+        find.byType(HonestChessApp),
+      );
+      return (root.controller, fakes);
+    }
+
+    testWidgets('leaving saves the paused game; the next launch opens on it, '
+        'paused', (tester) async {
+      final store = AppStore.memory();
+      final (first, fakes) = await launch(tester, store);
+      expect(
+        store.rawText(StoreDoc.gameComputer),
+        isNotNull,
+        reason: 'app: the new game is saved at once',
+      );
+      await tester.tap(find.byKey(const Key('cell-e2')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('cell-e4')));
+      await tester.pump();
+      fakes.current.last.move('e7e5');
+      await tester.pump(minThinkTime);
+      final seed = (first.game.mode as VsComputer).seed;
+
+      await leave(tester, AppLifecycleState.hidden);
+      expect(first.state.paused, isTrue, reason: 'app: leaving pauses');
+      final root = tester.state<HonestChessAppState>(
+        find.byType(HonestChessApp),
+      );
+      await root.saves.flush();
+      expect(root.saves.load(PlayMode.computer)?.moves, first.game.moves);
+      await tester.pumpWidget(const SizedBox());
+      await comeBack(tester);
+
+      final (second, again) = await launch(tester, store);
+      expect(second.game.moves.map((m) => m.toUci()), ['e2e4', 'e7e5']);
+      expect(second.state.paused, isTrue, reason: 'app: restored paused');
+      expect(find.byKey(const Key('pause-card')), findsOneWidget);
+      expect((second.game.mode as VsComputer).seed, seed);
+      expect(again.current.seed, seed, reason: 'app: same computer seed');
+      await tester.pump(const Duration(seconds: 1));
+      expect(
+        again.current.requests,
+        isEmpty,
+        reason: 'app: nothing is asked of the computer while paused',
+      );
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('the device test\'s overrides skip the saved game', (
+      tester,
+    ) async {
+      final store = AppStore.memory();
+      final (first, _) = await launch(tester, store);
+      first.move(Square.parse('d2'), Square.parse('d4'));
+      await tester.pumpWidget(const SizedBox());
+
+      final (second, fakes) = await launch(
+        tester,
+        store,
+        resumeSaved: false,
+        seed: 2026,
+      );
+      expect(second.game.moves, isEmpty);
+      expect(second.state.paused, isFalse);
+      expect(fakes.current.seed, 2026);
+      await tester.pumpWidget(const SizedBox());
+    });
   });
 
   test(

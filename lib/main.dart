@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:honest_chess/data/app_store.dart';
+import 'package:honest_chess/data/game_saves.dart';
 import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/platform/platform_channel.dart';
 import 'package:honest_chess/ui/app_scope.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/defaults.dart';
+import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/game_screen.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
@@ -16,12 +18,15 @@ import 'package:honest_chess/ui/theme/palette.dart';
 // colour for everything else.
 const _navy = Color(0xFF05285F);
 
-/// Starts the app on a game against the computer. [strength] and [seed]
-/// replace the first game's step and seed, for the device test only.
+/// Starts the app on the saved game, or a new game against the computer.
+/// [strength] and [seed] replace the new game's step and seed, for the
+/// device test only: either one skips the saved game, so the test never
+/// lands on a paused leftover.
 void main({Strength? strength, int? seed}) {
   registerFontLicences();
   runApp(
     HonestChessApp(
+      resumeSaved: strength == null && seed == null,
       firstGame: strength == null
           ? vsComputerDefault
           : (
@@ -62,7 +67,9 @@ ThemeData appTheme() => ThemeData(
 );
 
 /// The app root. It holds the board options in memory with the design's
-/// defaults until M4's Settings saves them, and opens on [firstGame].
+/// defaults until M4's Settings saves them, owns the game controller and
+/// the saved games, and opens on the saved game Continue would offer —
+/// paused — or, with none, on a new [firstGame].
 class HonestChessApp extends StatefulWidget {
   const HonestChessApp({
     super.key,
@@ -71,6 +78,7 @@ class HonestChessApp extends StatefulWidget {
     this.seed,
     this.store,
     this.platform,
+    this.resumeSaved = true,
   });
 
   /// The device store; null builds the production one over [platform].
@@ -87,6 +95,10 @@ class HonestChessApp extends StatefulWidget {
   /// The first game's computer seed; fresh when null.
   final int? seed;
 
+  /// Whether launch opens on a saved game when there is one; false always
+  /// starts [firstGame].
+  final bool resumeSaved;
+
   @override
   State<HonestChessApp> createState() => HonestChessAppState();
 }
@@ -98,26 +110,83 @@ class HonestChessAppState extends State<HonestChessApp> {
   /// store resolved through it.
   late final PlatformChannel platform;
   late final AppStore store;
+  late final GameController controller;
+  late final GameSaves saves;
+
+  /// Leaving the app pauses the live game, whose pause is saved, and then
+  /// waits for the store to write it.
+  late final AppLifecycleListener _lifecycle;
+
+  /// Whether the saved games have been read and a game is on the board.
+  bool _launched = false;
 
   @override
   void initState() {
     super.initState();
     platform = widget.platform ?? MethodChannelPlatform();
     store = widget.store ?? AppStore.onDevice(platform);
+    controller = GameController.idle(
+      computerFactory: widget.computerFactory,
+      options: boardOptions,
+    );
+    saves = GameSaves(store)..attach(controller.events);
+    _lifecycle = AppLifecycleListener(onStateChange: _left);
+    _launch();
+  }
+
+  Future<void> _launch() async {
+    try {
+      await saves.loadAll();
+    } on Object catch (e) {
+      // The app starts without the saved games rather than not at all.
+      debugPrint('launch: the saved games could not be read: $e');
+    }
+    if (!mounted) return;
+    final offered = widget.resumeSaved ? saves.offered : null;
+    final game = offered == null ? null : saves.load(offered.mode);
+    if (game == null ||
+        !controller.restore(game, recorded: saves.recorded(offered!.mode))) {
+      controller.newGame(widget.firstGame, seed: widget.seed);
+    }
+    setState(() => _launched = true);
+  }
+
+  Future<void> _left(AppLifecycleState state) async {
+    if (state != AppLifecycleState.inactive &&
+        state != AppLifecycleState.hidden) {
+      return;
+    }
+    // A clock already at zero ends the game on time rather than being
+    // saved at 0:00.
+    controller.checkFlag();
+    controller.autoPause();
+    await saves.flush();
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    saves.dispose();
+    controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // A plain navy frame while the saved games load.
+    if (!_launched) return const ColoredBox(color: _navy);
     return AppScope(
       store: store,
       platform: platform,
+      controller: controller,
+      saves: saves,
       child: MaterialApp(
         title: 'Honest Chess',
         debugShowCheckedModeBanner: false,
         theme: appTheme(),
         home: GameScreen(
           options: boardOptions,
-          setup: widget.firstGame,
+          controller: controller,
           seed: widget.seed,
           computerFactory: widget.computerFactory,
         ),

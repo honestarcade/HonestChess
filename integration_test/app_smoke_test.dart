@@ -23,8 +23,12 @@ void main() {
     tester,
   ) async {
     app.main(strength: Strength.beginner, seed: 2026);
-    await tester.pump();
-    expect(find.byKey(const Key('board')), findsOneWidget);
+    // Launch reads the saved games from disk under a plain frame first.
+    final board = find.byKey(const Key('board'));
+    for (var i = 0; i < 100 && board.evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(board, findsOneWidget);
     final controller = tester
         .state<GameScreenState>(find.byType(GameScreen))
         .controller;

@@ -97,6 +97,8 @@ void main() {
     await tester.pumpWidget(
       HonestChessApp(computerFactory: FakeComputers().call),
     );
+    // No channel answers in a test, so launch waits out the read timeout.
+    await tester.pump(const Duration(seconds: 5));
     final root = tester.state<HonestChessAppState>(find.byType(HonestChessApp));
     expect(root.platform, isA<MethodChannelPlatform>());
     expect(root.store, isA<AppStore>());

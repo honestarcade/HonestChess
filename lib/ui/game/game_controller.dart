@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'package:honest_chess/data/game_event.dart';
 import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
@@ -132,7 +133,7 @@ class GameController extends ChangeNotifier {
   }) : _options = options,
        _fen = fen,
        _now = now,
-       _game = Game.start(
+       _current = Game.start(
          mode,
          timeControl,
          options: GameOptions(takebackAllowed: options.takebackAllowed),
@@ -143,10 +144,28 @@ class GameController extends ChangeNotifier {
     _refresh();
   }
 
+  /// A controller with no game yet, as the app root holds it until a game
+  /// is started ([newGame]) or restored ([restore]). While idle there is
+  /// nothing to show: [game] and [state] throw [StateError], and every
+  /// action is refused.
+  GameController.idle({
+    this._now,
+    ComputerFactory? computerFactory,
+    this._options = const BoardOptions(),
+  }) : _computer = computerFactory;
+
   String? _fen;
   final TimeSource? _now;
   final ComputerFactory? _computer;
-  Game _game;
+  Game? _current;
+  GameViewState? _view;
+
+  /// Delivered synchronously once each change and its notifyListeners are
+  /// done; see [_emit] for events raised during a delivery.
+  final _events = StreamController<GameEvent>.broadcast(sync: true);
+  final _undelivered = <GameEvent>[];
+  bool _delivering = false;
+  Map<String, Object?> _recorded = const {};
   BoardOptions _options;
   ComputerTurns? _turns;
   bool _disposed = false;
@@ -165,18 +184,38 @@ class GameController extends ChangeNotifier {
   Square? _selection;
   PendingPromotion? _pendingPromotion;
   ResultView? _resultView;
-  late List<Move> _legal;
-  late GameViewState _state;
+  List<Move> _legal = const [];
 
+  Game get _game =>
+      _current ?? (throw StateError('No game: the controller is idle.'));
+  set _game(Game game) => _current = game;
+  GameViewState get _state =>
+      _view ?? (throw StateError('No game: the controller is idle.'));
+  set _state(GameViewState view) => _view = view;
+
+  /// The game on the board; throws [StateError] while [isIdle].
   Game get game => _game;
+
+  /// What the board shows; throws [StateError] while [isIdle].
   GameViewState get state => _state;
   BoardOptions get options => _options;
+
+  /// Whether no game has been started or restored yet.
+  bool get isIdle => _current == null;
+
+  /// Every change of game, for the saved games (#81) and statistics (#82).
+  Stream<GameEvent> get events => _events.stream;
+
+  /// Carried with the game into every event and saved beside it; empty for
+  /// a new game, the saved map for a restored one.
+  Map<String, Object?> get recorded => _recorded;
 
   /// New display options take effect at once; takeback's setting applies
   /// from the next game, which fixes it at its start.
   set options(BoardOptions value) {
     if (value == _options) return;
     _options = value;
+    if (isIdle) return;
     _state = _viewState();
     notifyListeners();
   }
@@ -185,6 +224,7 @@ class GameController extends ChangeNotifier {
   /// its thinking, a pause, a promotion waiting for its piece, or the game
   /// over. Later reasons are added here, not as guards of their own.
   bool get inputLocked =>
+      isIdle ||
       _state.thinking ||
       _state.paused ||
       _state.pendingPromotion != null ||
@@ -300,6 +340,7 @@ class GameController extends ChangeNotifier {
 
   /// [side]'s time left now; null in an untimed game.
   Duration? remaining(Colour side) {
+    if (isIdle) return null;
     final ms = _game.remaining(side);
     return ms == null ? null : Duration(milliseconds: ms);
   }
@@ -307,6 +348,7 @@ class GameController extends ChangeNotifier {
   /// Whether [side]'s clock is counting down: a timed game under way (from
   /// White's first move), not paused, not over, and [side] to move.
   bool clockRunning(Colour side) {
+    if (isIdle) return false;
     final clock = _game.clock;
     return clock.control is Timed &&
         clock.phase == ClockPhase.running &&
@@ -316,23 +358,27 @@ class GameController extends ChangeNotifier {
   /// Ends the game on time if the running clock has reached zero; the
   /// panels' ticker calls it every frame. Returns whether the game ended.
   bool checkFlag() {
-    if (_game.isOver) return false;
+    if (isIdle || _game.isOver) return false;
+    final before = _game;
     final next = _game.flag();
     if (identical(next, _game)) return false;
     _game = next;
     _refresh();
     notifyListeners();
+    _announce(before);
     return true;
   }
 
   /// Holds both clocks and locks the board; a pending promotion is dropped.
   /// Refused once the game is over or while already paused.
   bool pause() {
-    if (_paused || _game.isOver) return false;
+    if (isIdle || _paused || _game.isOver) return false;
+    final before = _game;
     _paused = true;
     _game = _game.pause();
     _refresh();
     notifyListeners();
+    _announce(before, GamePaused.new);
     return true;
   }
 
@@ -340,10 +386,12 @@ class GameController extends ChangeNotifier {
   /// while the computer considers a draw offer.
   bool resume() {
     if (!_paused || _drawAsking) return false;
+    final before = _game;
     _endPause();
     _game = _game.resume();
     _refresh();
     notifyListeners();
+    _announce(before, GameResumed.new);
     return true;
   }
 
@@ -352,7 +400,7 @@ class GameController extends ChangeNotifier {
   /// itself. A finished game is left alone. Returns whether this paused
   /// the game.
   bool autoPause() {
-    if (_game.isOver) return false;
+    if (isIdle || _game.isOver) return false;
     final paused = !_paused && pause();
     _held = true;
     _declineTimer?.cancel();
@@ -364,7 +412,7 @@ class GameController extends ChangeNotifier {
 
   /// Whether a draw can be offered now, or why not.
   DrawOffer get drawOffer {
-    if (_game.isOver) return DrawOffer.over;
+    if (isIdle || _game.isOver) return DrawOffer.over;
     if (_drawAsking) return DrawOffer.asking;
     if (!_game.canAgreeDraw) return DrawOffer.tooEarly;
     final declined = _declinedAtPly;
@@ -408,6 +456,7 @@ class GameController extends ChangeNotifier {
   }
 
   bool _agreeDraw() {
+    final before = _game;
     final Game next;
     try {
       next = _game.agreeDraw();
@@ -418,6 +467,7 @@ class GameController extends ChangeNotifier {
     _endPause();
     _refresh();
     notifyListeners();
+    _announce(before);
     return _game.status == const Draw(GameEndReason.agreement);
   }
 
@@ -451,10 +501,12 @@ class GameController extends ChangeNotifier {
   /// cancelling its search if it was thinking. Refused when the game's
   /// options turn takeback off or there is nothing to undo.
   bool takeBack() {
-    if (!_game.canTakeBack) return false;
+    if (isIdle || !_game.canTakeBack) return false;
+    final before = _game;
     _game = _game.takeBack();
     _refresh();
     notifyListeners();
+    _announce(before, GameTookBack.new);
     return true;
   }
 
@@ -462,6 +514,7 @@ class GameController extends ChangeNotifier {
   /// same time control; the computer is a new one with a fresh seed. The
   /// takeback option applies from here.
   bool restart() {
+    if (isIdle) return false;
     final mode = switch (_game.mode) {
       VsComputer(:final playerColour, :final step) => VsComputer.newGame(
         playerColour: playerColour,
@@ -483,7 +536,12 @@ class GameController extends ChangeNotifier {
   }
 
   void _start(GameMode mode, TimeControl timeControl) {
+    final outgoing = _current;
+    if (outgoing != null && !outgoing.isOver) {
+      _emit(GameAbandoned(outgoing, _recorded));
+    }
     _turns?.dispose();
+    _recorded = const {};
     _game = Game.start(
       mode,
       timeControl,
@@ -497,13 +555,38 @@ class GameController extends ChangeNotifier {
     _turns = _turnsFor(mode);
     _refresh();
     notifyListeners();
+    _emit(GameStarted(_game, _recorded));
+  }
+
+  /// Puts a saved, unfinished [game] on the board, paused, with the
+  /// [recorded] map saved beside it; the pause card shows until [resume].
+  /// It resets as [newGame] does — any search cancelled, the old computer
+  /// stopped — and, against the computer, builds one with the game's own
+  /// step and seed, which asks for a move only once play resumes. A
+  /// finished game is refused. Emits only [GameRestored].
+  bool restore(Game game, {Map<String, Object?> recorded = const {}}) {
+    if (game.isOver) return false;
+    _turns?.dispose();
+    _recorded = Map.unmodifiable(recorded);
+    _fen = game.history.first.position.toFen();
+    _endPause();
+    _paused = true;
+    _game = game.pause();
+    _declinedAtPly = null;
+    _resultView = null;
+    _turns = _turnsFor(game.mode);
+    _refresh();
+    notifyListeners();
+    _emit(GameRestored(_game, _recorded));
+    return true;
   }
 
   /// Resigns for you against the computer, or for the side to move between
   /// two players; a pause ends with it. Refused once the game is over, and
   /// while the computer considers a draw offer.
   bool resign() {
-    if (_drawAsking) return false;
+    if (isIdle || _drawAsking) return false;
+    final before = _game;
     final side = switch (_game.mode) {
       VsComputer(:final playerColour) => playerColour,
       TwoPlayer() => _game.sideToMove,
@@ -518,6 +601,7 @@ class GameController extends ChangeNotifier {
     _endPause();
     _refresh();
     notifyListeners();
+    _announce(before);
     return true;
   }
 
@@ -529,7 +613,35 @@ class GameController extends ChangeNotifier {
     _disposed = true;
     _declineTimer?.cancel();
     _turns?.dispose();
+    _events.close();
     super.dispose();
+  }
+
+  /// Raises [event], or, for a change of the game with [kind], that event
+  /// and then [GameEnded] if the change ended the game that stood [before].
+  void _announce(
+    Game before, [
+    GameEvent Function(Game, Map<String, Object?>)? kind,
+  ]) {
+    if (kind != null) _emit(kind(_game, _recorded));
+    if (!before.isOver && _game.isOver) _emit(GameEnded(_game, _recorded));
+  }
+
+  /// Delivers [event]. One raised by a listener while another is being
+  /// delivered waits until that delivery is done, so the synchronous stream
+  /// is never re-entered and events arrive in the order they happened.
+  void _emit(GameEvent event) {
+    if (_disposed) return;
+    _undelivered.add(event);
+    if (_delivering) return;
+    _delivering = true;
+    try {
+      while (_undelivered.isNotEmpty && !_disposed) {
+        _events.add(_undelivered.removeAt(0));
+      }
+    } finally {
+      _delivering = false;
+    }
   }
 
   ComputerTurns? _turnsFor(GameMode mode) {
@@ -556,6 +668,7 @@ class GameController extends ChangeNotifier {
   /// back is the flag-ended one without the move: it is taken, and the move
   /// counts as refused.
   bool _play(Move move, {bool byComputer = false}) {
+    final before = _game;
     final Game next;
     try {
       next = _game.play(move, byComputer: byComputer);
@@ -566,6 +679,7 @@ class GameController extends ChangeNotifier {
     _game = next;
     _refresh();
     notifyListeners();
+    _announce(before, played ? GameMoved.new : null);
     return played;
   }
 

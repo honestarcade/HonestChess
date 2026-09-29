@@ -596,3 +596,27 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** The device test integration_test/platform_channel_test.dart also sends `openUrl` with no `url` and expects `false`.
   **Why:** Kotlin's missing-argument branch is otherwise exercised only by review.
   **Issue:** #80
+- **Decision:** While the controller is idle, `GameController.game` throws `StateError` (as `state` does) instead of being null; `isIdle` is the check. Every action is refused while idle, and `inputLocked` is true.
+  **Why:** The readiness pass's `game` of null would have made every M3 widget and test unwrap it, while the board is never built on an idle controller (the root waits for its launch game, and `GameScreen` shows the plain navy frame while idle). The meaning — no game, `isIdle` true — is unchanged.
+  **Issue:** #81
+- **Decision:** The events are sealed classes `GameStarted`, `GameMoved`, `GameTookBack`, `GamePaused`, `GameResumed`, `GameRestored`, `GameEnded` and `GameAbandoned(oldGame)` in lib/data/game_event.dart. A move that ends the game raises `GameMoved` and then `GameEnded`; resignation, an agreed draw and a flag raise only `GameEnded`. `GameAbandoned` comes only from `newGame`/`restart` over an unfinished game, never from `restore`.
+  **Why:** The engine already exports `Moved` (#68's `MoveResult`), so bare names would clash. GameSaves ignores a `GameMoved` whose game is over, so the end stages, not a save, handle a mate.
+  **Issue:** #81
+- **Decision:** `GameSaves(AppStore store, {TimeSource? time})` takes an optional time source for the games it decodes, and gains `removeEndStage` beside `addEndStage`.
+  **Why:** A decoded game keeps the time source it was loaded with, so a test's fake clock has to reach the decode for "the clocks read the same before and after". #82's listener removes its stage in `dispose()`.
+  **Issue:** #81
+- **Decision:** A slot is cleared when its `GameEnded` is handled on that mode's chain, not when the event arrives; `offered` and `load` therefore reflect an event once the chain reaches it (tests await `GameSaves.flush()`).
+  **Why:** Clearing at arrival could be undone by a save for the same mode still waiting on the chain, which would leave a finished game on offer.
+  **Issue:** #81
+- **Decision:** The app root's lifecycle listener lives in `HonestChessAppState`, because `AppScope` is an `InheritedWidget` with no state. On `inactive` or `hidden` it calls `checkFlag()`, then #77's `autoPause()` (not bare `pause()`, so a declined draw's message still stays up), then awaits `GameSaves.flush()`. `GameScreen` keeps its own listener, now also calling `checkFlag()` first, for closing the new-game picker and for screens used without the root (M3's tests). Running both is harmless, since a second pause changes nothing.
+  **Why:** It keeps #77's behaviour and tests intact while the save rides on the root.
+  **Issue:** #81
+- **Decision:** `HonestChessApp` gains `resumeSaved` (default true). `main` passes false when the device test's `strength` or `seed` override is given. Launch still runs `loadAll()` then, but starts the default game rather than restoring. `GameScreen` closes the temporary picker on `GameRestored`, and `restore` keeps the game's start position for a later Restart.
+  **Why:** The readiness pass requires the overrides to skip the saved game, and the root needed a flag it could read. The picker and start-position resets are the pass-2 `restore` rules applied to M3's screen.
+  **Issue:** #81
+- **Decision:** `GameSetup.fromGame` is not added. `restart()` already rebuilds from the game's mode (step and colour as resolved) and its time control, and the board already reads the live `BoardOptions.rotateEachTurn`.
+  **Why:** The pass-1 line describes behaviour the code already has; removing `GameSetup.rotate` is #86's.
+  **Issue:** #81
+- **Decision:** The root shows a bare `ColoredBox` in the app's navy until the launch load finishes, so `test/widget_test.dart` pumps one frame after `pumpWidget`, and `test/ui/app_scope_test.dart`'s production-channel case waits out #80's 5 s read timeout (no channel answers in a unit test).
+  **Why:** This is the pass-2 launch rule; the test changes follow from it and weaken nothing.
+  **Issue:** #81
