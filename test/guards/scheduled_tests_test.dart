@@ -191,6 +191,35 @@ void main() {
       );
     });
 
+    test('weekly.yml is scheduled every Sunday at 03:00 UTC', () {
+      final on = triggers(readWorkflow('.github/workflows/weekly.yml'));
+      final schedule = on is YamlMap ? on['schedule'] : null;
+      expect(
+        [
+          if (schedule is YamlList)
+            for (final entry in schedule)
+              if (entry is YamlMap) '${entry['cron']}',
+        ],
+        ['0 3 * * 0'],
+        reason: 'weekly-cron: weekly.yml is not scheduled for Sunday 03:00 UTC, so the strength ladder is not proven every week',
+      );
+    });
+
+    test('no workflow runs the Stockfish benchmark', () {
+      final files = workflowFiles();
+      expect(files, isNotEmpty);
+      expect(
+        [
+          for (final path in files)
+            if (readFile(path).contains('benchmark_stockfish.sh') ||
+                readFile(path).contains('tools/benchmark/'))
+              path,
+        ],
+        isEmpty,
+        reason: 'benchmark-not-ci: a workflow runs the dev-only Stockfish benchmark',
+      );
+    });
+
     test('weekly.yml runs the refusing script, on dispatch', () {
       const path = '.github/workflows/weekly.yml';
       final commands = _commands(path);

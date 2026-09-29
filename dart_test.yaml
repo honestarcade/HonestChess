@@ -12,6 +12,6 @@ tags:
       so the battery still exercises it, just not on every entry.
   weekly:
     description: >-
-      Tests too slow for the pull-request gate (the computer's strength
-      ladder, from M2). tools/gate.sh excludes them; .github/workflows/weekly.yml
+      Tests too slow for the pull-request gate (deeper perft counts; the
+      computer's strength ladder). tools/gate.sh excludes them; .github/workflows/weekly.yml
       runs them through tools/weekly_tests.sh, which refuses to pass empty.
