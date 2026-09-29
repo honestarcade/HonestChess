@@ -506,3 +506,21 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** Clock's spoken label: updates at once on a lit/dim change, a red change, or whenever the clock is not running (a move, a pause, a flag); while it runs, at most every 10 s of ticker time — a selection tap does not re-announce it. Text "0:00.0" at zero; "∞"/"no clock" untimed; semantics "5 minutes" (no "0 seconds"), "1 minute 1 second". The pause pill text keeps the design's literal "❚❚", which Outfit lacks and Android draws from its system symbol font.
   **Why:** The plan's throttle line; a stopped clock's value no longer changes, so speaking it at once costs nothing.
   **Issue:** #74
+- **Decision:** `ComputerOpponent.chooseMove(Game)` takes the game only — no `remaining`/`increment` arguments as the plan's member list had.
+  **Why:** #68's `ComputerPlayer` reads the game's clock itself (`gameClockCapMs`); passing the clock twice could only disagree.
+  **Issue:** #75
+- **Decision:** `GameController(computer: ComputerFactory?)` — with no factory the computer never moves (tests, a board to look at); `HonestChessApp` and `GameScreen(setup:)` default the factory to `ComputerPlayerOpponent.new`, which warms the worker in its constructor. `GameScreen` gains `setup` (a `GameSetup`; null keeps the untimed two-player board the earlier tests use) and `seed`. The test-only `thinking:` controller parameter is gone: tests use a fake computer that never answers.
+  **Why:** Existing controller and screen tests build vs-computer games with the computer to move; a real isolate there would move pieces under them. One way to be thinking, the real one.
+  **Issue:** #75
+- **Decision:** `main({Strength? strength, int? seed})` forwards the overrides as `HonestChessApp(firstGame:, seed:)` rather than through the computer factory.
+  **Why:** `ComputerPlayer` refuses a game whose mode names another step or seed, so the override has to change the game's mode, not only the computer built for it.
+  **Issue:** #75
+- **Decision:** `lib/ui/game/defaults.dart` is created here (for #76 too): `GameSetup` record `(mode: GameKind, strength?, colour?, timeControl, rotate)`, `vsComputerDefault`, `twoPlayerDefault`, and `modeFor(setup, {seed, random})` drawing the seed (and a null colour) per game.
+  **Why:** The record's `mode` cannot be a `GameMode`, which already carries a seed; a kind enum keeps "same settings, new seed" one call.
+  **Issue:** #75
+- **Decision:** Retries: one automatic retry per turn shared by an unasked cancel and a worker error (or an answer that fails the stale check); the second failure shows the chip "The computer could not move — tap to retry" (alarm colours, wraps to two lines). Each chip tap is a fresh request with its own one retry. `thinking` stays true while the chip shows (still the computer's turn; input stays locked). The 400 ms floor is a `Timer` cancelled with the request, so a stale answer is dropped by the cancelled floor, the turn token, the ply check and the game's own turn check.
+  **Why:** The plan names both retry kinds but not whether they share a budget; one retry per turn keeps a broken worker from looping.
+  **Issue:** #75
+- **Decision:** `GameController` gains `takeBack()`, `restart()` (same mode, time control and start FEN; fresh seed; the old computer cancelled and disposed; the takeback option re-read) and `resign()` (you vs the computer, the side to move between two players), all `bool`; `newGame(GameSetup)` is left to #76. The status chip and pause pill now share the top bar's width (both `Flexible`).
+  **Why:** The plan's split (#75 adds the three; #76 wires the buttons and New); a long chip must not overflow the bar.
+  **Issue:** #75

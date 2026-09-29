@@ -2,7 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
+import 'package:honest_chess/ui/game/computer_turns.dart';
+import 'package:honest_chess/ui/game/defaults.dart';
 import 'package:honest_chess/ui/game/game_screen.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
@@ -10,9 +13,24 @@ import 'package:honest_chess/ui/theme/palette.dart';
 // colour for everything else.
 const _navy = Color(0xFF05285F);
 
-void main() {
+/// Starts the app on a game against the computer. [strength] and [seed]
+/// replace the first game's step and seed, for the device test only.
+void main({Strength? strength, int? seed}) {
   registerFontLicences();
-  runApp(const HonestChessApp());
+  runApp(
+    HonestChessApp(
+      firstGame: strength == null
+          ? vsComputerDefault
+          : (
+              mode: GameKind.vsComputer,
+              strength: strength,
+              colour: vsComputerDefault.colour,
+              timeControl: vsComputerDefault.timeControl,
+              rotate: false,
+            ),
+      seed: seed,
+    ),
+  );
 }
 
 /// The bundled fonts' OFL texts (assets/fonts/SOURCE.md), each shown on the
@@ -34,9 +52,22 @@ void registerFontLicences() {
 }
 
 /// The app root. It holds the board options in memory with the design's
-/// defaults until M4's Settings saves them.
+/// defaults until M4's Settings saves them, and opens on [firstGame].
 class HonestChessApp extends StatefulWidget {
-  const HonestChessApp({super.key});
+  const HonestChessApp({
+    super.key,
+    this.computerFactory = ComputerPlayerOpponent.new,
+    this.firstGame = vsComputerDefault,
+    this.seed,
+  });
+
+  /// Builds the computer for each game against it; tests pass a fake.
+  final ComputerFactory computerFactory;
+
+  final GameSetup firstGame;
+
+  /// The first game's computer seed; fresh when null.
+  final int? seed;
 
   @override
   State<HonestChessApp> createState() => HonestChessAppState();
@@ -55,7 +86,12 @@ class HonestChessAppState extends State<HonestChessApp> {
         scaffoldBackgroundColor: _navy,
         fontFamily: Fonts.outfit,
       ),
-      home: GameScreen(options: boardOptions),
+      home: GameScreen(
+        options: boardOptions,
+        setup: widget.firstGame,
+        seed: widget.seed,
+        computerFactory: widget.computerFactory,
+      ),
     );
   }
 }

@@ -9,6 +9,8 @@ import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/board/board_view.dart' show boardMargin;
 import 'package:honest_chess/ui/board/orientation.dart';
 import 'package:honest_chess/ui/board/promotion_sheet.dart';
+import 'package:honest_chess/ui/game/computer_turns.dart';
+import 'package:honest_chess/ui/game/defaults.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/labels.dart';
 import 'package:honest_chess/ui/game/player_panel.dart';
@@ -22,12 +24,21 @@ const double topBarHeight = 52;
 /// short for it.
 const double barGap = 12, boardGap = 48, minBoardGap = 8;
 
+/// The status chip's text when the computer could not move; the chip then
+/// asks again when tapped.
+const String computerFailedText = 'The computer could not move — tap to retry';
+
 /// The status chip's text: the ending word once the game is over, else
-/// THINKING… while the computer chooses, else who is in check, else who is
-/// to move.
-String statusText(Game game, {required bool thinking}) {
+/// [computerFailedText] when the computer could not move, else THINKING…
+/// while it chooses, else who is in check, else who is to move.
+String statusText(
+  Game game, {
+  required bool thinking,
+  bool computerFailed = false,
+}) {
   final ending = game.status.endingWord;
   if (ending != null) return ending;
+  if (computerFailed) return computerFailedText;
   if (thinking) return 'THINKING…';
   final side = game.sideToMove.label.toUpperCase();
   return switch (game.status) {
@@ -50,6 +61,9 @@ class GameScreen extends StatefulWidget {
     required this.options,
     this.fen,
     this.controller,
+    this.setup,
+    this.seed,
+    this.computerFactory = ComputerPlayerOpponent.new,
   });
 
   final BoardOptions options;
@@ -57,18 +71,40 @@ class GameScreen extends StatefulWidget {
   /// The position the game starts from; the standard start when null.
   final String? fen;
 
-  /// A game to show instead of a new two-player one from [fen]; its owner
-  /// disposes it.
+  /// A game to show instead of a new one from [setup]; its owner disposes
+  /// it.
   final GameController? controller;
+
+  /// The game the screen starts; an untimed two-player game when null.
+  final GameSetup? setup;
+
+  /// The computer's seed for a game against it; fresh when null.
+  final int? seed;
+
+  /// Builds the computer for a game against it. The screen's own game
+  /// cancels its search, and stops it, when the screen is disposed.
+  final ComputerFactory computerFactory;
 
   @override
   State<GameScreen> createState() => GameScreenState();
 }
 
 class GameScreenState extends State<GameScreen> {
-  late final GameController controller =
-      widget.controller ??
-      GameController(options: widget.options, fen: widget.fen);
+  late final GameController controller = widget.controller ?? _newGame();
+
+  GameController _newGame() {
+    final setup = widget.setup;
+    if (setup == null) {
+      return GameController(options: widget.options, fen: widget.fen);
+    }
+    return GameController(
+      mode: modeFor(setup, seed: widget.seed),
+      timeControl: setup.timeControl,
+      options: widget.options,
+      fen: widget.fen,
+      computer: widget.computerFactory,
+    );
+  }
 
   @override
   void didUpdateWidget(GameScreen oldWidget) {
@@ -161,10 +197,17 @@ class _TopBar extends StatelessWidget {
       listenable: controller,
       builder: (context, _) {
         final game = controller.game;
-        final text = statusText(game, thinking: controller.state.thinking);
+        final state = controller.state;
+        final failed = state.computerFailed && !game.isOver;
+        final text = statusText(
+          game,
+          thinking: state.thinking,
+          computerFailed: failed,
+        );
         final (fill, ink) = switch (game.status) {
           _ when game.isOver => (Palette.statusOverFill, Palette.teal),
-          Ongoing(inCheck: true) when !controller.state.thinking => (
+          _ when failed => (Palette.statusCheckFill, Palette.alarm),
+          Ongoing(inCheck: true) when !state.thinking => (
             Palette.statusCheckFill,
             Palette.alarm,
           ),
@@ -209,26 +252,39 @@ class _TopBar extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Container(
-                key: const Key('status-chip'),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: fill,
-                  borderRadius: const BorderRadius.all(Radius.circular(9)),
-                ),
-                child: Text(
-                  text,
-                  key: const Key('status-text'),
-                  style: TextStyle(
-                    fontFamily: Fonts.plexMono,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 10,
-                    height: 1,
-                    letterSpacing: 10 * .08,
-                    color: ink,
+              Flexible(
+                child: Semantics(
+                  button: failed,
+                  child: GestureDetector(
+                    onTap: failed ? controller.retryComputer : null,
+                    child: Container(
+                      key: const Key('status-chip'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: fill,
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(9),
+                        ),
+                      ),
+                      child: Text(
+                        text,
+                        key: const Key('status-text'),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                        style: TextStyle(
+                          fontFamily: Fonts.plexMono,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 10,
+                          height: 1,
+                          letterSpacing: 10 * .08,
+                          color: ink,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),

@@ -6,13 +6,21 @@ import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/main.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/board/board_view.dart';
+import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/game_screen.dart';
 
+import 'ui/game/fake_computer.dart';
+import 'ui/game/player_panel_test.dart' show text;
+
 void main() {
-  testWidgets('the app opens on the start position, White at the bottom', (
+  testWidgets('the app opens on a game against Club: you White, Rapid 10+5', (
     tester,
   ) async {
-    await tester.pumpWidget(const HonestChessApp());
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final fakes = FakeComputers();
+    await tester.pumpWidget(HonestChessApp(computerFactory: fakes.call));
 
     final board = tester.widget<BoardView>(find.byType(BoardView));
     expect(
@@ -22,6 +30,26 @@ void main() {
     );
     expect(board.bottom, Colour.white, reason: 'app: White at the bottom');
     expect(board.options, const BoardOptions(), reason: 'app: design defaults');
+
+    final game = tester
+        .state<GameScreenState>(find.byType(GameScreen))
+        .controller
+        .game;
+    expect(game.mode, isA<VsComputer>(), reason: 'app: against the computer');
+    final mode = game.mode as VsComputer;
+    expect((mode.step, mode.playerColour), (Strength.club, Colour.white));
+    expect(game.clock.control, Timed.rapid);
+    expect(
+      (fakes.current.strength, fakes.current.seed),
+      (Strength.club, mode.seed),
+      reason: 'app: the computer is built for this game',
+    );
+    expect(fakes.current.requests, isEmpty, reason: 'app: your move first');
+
+    expect(text(tester, 'name-black'), 'Club');
+    expect(text(tester, 'sub-white'), contains('YOU · WHITE'));
+    expect(text(tester, 'sub-white'), contains('RAPID 10+5'));
+    expect(text(tester, 'status-text'), 'WHITE TO MOVE');
 
     final state = tester.state<HonestChessAppState>(
       find.byType(HonestChessApp),
@@ -45,23 +73,30 @@ void main() {
     );
   });
 
-  testWidgets('the home board is playable by two: e2-e4, then e7-e5', (
+  testWidgets('from launch: play e2-e4 and the computer replies', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(const HonestChessApp());
-    for (final square in ['e2', 'e4', 'e7', 'e5']) {
-      await tester.tap(find.byKey(Key('cell-$square')));
-      await tester.pump();
-    }
+    final fakes = FakeComputers();
+    await tester.pumpWidget(
+      HonestChessApp(computerFactory: fakes.call, seed: 42),
+    );
+    expect(fakes.current.seed, 42, reason: 'app: the seed override is used');
+    await tester.tap(find.byKey(const Key('cell-e2')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('cell-e4')));
+    await tester.pump();
+    fakes.current.last.move('e7e5');
+    await tester.pump(minThinkTime);
     final screen = tester.state<GameScreenState>(find.byType(GameScreen));
     expect(screen.controller.game.moves.map((m) => m.toUci()), [
       'e2e4',
       'e7e5',
-    ], reason: 'app: two players take turns on the home board');
-    expect(screen.controller.game.mode, const TwoPlayer());
+    ], reason: 'app: the computer answers on the home board');
+    // The running clock keeps a ticker alive; leaving stops it.
+    await tester.pumpWidget(const SizedBox());
   });
 
   test(

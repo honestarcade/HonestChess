@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
+import 'package:honest_chess/ui/game/computer_turns.dart';
 
 /// A square's background layer, as the design's `hl`: at most one shows,
 /// in this order of precedence — the selected piece, a king in check, then
@@ -28,6 +29,7 @@ final class GameViewState {
     required this.lastMove,
     required this.pendingPromotion,
     required this.thinking,
+    required this.computerFailed,
     required this.paused,
     required this.over,
   });
@@ -49,8 +51,12 @@ final class GameViewState {
 
   final PendingPromotion? pendingPromotion;
 
-  /// The computer is choosing a move.
+  /// It is the computer's turn and it is choosing a move.
   final bool thinking;
+
+  /// The computer could not move this turn; [GameController.retryComputer]
+  /// asks again.
+  final bool computerFailed;
 
   final bool paused;
 
@@ -73,16 +79,18 @@ class GameController extends ChangeNotifier {
   /// from [fen]. [now] is the clock's time source (default a monotonic
   /// stopwatch); tests pass a fake.
   ///
-  /// [thinking] is for tests only, until #75's computer player sets it: it
-  /// shows the computer as choosing a move.
+  /// Against the computer, [computer] builds its opponent for each game;
+  /// without it the computer never moves (a board to look at, or a test).
   GameController({
     String? fen,
     GameMode mode = const TwoPlayer(),
     TimeControl timeControl = const Untimed(),
     BoardOptions options = const BoardOptions(),
     TimeSource? now,
-    this._thinking = false,
+    this._computer,
   }) : _options = options,
+       _fen = fen,
+       _now = now,
        _game = Game.start(
          mode,
          timeControl,
@@ -90,12 +98,17 @@ class GameController extends ChangeNotifier {
          fen: fen,
          time: now,
        ) {
+    _turns = _turnsFor(mode);
     _refresh();
   }
 
+  final String? _fen;
+  final TimeSource? _now;
+  final ComputerFactory? _computer;
   Game _game;
   BoardOptions _options;
-  final bool _thinking;
+  ComputerTurns? _turns;
+  bool _disposed = false;
   bool _paused = false;
   Square? _selection;
   PendingPromotion? _pendingPromotion;
@@ -280,13 +293,99 @@ class GameController extends ChangeNotifier {
     return true;
   }
 
+  /// Takes back the last move — against the computer, back to your turn,
+  /// cancelling its search if it was thinking. Refused when the game's
+  /// options turn takeback off or there is nothing to undo.
+  bool takeBack() {
+    if (!_game.canTakeBack) return false;
+    _game = _game.takeBack();
+    _refresh();
+    notifyListeners();
+    return true;
+  }
+
+  /// Starts the same kind of game again from the same position, with the
+  /// same time control; the computer is a new one with a fresh seed. The
+  /// takeback option applies from here.
+  bool restart() {
+    final mode = switch (_game.mode) {
+      VsComputer(:final playerColour, :final step) => VsComputer.newGame(
+        playerColour: playerColour,
+        step: step,
+      ),
+      final other => other,
+    };
+    _turns?.dispose();
+    _game = Game.start(
+      mode,
+      _game.clock.control,
+      options: GameOptions(takebackAllowed: _options.takebackAllowed),
+      fen: _fen,
+      time: _now,
+    );
+    _paused = false;
+    _turns = _turnsFor(mode);
+    _refresh();
+    notifyListeners();
+    return true;
+  }
+
+  /// Resigns for you against the computer, or for the side to move between
+  /// two players. Refused once the game is over.
+  bool resign() {
+    final side = switch (_game.mode) {
+      VsComputer(:final playerColour) => playerColour,
+      TwoPlayer() => _game.sideToMove,
+    };
+    final Game next;
+    try {
+      next = _game.resign(side);
+    } on GameActionError {
+      return false;
+    }
+    _game = next;
+    _refresh();
+    notifyListeners();
+    return true;
+  }
+
+  /// Asks the computer again after it could not move.
+  bool retryComputer() => _turns?.retry() ?? false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _turns?.dispose();
+    super.dispose();
+  }
+
+  ComputerTurns? _turnsFor(GameMode mode) {
+    final factory = _computer;
+    if (mode is! VsComputer || factory == null) return null;
+    return ComputerTurns(
+      factory(mode.step, mode.seed),
+      play: _playComputer,
+      changed: () {
+        if (_disposed) return;
+        _state = _viewState();
+        notifyListeners();
+      },
+    );
+  }
+
+  /// Plays the computer's [move], as a player's move lands.
+  bool _playComputer(Move move) {
+    if (_disposed) return false;
+    return _play(move, byComputer: true);
+  }
+
   /// Plays [move]. When a flag fell before it, the game the engine hands
   /// back is the flag-ended one without the move: it is taken, and the move
   /// counts as refused.
-  bool _play(Move move) {
+  bool _play(Move move, {bool byComputer = false}) {
     final Game next;
     try {
-      next = _game.play(move);
+      next = _game.play(move, byComputer: byComputer);
     } on GameActionError {
       return false;
     }
@@ -309,6 +408,7 @@ class GameController extends ChangeNotifier {
     _selection = null;
     _pendingPromotion = null;
     _legal = _game.isOver ? const [] : legalMoves(_game.position);
+    _turns?.follow(_game, paused: _paused);
     _state = _viewState();
   }
 
@@ -340,7 +440,8 @@ class GameController extends ChangeNotifier {
       marks: List.unmodifiable(marks),
       lastMove: lastMove,
       pendingPromotion: _pendingPromotion,
-      thinking: _thinking,
+      thinking: _turns?.thinking ?? false,
+      computerFailed: _turns?.failed ?? false,
       paused: _paused,
       over: _game.isOver,
     );

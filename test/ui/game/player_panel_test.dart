@@ -11,9 +11,12 @@ import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/board/board_view.dart';
 import 'package:honest_chess/ui/board/promotion_sheet.dart';
+import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/game_screen.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
+
+import 'fake_computer.dart';
 
 /// The game's time source and the test's frame clock, moved together.
 class FakeClock {
@@ -39,6 +42,7 @@ Future<Harness> pumpGame(
   String? fen,
   bool thinking = false,
   BoardOptions options = const BoardOptions(),
+  FakeComputers? computer,
 }) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
@@ -50,7 +54,8 @@ Future<Harness> pumpGame(
     fen: fen,
     options: options,
     now: clock.now,
-    thinking: thinking,
+    // A computer that never answers keeps thinking once it is its turn.
+    computer: (computer ?? (thinking ? FakeComputers() : null))?.call,
   );
   await tester.pumpWidget(
     MaterialApp(
@@ -439,6 +444,10 @@ void main() {
       await pumpGame(tester, mode: mode, thinking: true);
       expect(text(tester, 'name-white'), 'Club is thinking');
       expect(text(tester, 'name-black'), 'You');
+      expect(text(tester, 'status-text'), 'THINKING…');
+      // Past the think-time floor, the unanswered computer is still thinking
+      // and no timer is left behind.
+      await tester.pump(minThinkTime);
       expect(text(tester, 'status-text'), 'THINKING…');
     });
 
