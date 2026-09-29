@@ -173,6 +173,10 @@ final class ComputerMove {
 /// [missedMateScore]) and the highest wins, the first in generation order
 /// on a tie. Returns null when [shouldStop] cancels.
 ///
+/// [StopReason.outOfTime] overrides all of that, the floor included: the
+/// move is the search's best so far, with no noise when no iteration
+/// finished.
+///
 /// [history] is as for [Searcher.search]. [table], when given, is cleared
 /// first.
 ComputerMove? chooseMove(
@@ -203,21 +207,28 @@ ComputerMove? chooseMove(
   );
 
   final floor = settings.seesMateInOne ? min(2, cap ?? 2) : 1;
-  if (result is Found && result.depth < floor) {
-    result = searcher.search(
+  // Depth 0 means the clock is running out: there is no time for the floor.
+  if (result is Found && result.depth > 0 && result.depth < floor) {
+    final deeper = searcher.search(
       position,
       limits: SearchLimits(depth: floor, exactRootScores: handicapped),
       history: history,
       shouldStop: shouldStop == null
           ? null
-          : () => shouldStop() == StopReason.cancel ? StopReason.cancel : null,
+          : () => switch (shouldStop()) {
+              StopReason.deadline => null,
+              final reason => reason,
+            },
     );
+    if (deeper is Cancelled || (deeper as Found).depth > result.depth) {
+      result = deeper;
+    }
   }
 
   switch (result) {
     case Cancelled():
       return null;
-    case Found() when !handicapped:
+    case Found() when !handicapped || result.depth == 0:
       return ComputerMove(result.move, result);
     case Found():
       final key = position.key;

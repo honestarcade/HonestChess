@@ -35,6 +35,11 @@ enum StopReason {
   /// Time is up: the search returns its last finished iteration.
   deadline,
 
+  /// The clock itself is about to run out: the search stops even its first
+  /// iteration, and returns its last finished one or, when none has
+  /// finished, the best move it has searched so far ([Found.depth] 0).
+  outOfTime,
+
   /// The answer is no longer wanted: the search returns [Cancelled].
   cancel,
 }
@@ -86,7 +91,8 @@ final class Found extends SearchResult {
   final Move move;
   final int score;
 
-  /// The last finished iteration.
+  /// The last finished iteration; 0 when [StopReason.outOfTime] stopped the
+  /// first.
   final int depth;
 
   /// Every node visited, the unfinished iteration's included.
@@ -99,6 +105,8 @@ final class Found extends SearchResult {
   /// the strength dial chooses among these. Each is exact when the search
   /// ran with [SearchLimits.exactRootScores]; otherwise only [move]'s is
   /// sure to be, and a move marked inexact scores at most what it shows.
+  /// At depth 0, a move not yet searched is inexact with a bound above any
+  /// score.
   final List<RootScore> rootScores;
 
   @override
@@ -181,7 +189,8 @@ final class Searcher {
   /// scored as a draw, as are the fifty-move rule and insufficient material
   /// (as `status` rules them). [shouldStop] is called every
   /// [stopCheckInterval] nodes: [StopReason.deadline] returns the last
-  /// finished iteration (the first always finishes), [StopReason.cancel]
+  /// finished iteration (the first always finishes), [StopReason.outOfTime]
+  /// does the same without waiting for the first, [StopReason.cancel]
   /// returns [Cancelled] at once.
   ///
   /// With one legal move, that move is returned after one iteration. Throws
@@ -284,8 +293,40 @@ final class Searcher {
         });
     }
 
+    if (found == null) {
+      // Out of time in the first iteration: the root moves searched so far
+      // were searched in generation order, so with none of them finished the
+      // first legal move stands.
+      var best = exact.indexOf(true);
+      for (var i = best + 1; i < count && best >= 0; i++) {
+        if (exact[i] && scores[i] > scores[best]) best = i;
+      }
+      if (best < 0) best = 0;
+      return Found(
+        move: Move.packed(rootMoves[best]),
+        score: exact[best] ? scores[best] : 0,
+        depth: 0,
+        nodes: _nodes,
+        pv: [
+          if (exact[best])
+            for (final m in pvs[best]) Move.packed(m)
+          else
+            Move.packed(rootMoves[best]),
+        ],
+        rootScores: [
+          for (var i = 0; i < count; i++)
+            pvs[i].isEmpty
+                ? RootScore(Move.packed(rootMoves[i]), _infinity, exact: false)
+                : RootScore(
+                    Move.packed(rootMoves[i]),
+                    scores[i],
+                    exact: exact[i],
+                  ),
+        ],
+      );
+    }
     return Found(
-      move: found!.move,
+      move: found.move,
       score: found.score,
       depth: found.depth,
       nodes: _nodes,
@@ -350,6 +391,7 @@ final class Searcher {
     if (_nodes & (stopCheckInterval - 1) == 0 && _shouldStop != null) {
       final reason = _shouldStop!();
       if (reason == StopReason.cancel ||
+          reason == StopReason.outOfTime ||
           (reason == StopReason.deadline && !_firstIteration)) {
         throw _Abort(reason!);
       }

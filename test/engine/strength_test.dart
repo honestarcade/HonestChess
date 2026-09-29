@@ -170,6 +170,61 @@ void main() {
       }
     });
 
+    test('out of time overrides the depth floor at every step', () {
+      // Sharp enough that every step's first iteration checks the clock at
+      // least once. With a budget of one node, a first search makes exactly
+      // the stop checks of its first iteration, counted here, and nothing
+      // after it.
+      final sharp = _fen(
+        'r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1',
+      );
+      final legal = legalMoves(sharp);
+      for (final step in Strength.values) {
+        final settings = step.settings;
+        var firstChecks = 0;
+        search(
+          sharp,
+          limits: SearchLimits(
+            depth: 1,
+            exactRootScores: settings.noiseCp > 0 || !settings.seesMateInOne,
+          ),
+          shouldStop: () {
+            firstChecks++;
+            return null;
+          },
+          table: TranspositionTable(megabytes: 1),
+        );
+        expect(firstChecks, greaterThan(0), reason: step.name);
+
+        // Out of time at the first check: no iteration finishes, and the
+        // floor is not tried.
+        final none = _choose(
+          sharp,
+          step,
+          0,
+          nodeBudget: 1,
+          shouldStop: () => StopReason.outOfTime,
+        );
+        expect(none.search.depth, 0, reason: step.name);
+        expect(legal, contains(none.move), reason: step.name);
+
+        // A deadline first, then out of time at the floor's first check: the
+        // floor gives up and the finished first iteration stands.
+        var calls = 0;
+        final shallow = _choose(
+          sharp,
+          step,
+          0,
+          nodeBudget: 1,
+          shouldStop: () => ++calls > firstChecks
+              ? StopReason.outOfTime
+              : StopReason.deadline,
+        );
+        expect(shallow.search.depth, 1, reason: step.name);
+        expect(legal, contains(shallow.move), reason: step.name);
+      }
+    });
+
     test('a cancelled search chooses nothing', () {
       expect(
         chooseMove(

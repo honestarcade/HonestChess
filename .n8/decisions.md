@@ -1088,3 +1088,13 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
   **Issue:** #104
 
 ## /n8-exec M2 (verification fix pass) — 2026-09-29
+
+- **Decision:** (Rule 1) A timed search now has two limits. The soft cap (`clockCapMs`) is unchanged: past it the search finishes its first iteration and the step's depth floor. The new hard limit, `clockLimitMs`, is the clock less the same margin (`max(50 ms, 2%)`). At that limit a new `StopReason.outOfTime` stops everything, the first iteration and the floor included. When no iteration has finished, the search returns a `Found` at depth 0 with the best root move searched so far, or the first legal move, and `chooseMove` plays it without the noise pass. The floor keeps the shallower result when it cannot finish.
+  **Why:** #132: with 150 ms left in Kiwipete, Club thought 205–246 ms and lost on time (`flutter test test/engine/computer_clock_margin_test.dart` before the fix, 2026-09-29). The issue suggested a hard deadline that returns the best move so far or any legal move. An untimed game sends neither limit, so the same position, step and seed still give the same move (invariant 4).
+  **Issue:** #132
+- **Decision:** The worker's watchdog now counts `overrunKillMs` from the hard limit, not from the soft cap.
+  **Why:** With the hard limit honoured, a worker that is still running past it has failed. Counting from the soft cap would kill a legitimate depth-2 floor on a slow phone well before the clock needs it: a 200+ ms floor on the dev Mac is about 800 ms+ at the assumed 4× phone slowdown (#67's `phoneSlowdown`). That kill would turn a move into a `ComputerError` while the clock keeps running.
+  **Issue:** #132
+- **Decision:** The regression test `test/engine/computer_clock_margin_test.dart` is untagged, because it is part of the PR gate. It covers Club at 150 ms and 60 ms, and Master at 150 ms. It charges real time, the way #68's cap test does, and all three cases run in under a second (`flutter test`, 2026-09-29). The "Master's choice goes through the noise" mutation's pattern follows the reworded `case Found() when !handicapped || result.depth == 0:`.
+  **Why:** It is fast enough for the gate, and the defect it catches is a real-time one.
+  **Issue:** #132

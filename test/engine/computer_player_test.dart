@@ -318,6 +318,28 @@ void main() {
       }
     });
 
+    test('the clock limit is the clock less the margin, never the cap\'s '
+        'less', () {
+      expect(clockLimitMs(remainingMs: 150), 150 - minClockMarginMs);
+      expect(clockLimitMs(remainingMs: 50), 0);
+      expect(clockLimitMs(remainingMs: 0), 0);
+      expect(clockLimitMs(remainingMs: 300000), 300000 * 98 ~/ 100);
+      for (var remaining = 0; remaining <= 5400000; remaining += 997) {
+        final limit = clockLimitMs(remainingMs: remaining);
+        expect(limit, lessThan(remaining == 0 ? 1 : remaining));
+        expect(
+          limit,
+          greaterThanOrEqualTo(
+            clockCapMs(
+              remainingMs: remaining,
+              incrementMs: 60000,
+              fullmoveNumber: 1,
+            ),
+          ),
+        );
+      }
+    });
+
     test('is null untimed and reads the side to move\'s clock', () {
       final time = FakeTime();
       expect(
