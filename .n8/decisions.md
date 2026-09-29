@@ -248,3 +248,18 @@ Ad-hoc entries (decisions made outside a planning/execution command) use:
 - **Decision:** Two full executor-simulation passes (563 decisions total across 14 stories) plus a cross-story critic each pass, then a final coverage check and adversarial review, all run as background workflows. 23 cross-story conflicts from the pass-2 reconciliation and 8 items from the final review (a coverage gap, a misattributed quote, an unrecorded epic narrowing, an idle-controller test gap, byte-identical test seams, a stale Restart message, a duplicated colour token, an untyped guard map) were fixed before filing.
   **Why:** Ultracode was on for this session; the scale matched the milestone's fourteen interdependent screens.
   **Issue:** M4
+
+## /n8-plan M5 — 2026-09-28
+
+- **Decision:** M5 is ten stories: #95–#98 under epic #8 (sound clips, sound and music playback, haptics, piece motion) and #99–#104 under epic #9 (contrast, states without colour, large text, TalkBack play, labels, guideline tests), a single chain after M4's #93. The fonts (#71, M3) and the icon and launch screen (#18, M0) were already planned or delivered.
+  **Why:** 28 in-scope items from epics #8 and #9, the brand sheet's settings and palette, and the M3/M4 "until M5" deferrals, each delivered by a quoted criterion.
+  **Issue:** #8, #9, #95–#104
+- **Decision:** Owner, round one ("all good"): clips generated with ElevenLabs now (owner's key, Creator plan), regenerated three at a time in M6 if disliked; five effects (move, capture, castle, check, one end chime) with one sound per move by priority, the computer's moves sounding the same; music off by default, board only, never over other audio; ticks on illegal taps/drops and captures; ~180 ms slides, castling together, everything instant with motion off or the system setting on; TalkBack play by double-tap with spoken moves; failing colours adjusted within their hue, plus non-colour cues; text honoured up to 1.3× with the board and clocks fixed.
+  **Why:** Round-one answers.
+  **Issue:** #95–#104
+- **Decision:** Owner, round two ("all good"): at large text the board shrinks just enough to fit and the game screen never scrolls; TalkBack speaks square states whatever the visual switches say. Gate ("go"): the board's squares are the one tap-target exception, tested by size (≥ 43 dp at 360 wide, ≥ 38 dp at 320).
+  **Why:** Round-two and gate answers; noted on epic #9.
+  **Issue:** #101, #102, #104, #9
+- **Decision:** Planner calls shown at the gate and not overruled: bone's dark square darkens slightly (3.95:1 → ≥ 4:1); the last-move mark bottom-left and the check badge a white "!" in a red circle top-right; the Sound effects description reworded to what it does; an illegal TalkBack double-tap clears the selection as a tap does; the result is spoken once; two-line wraps at 1.3×; pacing delays kept with motion off; sound levels spread 6 dB.
+  **Why:** Pass-2 simulation guesses with visible effect.
+  **Issue:** #96, #99, #100, #101, #102
