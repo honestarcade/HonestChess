@@ -263,3 +263,21 @@ Ad-hoc entries (decisions made outside a planning/execution command) use:
 - **Decision:** Planner calls shown at the gate and not overruled: bone's dark square darkens slightly (3.95:1 → ≥ 4:1); the last-move mark bottom-left and the check badge a white "!" in a red circle top-right; the Sound effects description reworded to what it does; an illegal TalkBack double-tap clears the selection as a tap does; the result is spoken once; two-line wraps at 1.3×; pacing delays kept with motion off; sound levels spread 6 dB.
   **Why:** Pass-2 simulation guesses with visible effect.
   **Issue:** #96, #99, #100, #101, #102
+
+## /n8-plan M6 — 2026-09-28
+
+- **Decision:** M6 is eight stories under epic #10 (#106–#113): the test plan, a scripted end-to-end game, release candidate v1.0.0-rc.1, emulator runs on API 24 and the smallest screen, the owner's play-through and sound choice, the accessibility sweep, on-phone timing, and the fix pass.
+  **Why:** 10 items (epic #10's criteria, the owner's bug-intake rule, the carried M0/M1 bugs), each delivered by a criterion.
+  **Issue:** #10, #106–#113
+- **Decision:** Owner, at /n8-plan M6: "we'll add more bugs as we find them and they should all land in M6" — every bug found after its milestone's verification, and every M6 finding, is filed into M6 and handled by #113.
+  **Why:** The owner's instruction; recorded on epic #10.
+  **Issue:** #10, #113
+- **Decision:** Owner, round one ("all good"): the S26 Ultra is the reference device, no second device (API 24 and the smallest screen are emulator runs); the owner plays and sweeps accessibility, the agent runs emulators, timing and e2e; Solitaire's severity rule; the twelve carried M0/M1 low bugs move into M6; rejected sounds regenerated three at a time, no cap; `v1.0.0-rc.N`, `qa/`, e2e also nightly. Round two ("all good"): e2e refuses a phone without `--allow-wipe`; Master p95 ≤ 5.5 s and the others their calibrated time + 10 %; emulator-only unreadable/unreachable content and TalkBack blockers are high; sound versions go straight to the phone; one batched carry list, #50 to the backlog.
+  **Why:** Owner answers.
+  **Issue:** #106–#113, #50, #12
+- **Decision:** No new CI or tooling infrastructure in M6 (the owner's infra-before-features rule): emulator recipes and install commands are documented in run records, the timing test lives in `perf_test/` outside the nightly job's folder, and only two thin feature-test wrappers (`tools/e2e.sh`, `tools/perf.sh`) are added.
+  **Why:** Pass 2 found planned tool and guard changes that would have been infrastructure; replaced before filing.
+  **Issue:** #107, #108, #109, #112
+- **Decision:** Planner calls shown at the gate and not overruled: the phone timing run follows the owner's play-through and sweep and reinstalls the candidate (a profile install wipes the app's data); the internal track is proven by the owner's install; M6 lands in two PRs around the first tag; no API-level fallback if an API 24 image will not boot; TalkBack quirks shared with Google's apps are filed as low.
+  **Why:** Pass-2 simulation guesses with visible effect.
+  **Issue:** #108, #109, #111, #112
