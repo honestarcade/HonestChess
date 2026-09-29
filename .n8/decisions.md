@@ -1101,3 +1101,4 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** The draw decision is now the pure top-level `acceptsDrawAt(int forComputer)` in `lib/engine/strength.dart`, and `acceptsDraw` calls it. `test/engine/strength_test.dart` asserts +50 accepts, +51 declines, and `drawMargin == 50`. The test is plain, not a guard, so it has no mutation battery entry.
   **Why:** #133 is a test gap. Changing `<=` to `<`, or setting the margin to 100, left `strength_test.dart` and `computer_player_test.dart` green (`flutter test`, 2026-09-29). With the new test, both mutations fail it. Extracting the comparison was the issue's own suggestion, and it tests the boundary without searching for a position that scores exactly +50. Draw acceptance is not one of CLAUDE.md's invariants, so a guard tag would widen the guard suite beyond them.
   **Issue:** #133
+## /n8-exec M3 (verification fix pass) — 2026-09-29
