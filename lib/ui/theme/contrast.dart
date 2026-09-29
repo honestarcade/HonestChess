@@ -17,6 +17,9 @@ const double normalTextRatio = 4.5;
 /// Large text (18 dp and up, or bold at 14 dp and up): WCAG 2.x AA.
 const double largeTextRatio = 3.0;
 
+/// A non-text mark against what it is drawn on: WCAG 2.x 1.4.11.
+const double nonTextRatio = 3.0;
+
 /// A board's light square against its dark square: the brand sheet's
 /// promise for every board pair.
 const double boardPairRatio = 4.0;
@@ -205,6 +208,28 @@ Color shiftLightness(
       throw StateError('no lightness of $design clears $targets');
     }
     colour = fromLch(l, lch.c, lch.h);
+  }
+  return colour;
+}
+
+/// Translucent fill [design] moved in CIELAB lightness, 0.1 at a time
+/// (lighter when [lighter]), at its own hue, chroma and alpha, to the
+/// first 8-bit colour for which [clears] holds (the text drawn over the
+/// fill reaching its ratios); [design] itself when it already does.
+Color shiftFillLightness(
+  Color design,
+  bool Function(Color fill) clears, {
+  required bool lighter,
+}) {
+  final lch = toLch(design);
+  var colour = design;
+  var l = lch.l;
+  while (!clears(colour)) {
+    l += lighter ? 0.1 : -0.1;
+    if (l < 0 || l > 100) {
+      throw StateError('no lightness of $design clears its text');
+    }
+    colour = fromLch(l, lch.c, lch.h).withValues(alpha: design.a);
   }
   return colour;
 }

@@ -1,6 +1,7 @@
 // The Android side of the sound channel (#96), on a device or emulator: the
-// real SoundBridge opens every bundled clip, plays one, and refuses a method
-// it does not carry.
+// real SoundBridge opens every bundled clip, plays one, starts the loop
+// after an effect without holding up the main thread (#145), and refuses a
+// method it does not carry.
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -30,6 +31,44 @@ void main() {
     );
     await channel.invokeMethod<void>('musicPause');
     await channel.invokeMethod<void>('musicStop');
+    await channel.invokeMethod<void>('release');
+  });
+
+  testWidgets('a start right after an effect waits without blocking', (
+    tester,
+  ) async {
+    await channel.invokeMethod<int>('load', {
+      for (final e in clips.entries) e.key.name: e.value.asset,
+    });
+    // SoundPool decodes in the background; a clip plays only once ready.
+    await Future<void>.delayed(const Duration(seconds: 1));
+    await channel.invokeMethod<void>('play', Clip.move.name);
+    final watch = Stopwatch()..start();
+    final started = channel.invokeMethod<bool>('musicStart');
+    // An unknown clip is a no-op call: its answer comes back only once the
+    // main thread is free.
+    await channel.invokeMethod<void>('play', 'nothing');
+    expect(
+      watch.elapsedMilliseconds,
+      lessThan(300),
+      reason: "device: the main thread answers during a start's wait",
+    );
+    expect(await started, isA<bool>(), reason: 'device: the start answers');
+    expect(
+      watch.elapsedMilliseconds,
+      greaterThanOrEqualTo(500),
+      reason: 'device: the start still waits out the effect',
+    );
+    await channel.invokeMethod<void>('musicStop');
+
+    await channel.invokeMethod<void>('play', Clip.move.name);
+    final waiting = channel.invokeMethod<bool>('musicStart');
+    await channel.invokeMethod<void>('musicPause');
+    expect(
+      await waiting,
+      isFalse,
+      reason: 'device: a pause ends a waiting start, which did not start',
+    );
     await channel.invokeMethod<void>('release');
   });
 

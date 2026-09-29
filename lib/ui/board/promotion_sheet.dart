@@ -292,8 +292,8 @@ class _PromotionChoiceState extends State<_PromotionChoice> {
         child: InkWell(
           key: Key('promo-${kind.letter}'),
           borderRadius: _radius,
-          splashColor: Palette.teal.withValues(alpha: 0.2),
-          highlightColor: Palette.teal.withValues(alpha: 0.2),
+          splashColor: Palette.promoPressed,
+          highlightColor: Palette.promoPressed,
           onHighlightChanged: (pressed) => setState(() => _pressed = pressed),
           onTap: widget.onPick,
           child: ConstrainedBox(

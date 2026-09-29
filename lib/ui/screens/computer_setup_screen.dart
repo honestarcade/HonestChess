@@ -332,18 +332,15 @@ class _ColourButton extends StatelessWidget {
       look: OptionLook.setup,
       child: Column(
         children: [
-          // One fixed line for the three symbols, so the labels line up.
+          // One line of the same height for the three symbols, so the
+          // labels line up; it grows with the text, as the symbols do.
           ExcludeSemantics(
             child: SizedBox(
-              height: 17,
+              height: MediaQuery.textScalerOf(context).scale(17),
               child: Center(
                 child: Text(
                   colourGlyph(choice),
                   key: Key('csetup-colour-glyph-${choice.name}'),
-                  textHeightBehavior: const TextHeightBehavior(
-                    applyHeightToFirstAscent: false,
-                    applyHeightToLastDescent: false,
-                  ),
                   style: TextStyle(
                     fontFamily: king ? Fonts.pieces : Fonts.outfit,
                     fontFamilyFallback: king ? const [] : null,

@@ -417,28 +417,33 @@ class _VersionLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: _size * _lineHeight,
-      child: FutureBuilder<AppVersion?>(
-        future: version,
-        builder: (context, snapshot) {
-          final answered = snapshot.connectionState == ConnectionState.done;
-          return Text(
-            answered ? versionLine(snapshot.data) : '',
-            key: const Key('settings-version'),
-            semanticsLabel: answered ? versionSpeech(snapshot.data) : '',
-            maxLines: 1,
-            style: const TextStyle(
-              fontFamily: Fonts.plexMono,
-              fontWeight: FontWeight.w500,
-              fontSize: _size,
-              height: _lineHeight,
-              letterSpacing: _size * .14,
-              color: Palette.textFaint,
-            ),
-          );
-        },
-      ),
+    // One forced line height, so the empty line and the answered one are
+    // the same height, and the box is the text's own at every text size.
+    return FutureBuilder<AppVersion?>(
+      future: version,
+      builder: (context, snapshot) {
+        final answered = snapshot.connectionState == ConnectionState.done;
+        return Text(
+          answered ? versionLine(snapshot.data) : '',
+          key: const Key('settings-version'),
+          semanticsLabel: answered ? versionSpeech(snapshot.data) : '',
+          maxLines: 1,
+          strutStyle: const StrutStyle(
+            fontFamily: Fonts.plexMono,
+            fontSize: _size,
+            height: _lineHeight,
+            forceStrutHeight: true,
+          ),
+          style: const TextStyle(
+            fontFamily: Fonts.plexMono,
+            fontWeight: FontWeight.w500,
+            fontSize: _size,
+            height: _lineHeight,
+            letterSpacing: _size * .14,
+            color: Palette.textFaint,
+          ),
+        );
+      },
     );
   }
 }
@@ -476,14 +481,19 @@ class _Section extends StatelessWidget {
           ),
           if (caption != null) ...[
             const SizedBox(height: 6),
-            Text(
-              caption,
-              style: const TextStyle(
-                fontFamily: Fonts.outfit,
-                fontWeight: FontWeight.w400,
-                fontSize: 10.5,
-                height: 1.35,
-                color: Palette.textMuted,
+            // Its own node, so a screen reader reads it after the
+            // heading (#147).
+            Semantics(
+              container: true,
+              child: Text(
+                caption,
+                style: const TextStyle(
+                  fontFamily: Fonts.outfit,
+                  fontWeight: FontWeight.w400,
+                  fontSize: 10.5,
+                  height: 1.35,
+                  color: Palette.textMuted,
+                ),
               ),
             ),
           ],

@@ -60,6 +60,23 @@ List<ContrastTarget> _targets(ColourShift shift) {
   return targets;
 }
 
+/// The rows [shift]'s colour is a translucent fill of, above its surface's
+/// opaque bottom: moved in lightness at its own alpha, it must leave each
+/// of their texts reading.
+List<TextPair> _fillRows(ColourShift shift) => [
+  if (shift.value.a < 1 && shift.way != ShiftWay.alpha)
+    for (final row in Palette.textPairs)
+      if (row.on.skip(1).contains(shift.value)) row,
+];
+
+/// [row]'s ratio with its fill [from] replaced by [to].
+double _ratioWith(TextPair row, Color from, Color to) {
+  final bg = surfaceOf([
+    for (final layer in row.on) layer == from ? to : layer,
+  ]);
+  return contrastRatio(composite(row.fg, bg), bg);
+}
+
 void main() {
   test('the maths gives the published reference ratios', () {
     const black = Color(0xFF000000), white = Color(0xFFFFFFFF);
@@ -160,6 +177,31 @@ void main() {
   test('every moved colour is the nearest passing shade of its design', () {
     final drift = <String>[];
     for (final shift in Palette.shifts) {
+      final fillRows = _fillRows(shift);
+      if (fillRows.isNotEmpty) {
+        final Color want;
+        try {
+          want = shiftFillLightness(
+            shift.design,
+            (fill) => fillRows.every(
+              (row) =>
+                  _ratioWith(row, shift.value, fill) >=
+                  row.size.minRatio + shiftMargin,
+            ),
+            lighter: shift.way == ShiftWay.lighter,
+          );
+        } on StateError catch (e) {
+          drift.add('${shift.name}: ${e.message}');
+          continue;
+        }
+        if (want != shift.value) {
+          drift.add(
+            '${shift.name} is ${_hex(shift.value)}; the nearest passing shade '
+            'of ${_hex(shift.design)} is ${_hex(want)}',
+          );
+        }
+        continue;
+      }
       final targets = _targets(shift);
       if (targets.isEmpty) {
         drift.add('${shift.name}: no text pair or board pair uses it');

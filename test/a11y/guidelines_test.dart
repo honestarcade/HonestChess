@@ -1,6 +1,7 @@
 // Flutter's own accessibility guidelines on every screen and state of
 // a11y_cases.dart (#104): every control is at least 48 × 48 dp and
-// labelled, and every text colour is one #99 proves. Three phone sizes at
+// labelled, and every text colour is one #99 proves and reads on what it
+// is drawn over (#141). Three phone sizes at
 // text scale 1.0 and 1.3, each screen at its top and then scrolled to its
 // end. The board's squares are the one tap-target exception — eight must
 // fit across the phone — so the tap-target check skips nodes tagged

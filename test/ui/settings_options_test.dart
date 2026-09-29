@@ -640,17 +640,30 @@ void main() {
       tester,
     ) async {
       var asked = 0;
+      final answer = Completer<AppVersion?>();
       await show(tester, () {
         asked++;
-        return Completer<AppVersion?>().future;
+        return answer.future;
       });
       expect(_version(tester), '');
+      double height() =>
+          tester.getSize(find.byKey(const Key('settings-version'))).height;
+      final empty = height();
       expect(
-        tester.getSize(find.byKey(const Key('settings-version'))).height,
-        closeTo(9.5 * 1.6, .01),
+        empty,
+        closeTo(9.5 * 1.6, 1),
+        reason: 'settings-options: the empty line is one line tall',
       );
       await _toggle(tester, 'settings-toggle-dots');
       expect(asked, 1, reason: 'settings-options: asked once per visit');
+      answer.complete(const AppVersion(name: '1.2.3', code: 1034));
+      await tester.pump();
+      expect(_version(tester), 'v1.2.3 · BUILD 1034');
+      expect(
+        height(),
+        empty,
+        reason: 'settings-options: the answer does not move the rows below',
+      );
     });
   });
 }

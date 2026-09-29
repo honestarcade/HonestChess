@@ -11,7 +11,10 @@ library;
 //     else, and the Dart side invokes exactly those three; the sound channel
 //     likewise, in SoundBridge.kt and sound_player.dart, with its six;
 //  3. the main manifest leaves Android's own backup on: it is the player's
-//     setting, and the app does not opt out.
+//     setting, and the app does not opt out;
+//  4. no Kotlin file of the app sleeps: its channel handlers and lifecycle
+//     callbacks run on Android's main thread, where a sleep freezes touch
+//     and drawing (#145) — a wait is posted to a Handler instead.
 //
 // Every rule is a plain text match, comments included: it catches an honest
 // mistake, not deliberate evasion (CLAUDE.md's stated scope). A network call
@@ -43,6 +46,9 @@ List<String> networkUses(String source, List<String> apis) => [
   for (final api in apis)
     if (source.contains(api)) api,
 ];
+
+/// Calls that block the thread they run on.
+const kotlinBlockingCalls = ['Thread.sleep', 'SystemClock.sleep'];
 
 /// The methods the channel carries, in both languages.
 const channelMethods = ['appVersion', 'filesDir', 'openUrl'];
@@ -182,6 +188,24 @@ void main() {
       );
     });
 
+    test('no Kotlin file of the app sleeps', () {
+      expect(kotlinFiles, containsAll([activityPath, soundBridgePath]));
+      final offenders = [
+        for (final path in kotlinFiles)
+          for (final call in networkUses(readFile(path), kotlinBlockingCalls))
+            '$path: $call',
+      ];
+      expect(
+        offenders,
+        isEmpty,
+        reason: describeOffenders(
+          'platform-surface: a sleep in the app\'s Kotlin, which runs on the '
+          'main thread',
+          offenders,
+        ),
+      );
+    });
+
     test('the channel has one name, the same on both sides', () {
       final kotlin = kotlinChannelNames(readFile(activityPath));
       final dart = dartChannelNames(readFile(dartChannelFile));
@@ -310,6 +334,22 @@ void main() {
         ),
         ['HttpURLConnection'],
       );
+    });
+
+    test('a sleep is caught, comments included; a posted delay is not', () {
+      expect(
+        networkUses(
+          'handler.postDelayed(start, 1000L - since)',
+          kotlinBlockingCalls,
+        ),
+        isEmpty,
+      );
+      expect(networkUses('Thread.sleep(1000L - since)', kotlinBlockingCalls), [
+        'Thread.sleep',
+      ]);
+      expect(networkUses('// SystemClock.sleep(20)', kotlinBlockingCalls), [
+        'SystemClock.sleep',
+      ]);
     });
 
     const kotlin = '''

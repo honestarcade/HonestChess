@@ -69,17 +69,22 @@ class ScreenHeader extends StatelessWidget {
               ),
               if (kicker != null) ...[
                 const SizedBox(height: 6),
-                Text(
-                  kicker,
-                  key: Key('$keyPrefix-kicker'),
-                  semanticsLabel: spokenCaps(kicker),
-                  style: TextStyle(
-                    fontFamily: Fonts.plexMono,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 9.5,
-                    height: 1,
-                    letterSpacing: 9.5 * .16,
-                    color: kickerColor,
+                // Its own node, so a screen reader reads it after the
+                // heading (#147).
+                Semantics(
+                  container: true,
+                  child: Text(
+                    kicker,
+                    key: Key('$keyPrefix-kicker'),
+                    semanticsLabel: spokenCaps(kicker),
+                    style: TextStyle(
+                      fontFamily: Fonts.plexMono,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 9.5,
+                      height: 1,
+                      letterSpacing: 9.5 * .16,
+                      color: kickerColor,
+                    ),
                   ),
                 ),
               ],
