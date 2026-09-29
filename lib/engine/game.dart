@@ -30,6 +30,14 @@ final class VsComputer extends GameMode {
     required this.seed,
   });
 
+  /// A new game against the computer, with a fresh seed from
+  /// [newGameSeed]: games vary, and the seed is saved with the game so it
+  /// replays exactly.
+  factory VsComputer.newGame({
+    required Colour playerColour,
+    required Strength step,
+  }) => VsComputer(playerColour: playerColour, step: step, seed: newGameSeed());
+
   final Colour playerColour;
   final Strength step;
   final int seed;

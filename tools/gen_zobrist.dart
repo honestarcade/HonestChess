@@ -8,6 +8,8 @@
 
 import 'dart:io';
 
+import 'package:honest_chess/engine/splitmix.dart';
+
 /// The SplitMix64 seed. Changing it changes every key, and with them every
 /// transposition-table entry and the computer's move choices.
 const int seed = 0x486f6e6573744368; // "HonestCh" in ASCII
@@ -20,17 +22,8 @@ const String outputPath = 'lib/engine/zobrist_keys.dart';
 
 /// The first [count] outputs of SplitMix64 from [seed].
 List<int> splitMix64(int seed, int count) {
-  var state = seed;
-  return [
-    for (var i = 0; i < count; i++)
-      () {
-        state += 0x9e3779b97f4a7c15;
-        var z = state;
-        z = (z ^ (z >>> 30)) * 0xbf58476d1ce4e5b9;
-        z = (z ^ (z >>> 27)) * 0x94d049bb133111eb;
-        return z ^ (z >>> 31);
-      }(),
-  ];
+  final stream = SplitMix64(seed);
+  return [for (var i = 0; i < count; i++) stream.next()];
 }
 
 /// [value] as an unsigned 64-bit hex literal, all sixteen digits.
