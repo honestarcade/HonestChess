@@ -385,15 +385,17 @@ MUTATIONS: list[Mutation] = [
              sub(r'  summarise "\*\*\$counts\*\*" "\$label: no test ran — refusing to pass empty"\n', ''),
              "a red scheduled run would not say why in its summary",
              'scheduled-summary: the job summary does not say what ran'),
-    Mutation("ci", "the weekly schedule is switched on with no weekly test (#47)",
-             ".github/workflows/weekly.yml",
-             sub(r"^on:\n  # schedule:\n  #   - cron: \"0 3 \* \* 0\"[^\n]*\n", 'on:\n  schedule:\n    - cron: "0 3 * * 0"\n', flags=re.M),
+    Mutation("ci", "the weekly schedule is on with no weekly test (#47)",
+             "test/engine/strength_ladder_test.dart",
+             sub(r"^@Tags\(\['weekly'\]\)\n", "", flags=re.M),
              "the weekly job would fail every Sunday",
              'weekly-schedule: weekly.yml is scheduled but no test is tagged weekly',
-             # Every weekly-tagged test loses its tag too, so the defect is
-             # still "scheduled with no weekly test" (#61 added the first).
+             # The schedule is on (#69), so the defect is every weekly-tagged
+             # file losing its tag: `grep -rl "Tags(\['weekly'" test/` lists them.
              also=(("test/engine/perft_weekly_test.dart",
-                    sub(r"^@Tags\(\['weekly'\]\)\n", "", flags=re.M)),)),
+                    sub(r"^@Tags\(\['weekly'\]\)\n", "", flags=re.M)),
+                   ("test/engine/computer_clock_weekly_test.dart",
+                    sub(r"^@Tags\(\['weekly'\]\)\n", "", flags=re.M)))),
     Mutation("ci", "CI's guard step would run weekly-tagged guards (#48)",
              ".github/workflows/ci.yml",
              sub(r"--tags guard --exclude-tags weekly", "--tags guard"),
@@ -765,6 +767,24 @@ MUTATIONS: list[Mutation] = [
              sub(r"worker\.port\.send\(message\);", "_onReply(_serve(message));"),
              "the computer would think on the UI thread and freeze the app (invariant 4)",
              'computer-isolate: the search ran in the calling isolate'),
+    Mutation("ci", "the weekly schedule is switched off (#69)",
+             ".github/workflows/weekly.yml",
+             sub(r'^  schedule:\n    - cron: "0 3 \* \* 0"[^\n]*\n', "", flags=re.M),
+             "the strength ladder would be proven only when someone dispatches it",
+             'weekly-cron: weekly.yml is not scheduled for Sunday 03:00 UTC'),
+    Mutation("ci", "a workflow runs the Stockfish benchmark (#69)",
+             ".github/workflows/weekly.yml",
+             sub(r"(      - id: summary\n)",
+                 "      - id: benchmark\n        name: Benchmark\n        run: tools/benchmark_stockfish.sh --games 1\n\n\\1"),
+             "CI would install and run a dev-only engine benchmark for hours",
+             'benchmark-not-ci: a workflow runs the dev-only Stockfish benchmark'),
+    Mutation("ci", "the benchmark runs without Stockfish (#69)",
+             "tools/benchmark_stockfish.sh",
+             sub(r'if ! stockfish=\$\(command -v stockfish\); then\n(.*\n)*?fi\n',
+                 'stockfish=$(command -v stockfish || true)\n'),
+             "the benchmark could report a result it never played",
+             'benchmark-refuses: without Stockfish the benchmark did not exit 3',
+             slow=True),
 ]
 
 

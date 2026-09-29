@@ -2,13 +2,13 @@
 # `weekly` tag, which tools/gate.sh excludes. tools/weekly_tests.sh runs them
 # and fails if none ran, so this job can never go green by testing nothing.
 #
-# Dispatch-only until the computer's strength ladder (#69, epic #4) joins
-# the deeper perft counts here; that change enables the schedule below.
+# Scheduled weekly (#69) so the strength dial's ladder — each step beating
+# the one below it — is proven again every week, not only when someone asks.
 name: Weekly tests
 
 on:
-  # schedule:
-  #   - cron: "0 3 * * 0"   # Sunday 03:00 UTC — enabled by M2 (epic #4)
+  schedule:
+    - cron: "0 3 * * 0"   # Sunday 03:00 UTC
   workflow_dispatch:
 
 permissions:
