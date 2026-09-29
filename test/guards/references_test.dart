@@ -111,7 +111,7 @@ const fixture = 'tools/thing.sh';
     final existing = {...tracked.where(pathExists)};
     final offenders = <String>[];
     for (final path in tracked) {
-      if (RegExp(r'\.(png|jar|lock|jks|keystore|pem)$').hasMatch(path)) {
+      if (RegExp(r'\.(png|jar|ttf|lock|jks|keystore|pem)$').hasMatch(path)) {
         continue;
       }
       final text = claimText(path, readFile(path));

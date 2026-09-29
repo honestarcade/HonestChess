@@ -449,3 +449,18 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
   **Issue:** #69
 
 ## /n8-exec M3 — 2026-09-29
+- **Decision:** Outfit's static weights come from Outfitio/Outfit-Fonts @ `902773808eb3` (the pin Honest Solitaire and Honest Sudoku use, copied byte for byte and hash-checked), not google/fonts; IBM Plex Mono and Noto Sans Symbols 2 come from google/fonts @ `23e54b51ddff` (main's head when #71 was filed, per the GitHub API on 2026-09-29). Fonts live one family per folder (`assets/fonts/{outfit,plexmono,pieces}/`, each with `OFL.txt`), with sources, dates and SHA-256s in `assets/fonts/SOURCE.md`; the piece font is `tools/subset_piece_font.sh`'s output (U+2654–265F only).
+  **Why:** google/fonts carries Outfit only as a variable font (`ofl/outfit/Outfit[wght].ttf`, listed via the GitHub API on 2026-09-29), and the plan asked for static TTFs; the studio's existing pin is a known-good source. U+FE0E is not in the upstream Noto font, so the subset cannot carry it; the glyph strings still do.
+  **Issue:** #71
+- **Decision:** `BoardView` takes `Colour bottom` (the engine's type) rather than a new `Side`; orientation lives in `lib/ui/board/orientation.dart` as `boardBottom(GameMode, Colour sideToMove, {rotate})` plus `boardBottomOf(Game, {rotate})`, which keeps the mover at the bottom when the last move ended the game (a checkmate does not turn the board to the loser) and follows the side to move after a takeback.
+  **Why:** The engine already names the sides `Colour`; a second enum would need converting at every call. The game-over rule needs the game's history, so it gets its own helper over the pure function.
+  **Issue:** #71
+- **Decision:** The board's 1 px ring (the design's `0 0 0 1px rgba(255,255,255,.12)`) is drawn as a border inside the clipped frame, and the surface stripes sit in one painter layer between the square colours and the coordinates/pieces (the design's per-cell order: colour, texture, …, labels, piece). `BoardOptions` names the design's Settings keys `legalMoveDots`, `lastMoveHighlight`, `takebackAllowed`, `autoQueen`, `rotateEachTurn`, `animations`, `flagCheck`.
+  **Why:** The AC calls it an inset ring and the frame clips its children; drawing it inside keeps it visible. Surfaces below the pieces match the design's layer order.
+  **Issue:** #71
+- **Decision:** `lib/main.dart`'s placeholder is replaced by `BoardPreviewScreen` (a static start position); `test/widget_test.dart` and `integration_test/app_smoke_test.dart` now assert the board instead of the wordmark. `test/flutter_test_config.dart` (new) loads the three font families for every test.
+  **Why:** The plan puts the static board in `main.dart` until #72; the old tests asserted the placeholder this story removes.
+  **Issue:** #71
+- **Decision:** Rule 3: `test/guards/references_test.dart` and `test/guards/template_leftovers_test.dart` now skip `.ttf` files as they already skipped `.png` and `.jar`.
+  **Why:** Both read every tracked file as UTF-8 text and threw on the first bundled font, failing the gate; a font carries no file reference or template name to check.
+  **Issue:** #71

@@ -71,7 +71,7 @@ void main() {
     );
     final files = {
       for (final p in paths)
-        if (!p.endsWith('.png') && !p.endsWith('.jar') && pathExists(p))
+        if (!RegExp(r'\.(png|jar|ttf)$').hasMatch(p) && pathExists(p))
           p: readFile(p),
     };
     final offenders = leftovers(files);
