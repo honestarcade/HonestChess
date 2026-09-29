@@ -11,11 +11,11 @@ import 'package:honest_chess/data/stats.dart';
 import 'package:honest_chess/feedback/music_controller.dart';
 import 'package:honest_chess/main.dart' show appTheme;
 import 'package:honest_chess/engine/engine.dart';
+import 'package:honest_chess/ui/app_builder.dart';
 import 'package:honest_chess/ui/app_scope.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/defaults.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
-import 'package:honest_chess/ui/motion.dart';
 import 'package:honest_chess/ui/navigation.dart';
 
 import 'fake_haptics.dart';
@@ -158,10 +158,7 @@ Future<AppHarness> pumpUnderScope(
           harness.boardRoutes,
           ...observers,
         ],
-        builder: (context, child) => SettingsMotion(
-          board: harness.settings.board,
-          child: child ?? const SizedBox.shrink(),
-        ),
+        builder: appBuilder(harness.settings.board),
         home: child,
       ),
     ),

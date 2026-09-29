@@ -27,92 +27,88 @@ class AboutArcadeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Screen text ignores the system text scale, as the board does, until
-    // M5's accessibility work.
-    return MediaQuery.withNoTextScaling(
-      child: Scaffold(
-        backgroundColor: Palette.screenBg,
-        resizeToAvoidBottomInset: false,
-        body: ScreenBackground(
-          gradient: ScreenGradient.aboutStudio,
-          child: SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final s =
-                    math.min(constraints.maxWidth, aboutScaleCapWidth) /
-                    designWidth;
-                final gap = 15 * s;
-                // The links' 48 dp touch height is centred on their line
-                // (9.5 × 1.7), eating into the gap above and the padding
-                // below so the drawn spacing stays the design's.
-                final linkLine = 9.5 * 1.7 * s;
-                final linkSpill = math.max(0.0, (_minTouch - linkLine) / 2);
-                return SingleChildScrollView(
-                  key: const Key('aboutstudio-scroll'),
-                  // The design's 56 dp top padding, less its 44 dp status
-                  // bar (SafeArea's here).
-                  padding: EdgeInsets.fromLTRB(
-                    20 * s,
-                    12,
-                    20 * s,
-                    math.max(0.0, 30 * s - linkSpill),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const ScreenHeader(
-                        title: aboutStudioTitle,
-                        keyPrefix: 'aboutstudio',
-                      ),
-                      SizedBox(height: gap),
-                      Padding(
-                        padding: EdgeInsets.only(top: 6 * s, bottom: 2 * s),
-                        child: Center(
-                          child: HonestMark.arcade(
-                            aboutMarkSide * s,
-                            key: const Key('aboutstudio-mark'),
-                          ),
+    return Scaffold(
+      backgroundColor: Palette.screenBg,
+      resizeToAvoidBottomInset: false,
+      body: ScreenBackground(
+        gradient: ScreenGradient.aboutStudio,
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final s =
+                  math.min(constraints.maxWidth, aboutScaleCapWidth) /
+                  designWidth;
+              final gap = 15 * s;
+              // The links' 48 dp touch height is centred on their line
+              // (9.5 × 1.7), eating into the gap above and the padding
+              // below so the drawn spacing stays the design's.
+              final linkLine = 9.5 * 1.7 * s;
+              final linkSpill = math.max(0.0, (_minTouch - linkLine) / 2);
+              return SingleChildScrollView(
+                key: const Key('aboutstudio-scroll'),
+                // The design's 56 dp top padding, less its 44 dp status
+                // bar (SafeArea's here).
+                padding: EdgeInsets.fromLTRB(
+                  20 * s,
+                  12,
+                  20 * s,
+                  math.max(0.0, 30 * s - linkSpill),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const ScreenHeader(
+                      title: aboutStudioTitle,
+                      keyPrefix: 'aboutstudio',
+                    ),
+                    SizedBox(height: gap),
+                    Padding(
+                      padding: EdgeInsets.only(top: 6 * s, bottom: 2 * s),
+                      child: Center(
+                        child: HonestMark.arcade(
+                          aboutMarkSide * s,
+                          key: const Key('aboutstudio-mark'),
                         ),
                       ),
-                      SizedBox(height: gap),
-                      Text(
-                        aboutStudioLead,
-                        key: const Key('aboutstudio-lead'),
-                        style: _font(
-                          Fonts.outfit,
-                          FontWeight.w400,
-                          14,
-                          1.65,
-                          Palette.textBright,
-                          s,
-                        ),
+                    ),
+                    SizedBox(height: gap),
+                    Text(
+                      aboutStudioLead,
+                      key: const Key('aboutstudio-lead'),
+                      style: _font(
+                        Fonts.outfit,
+                        FontWeight.w400,
+                        14,
+                        1.65,
+                        Palette.textBright,
+                        s,
                       ),
-                      SizedBox(height: gap),
-                      Text(
-                        aboutStudioSecond,
-                        key: const Key('aboutstudio-second'),
-                        style: _font(
-                          Fonts.outfit,
-                          FontWeight.w400,
-                          14,
-                          1.65,
-                          Palette.textDim,
-                          s,
-                        ),
+                    ),
+                    SizedBox(height: gap),
+                    Text(
+                      aboutStudioSecond,
+                      key: const Key('aboutstudio-second'),
+                      style: _font(
+                        Fonts.outfit,
+                        FontWeight.w400,
+                        14,
+                        1.65,
+                        Palette.textDim,
+                        s,
                       ),
-                      SizedBox(height: gap),
-                      _SupportCard(scale: s),
-                      SizedBox(height: gap),
-                      _Promises(scale: s),
-                      SizedBox(height: gap),
-                      _Chips(scale: s),
-                      SizedBox(height: math.max(0.0, gap - linkSpill)),
-                      _Links(scale: s, height: linkLine + 2 * linkSpill),
-                    ],
-                  ),
-                );
-              },
-            ),
+                    ),
+                    SizedBox(height: gap),
+                    _SupportCard(scale: s),
+                    SizedBox(height: gap),
+                    _Promises(scale: s),
+                    SizedBox(height: gap),
+                    _Chips(scale: s),
+                    SizedBox(height: math.max(0.0, gap - linkSpill)),
+                    _Links(scale: s, height: linkLine + 2 * linkSpill),
+                  ],
+                ),
+              );
+            },
           ),
         ),
       ),

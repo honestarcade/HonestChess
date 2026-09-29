@@ -163,30 +163,26 @@ class _StatsScreenState extends State<StatsScreen>
     final s =
         math.min(MediaQuery.sizeOf(context).width, statsScaleCapWidth) /
         designWidth;
-    // Screen text ignores the system text scale, as the board does, until
-    // M5's accessibility work.
-    return MediaQuery.withNoTextScaling(
-      child: PopScope(
-        canPop: !_open,
-        onPopInvokedWithResult: (didPop, _) {
-          if (!didPop) _close();
-        },
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Scaffold(
-              backgroundColor: Palette.screenBg,
-              body: SafeArea(
-                child: ListenableBuilder(
-                  listenable: stats,
-                  builder: (context, _) =>
-                      _body(statsView(stats.document, _tab), s),
-                ),
+    return PopScope(
+      canPop: !_open,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _close();
+      },
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Scaffold(
+            backgroundColor: Palette.screenBg,
+            body: SafeArea(
+              child: ListenableBuilder(
+                listenable: stats,
+                builder: (context, _) =>
+                    _body(statsView(stats.document, _tab), s),
               ),
             ),
-            if (!_confirm.isDismissed || _open) _overlay(s),
-          ],
-        ),
+          ),
+          if (!_confirm.isDismissed || _open) _overlay(s),
+        ],
       ),
     );
   }

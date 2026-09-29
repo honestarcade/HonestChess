@@ -45,67 +45,63 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Screen text ignores the system text scale, as the board does, until
-    // M5's accessibility work.
-    return MediaQuery.withNoTextScaling(
-      child: Scaffold(
-        backgroundColor: Palette.screenBg,
-        resizeToAvoidBottomInset: false,
-        body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final s =
-                  math.min(constraints.maxWidth, aboutScaleCapWidth) /
-                  designWidth;
-              final gap = 13 * s;
-              // The links' 48 dp touch height is centred on their line
-              // (9.5 × 1.7), eating into the gap above and the padding
-              // below so the drawn spacing stays the design's.
-              final linkLine = 9.5 * 1.7 * s;
-              final linkSpill = math.max(0.0, (_minTouch - linkLine) / 2);
-              return SingleChildScrollView(
-                key: const Key('aboutapp-scroll'),
-                // The design's 56 dp top padding, less its 44 dp status bar
-                // (SafeArea's here).
-                padding: EdgeInsets.fromLTRB(
-                  20 * s,
-                  12,
-                  20 * s,
-                  math.max(0.0, 30 * s - linkSpill),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const ScreenHeader(
-                      title: aboutAppTitle,
-                      keyPrefix: 'aboutapp',
+    return Scaffold(
+      backgroundColor: Palette.screenBg,
+      resizeToAvoidBottomInset: false,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final s =
+                math.min(constraints.maxWidth, aboutScaleCapWidth) /
+                designWidth;
+            final gap = 13 * s;
+            // The links' 48 dp touch height is centred on their line
+            // (9.5 × 1.7), eating into the gap above and the padding
+            // below so the drawn spacing stays the design's.
+            final linkLine = 9.5 * 1.7 * s;
+            final linkSpill = math.max(0.0, (_minTouch - linkLine) / 2);
+            return SingleChildScrollView(
+              key: const Key('aboutapp-scroll'),
+              // The design's 56 dp top padding, less its 44 dp status bar
+              // (SafeArea's here).
+              padding: EdgeInsets.fromLTRB(
+                20 * s,
+                12,
+                20 * s,
+                math.max(0.0, 30 * s - linkSpill),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const ScreenHeader(
+                    title: aboutAppTitle,
+                    keyPrefix: 'aboutapp',
+                  ),
+                  SizedBox(height: gap),
+                  _AppCard(scale: s, versionName: _versionName!),
+                  SizedBox(height: gap),
+                  Text(
+                    appDescription,
+                    key: const Key('aboutapp-description'),
+                    style: _font(
+                      Fonts.outfit,
+                      FontWeight.w400,
+                      13.5,
+                      1.65,
+                      Palette.textLead,
+                      s,
                     ),
-                    SizedBox(height: gap),
-                    _AppCard(scale: s, versionName: _versionName!),
-                    SizedBox(height: gap),
-                    Text(
-                      appDescription,
-                      key: const Key('aboutapp-description'),
-                      style: _font(
-                        Fonts.outfit,
-                        FontWeight.w400,
-                        13.5,
-                        1.65,
-                        Palette.textLead,
-                        s,
-                      ),
-                    ),
-                    SizedBox(height: gap),
-                    _Features(scale: s),
-                    SizedBox(height: gap),
-                    _PromisesPanel(scale: s),
-                    SizedBox(height: math.max(0.0, gap - linkSpill)),
-                    _MadeBy(scale: s, height: linkLine + 2 * linkSpill),
-                  ],
-                ),
-              );
-            },
-          ),
+                  ),
+                  SizedBox(height: gap),
+                  _Features(scale: s),
+                  SizedBox(height: gap),
+                  _PromisesPanel(scale: s),
+                  SizedBox(height: math.max(0.0, gap - linkSpill)),
+                  _MadeBy(scale: s, height: linkLine + 2 * linkSpill),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );

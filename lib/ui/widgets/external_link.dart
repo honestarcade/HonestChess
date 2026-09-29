@@ -127,15 +127,13 @@ void showNoBrowser(BuildContext context) {
           borderRadius: BorderRadius.circular(14),
           side: const BorderSide(color: Palette.cardEdge),
         ),
-        content: MediaQuery.withNoTextScaling(
-          child: Text(
-            noBrowserText,
-            style: TextStyle(
-              fontFamily: Fonts.outfit,
-              fontWeight: FontWeight.w500,
-              fontSize: 13 * s,
-              color: const Color(0xFFFFFFFF),
-            ),
+        content: Text(
+          noBrowserText,
+          style: TextStyle(
+            fontFamily: Fonts.outfit,
+            fontWeight: FontWeight.w500,
+            fontSize: 13 * s,
+            color: const Color(0xFFFFFFFF),
           ),
         ),
       ),

@@ -48,54 +48,50 @@ class _HowToPlayScreenState extends State<HowToPlayScreen> {
   @override
   Widget build(BuildContext context) {
     final board = AppScope.of(context).settings.board;
-    // Screen text ignores the system text scale, as the board does, until
-    // M5's accessibility work.
-    return MediaQuery.withNoTextScaling(
-      child: Scaffold(
-        backgroundColor: Palette.screenBg,
-        body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final s =
-                  math.min(constraints.maxWidth, howToScaleCapWidth) /
-                  designWidth;
-              final pillGap = 13 * s - SegmentedTabs.overhang(s);
-              return SingleChildScrollView(
-                key: const Key('howto-scroll'),
-                controller: _scroll,
-                // The design's 56 dp top padding, less its 44 dp status bar
-                // (SafeArea's here).
-                padding: EdgeInsets.fromLTRB(20 * s, 12, 20 * s, 30 * s),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const ScreenHeader(title: howToTitle, keyPrefix: 'howto'),
-                    SizedBox(height: pillGap),
-                    SegmentedTabs<HowToTab>(
-                      values: HowToTab.values,
-                      labelOf: (t) => switch (t) {
-                        HowToTab.pieces => piecesTabLabel,
-                        HowToTab.rules => rulesTabLabel,
-                      },
-                      selected: _tab,
-                      onChanged: _show,
-                      keyPrefix: 'howto',
-                      scale: s,
-                    ),
-                    SizedBox(height: pillGap),
-                    switch (_tab) {
-                      HowToTab.pieces => ValueListenableBuilder<BoardOptions>(
-                        valueListenable: board,
-                        builder: (_, options, _) =>
-                            _PieceCards(options: options, scale: s),
-                      ),
-                      HowToTab.rules => _RuleCards(scale: s),
+    return Scaffold(
+      backgroundColor: Palette.screenBg,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final s =
+                math.min(constraints.maxWidth, howToScaleCapWidth) /
+                designWidth;
+            final pillGap = 13 * s - SegmentedTabs.overhang(s);
+            return SingleChildScrollView(
+              key: const Key('howto-scroll'),
+              controller: _scroll,
+              // The design's 56 dp top padding, less its 44 dp status bar
+              // (SafeArea's here).
+              padding: EdgeInsets.fromLTRB(20 * s, 12, 20 * s, 30 * s),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const ScreenHeader(title: howToTitle, keyPrefix: 'howto'),
+                  SizedBox(height: pillGap),
+                  SegmentedTabs<HowToTab>(
+                    values: HowToTab.values,
+                    labelOf: (t) => switch (t) {
+                      HowToTab.pieces => piecesTabLabel,
+                      HowToTab.rules => rulesTabLabel,
                     },
-                  ],
-                ),
-              );
-            },
-          ),
+                    selected: _tab,
+                    onChanged: _show,
+                    keyPrefix: 'howto',
+                    scale: s,
+                  ),
+                  SizedBox(height: pillGap),
+                  switch (_tab) {
+                    HowToTab.pieces => ValueListenableBuilder<BoardOptions>(
+                      valueListenable: board,
+                      builder: (_, options, _) =>
+                          _PieceCards(options: options, scale: s),
+                    ),
+                    HowToTab.rules => _RuleCards(scale: s),
+                  },
+                ],
+              ),
+            );
+          },
         ),
       ),
     );

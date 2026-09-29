@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:honest_chess/ui/board/board_view.dart' show boardMargin;
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/pause_overlay.dart';
 import 'package:honest_chess/ui/game/result_text.dart';
@@ -30,12 +29,11 @@ const double resultInset = 26, resultMaxWidth = 440;
 /// The finished game's result: the design's card over a scrim — who won
 /// and why, the rule in a sentence, the game's numbers, Rematch, View
 /// board, See statistics ([onSeeStatistics]) and Main menu ([onMainMenu])
-/// — or, after View board, a slim bar over the top of the screen with the
-/// result and Rematch, the final position frozen below it and the tool row
-/// still live.
+/// — until View board, which leaves the final position frozen and the tool
+/// row live, with [ResultBar] in the top bar's place.
 ///
-/// A tap on the scrim does what View board does; a tap on the bar brings
-/// the card back. Android's back is the play screen's to handle. The last
+/// A tap on the scrim does what View board does. Android's back is the
+/// play screen's to handle. The last
 /// layer of the play screen: while the game goes on it draws nothing and
 /// takes no touches.
 class ResultOverlay extends StatefulWidget {
@@ -180,14 +178,6 @@ class ResultOverlayState extends State<ResultOverlay>
               child: _layer(),
             ),
           ),
-        if (view == ResultView.board)
-          Positioned(
-            left: boardMargin,
-            right: boardMargin,
-            top: 0,
-            height: resultBarHeight,
-            child: _bar(),
-          ),
       ],
     );
   }
@@ -196,9 +186,6 @@ class ResultOverlayState extends State<ResultOverlay>
     final game = _controller.game;
     return describeResult(game.status, game.mode, resultYou(game));
   }
-
-  static Color _kicker(ResultText text) =>
-      text.lost ? Palette.dangerText : Palette.teal;
 
   Widget _layer() {
     return Stack(
@@ -307,7 +294,7 @@ class ResultOverlayState extends State<ResultOverlay>
                         fontSize: 10,
                         height: 1,
                         letterSpacing: 10 * .2,
-                        color: _kicker(text),
+                        color: _kickerOf(text),
                       ),
                     ),
                     const SizedBox(height: 11),
@@ -411,9 +398,23 @@ class ResultOverlayState extends State<ResultOverlay>
   static final double _menuReachBelow = _menuLook.reachBelow(
     above: cardHalfGap,
   );
+}
 
-  Widget _bar() {
-    final text = _text;
+Color _kickerOf(ResultText text) =>
+    text.lost ? Palette.dangerText : Palette.teal;
+
+/// The slim bar View board leaves over the top of the screen, in the top
+/// bar's place: the result, which brings the card back when tapped, and
+/// Rematch. It is at least [resultBarHeight] tall and grows with its text.
+class ResultBar extends StatelessWidget {
+  const ResultBar({super.key, required this.controller});
+
+  final GameController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final game = controller.game;
+    final text = describeResult(game.status, game.mode, resultYou(game));
     const radius = BorderRadius.all(Radius.circular(14));
     return Semantics(
       key: const Key('result-bar'),
@@ -429,87 +430,89 @@ class ResultOverlayState extends State<ResultOverlay>
         child: InkWell(
           key: const Key('result-bar-show'),
           borderRadius: radius,
-          onTap: _controller.showResult,
-          child: Padding(
-            padding: const EdgeInsets.only(left: 14, right: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Semantics(
-                    button: true,
-                    label: 'Show the result: ${text.tag}, ${text.title}',
-                    onTap: _controller.showResult,
-                    excludeSemantics: true,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          text.tag,
-                          key: const Key('result-bar-tag'),
-                          maxLines: 1,
-                          style: TextStyle(
-                            fontFamily: Fonts.plexMono,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 10,
-                            height: 1,
-                            letterSpacing: 10 * .2,
-                            color: _kicker(text),
+          onTap: controller.showResult,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: resultBarHeight),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Semantics(
+                      button: true,
+                      label: 'Show the result: ${text.tag}, ${text.title}',
+                      onTap: controller.showResult,
+                      excludeSemantics: true,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            text.tag,
+                            key: const Key('result-bar-tag'),
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontFamily: Fonts.plexMono,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 10,
+                              height: 1,
+                              letterSpacing: 10 * .2,
+                              color: _kickerOf(text),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          text.title,
-                          key: const Key('result-bar-title'),
-                          maxLines: 1,
-                          softWrap: false,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontFamily: Fonts.outfit,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                            height: 1.1,
-                            color: Color(0xFFFFFFFF),
+                          const SizedBox(height: 5),
+                          Text(
+                            text.title,
+                            key: const Key('result-bar-title'),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: Fonts.outfit,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                              height: 1.1,
+                              color: Color(0xFFFFFFFF),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Semantics(
-                  button: true,
-                  label: 'Rematch',
-                  excludeSemantics: true,
-                  child: Material(
-                    color: Palette.teal,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(11)),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      key: const Key('result-bar-rematch'),
-                      onTap: _controller.restart,
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        child: Text(
-                          'Rematch',
-                          style: TextStyle(
-                            fontFamily: Fonts.outfit,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            height: 1,
-                            color: Palette.onTeal,
+                  const SizedBox(width: 10),
+                  Semantics(
+                    button: true,
+                    label: 'Rematch',
+                    excludeSemantics: true,
+                    child: Material(
+                      color: Palette.teal,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(11)),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        key: const Key('result-bar-rematch'),
+                        onTap: controller.restart,
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: Text(
+                            'Rematch',
+                            style: TextStyle(
+                              fontFamily: Fonts.outfit,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              height: 1,
+                              color: Palette.onTeal,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

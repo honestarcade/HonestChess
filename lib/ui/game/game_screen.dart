@@ -311,53 +311,51 @@ class GameScreenState extends State<GameScreen>
           child: SafeArea(
             // Overlays are layers over the board rather than routes, so the
             // top bar above them stays live.
-            child: Stack(
-              fit: StackFit.expand,
+            child: CustomMultiChildLayout(
+              delegate: _ScreenLayout(),
               children: [
-                Column(
-                  children: [
-                    const SizedBox(height: topBarHeight + barGap),
-                    Expanded(
-                      child: _PanelsAndBoard(
-                        controller: controller,
-                        slides: _slides,
-                        onNew: _new,
-                        onRestart: () => _restart().ignore(),
-                      ),
-                    ),
-                  ],
+                LayoutId(
+                  id: _Slot.panels,
+                  child: _PanelsAndBoard(
+                    controller: controller,
+                    slides: _slides,
+                    onNew: _new,
+                    onRestart: () => _restart().ignore(),
+                  ),
                 ),
-                PromotionSheet(controller: controller),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  height: topBarHeight,
+                LayoutId(
+                  id: _Slot.promotion,
+                  child: PromotionSheet(controller: controller),
+                ),
+                LayoutId(
+                  id: _Slot.top,
                   child: _TopBar(
                     controller: controller,
                     onPause: controller.pause,
                   ),
                 ),
                 if (_lossShown)
-                  const Positioned(
-                    left: boardMargin,
-                    right: boardMargin,
-                    top: topBarHeight + barGap,
-                    child: _LossNotice(),
+                  LayoutId(id: _Slot.loss, child: const _LossNotice()),
+                LayoutId(
+                  id: _Slot.pause,
+                  child: PauseOverlay(
+                    controller: controller,
+                    onRules: () => _fromPause(
+                      (context) =>
+                          openHowTo(context, initialTab: HowToTab.rules),
+                    ),
+                    onSettings: () => _fromPause(openSettings),
+                    onMainMenu: _leave,
                   ),
-                PauseOverlay(
-                  controller: controller,
-                  onRules: () => _fromPause(
-                    (context) => openHowTo(context, initialTab: HowToTab.rules),
-                  ),
-                  onSettings: () => _fromPause(openSettings),
-                  onMainMenu: _leave,
                 ),
-                ResultOverlay(
-                  key: _result,
-                  controller: controller,
-                  onSeeStatistics: _seeStatistics,
-                  onMainMenu: _leave,
+                LayoutId(
+                  id: _Slot.result,
+                  child: ResultOverlay(
+                    key: _result,
+                    controller: controller,
+                    onSeeStatistics: _seeStatistics,
+                    onMainMenu: _leave,
+                  ),
                 ),
               ],
             ),
@@ -411,7 +409,10 @@ class _TopBar extends StatelessWidget {
         final state = controller.state;
         // The result bar takes the top bar's place.
         if (state.resultView == ResultView.board) {
-          return const SizedBox.shrink();
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: boardMargin),
+            child: ResultBar(controller: controller),
+          );
         }
         final failed = state.computerFailed && !game.isOver;
         final text = statusText(
@@ -428,86 +429,91 @@ class _TopBar extends StatelessWidget {
           ),
           _ => (Palette.statusFill, Palette.textBody),
         };
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: Semantics(
-                  button: true,
-                  enabled: !game.isOver,
-                  label: 'Pause',
-                  child: GestureDetector(
-                    onTap: game.isOver ? null : onPause,
-                    child: Container(
-                      key: const Key('pause-pill'),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 11,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Palette.pillFill,
-                        borderRadius: const BorderRadius.all(
-                          Radius.circular(10),
-                        ),
-                        border: Border.all(color: Palette.pillEdge),
-                      ),
-                      child: Text(
-                        '❚❚ ${gameTitle(game.mode)}',
-                        maxLines: 1,
-                        softWrap: false,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontFamily: Fonts.outfit,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 11.5,
-                          height: 1,
-                          color: Palette.pieceWhite,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Flexible(
-                child: Semantics(
-                  button: failed,
-                  child: GestureDetector(
-                    onTap: failed ? controller.retryComputer : null,
-                    child: Container(
-                      key: const Key('status-chip'),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: fill,
-                        borderRadius: const BorderRadius.all(
-                          Radius.circular(9),
-                        ),
-                      ),
-                      child: Text(
-                        text,
-                        key: const Key('status-text'),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.end,
-                        style: TextStyle(
-                          fontFamily: Fonts.plexMono,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 10,
-                          height: 1,
-                          letterSpacing: 10 * .08,
-                          color: ink,
+        return ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: topBarHeight),
+          child: Align(
+            heightFactor: 1,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: Semantics(
+                      button: true,
+                      enabled: !game.isOver,
+                      label: 'Pause',
+                      child: GestureDetector(
+                        onTap: game.isOver ? null : onPause,
+                        child: Container(
+                          key: const Key('pause-pill'),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 11,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Palette.pillFill,
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(10),
+                            ),
+                            border: Border.all(color: Palette.pillEdge),
+                          ),
+                          child: Text(
+                            '❚❚ ${gameTitle(game.mode)}',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: Fonts.outfit,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 11.5,
+                              height: 1,
+                              color: Palette.pieceWhite,
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Semantics(
+                      button: failed,
+                      child: GestureDetector(
+                        onTap: failed ? controller.retryComputer : null,
+                        child: Container(
+                          key: const Key('status-chip'),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: fill,
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(9),
+                            ),
+                          ),
+                          child: Text(
+                            text,
+                            key: const Key('status-text'),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                            style: TextStyle(
+                              fontFamily: Fonts.plexMono,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 10,
+                              height: 1,
+                              letterSpacing: 10 * .08,
+                              color: ink,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },
@@ -532,65 +538,137 @@ class _PanelsAndBoard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final height = constraints.maxHeight;
-        final spare = height - 2 * panelHeight - toolRowHeight;
-        final board = math.max(
-          0.0,
-          math.min(width - 2 * boardMargin, spare - 3 * minBoardGap),
+    return ListenableBuilder(
+      listenable: Listenable.merge([controller, slides]),
+      builder: (context, _) {
+        final game = controller.game;
+        final rotate = controller.options.rotateEachTurn;
+        // A turning board turns once the move has slid: meanwhile it
+        // faces the side that moved.
+        final bottom = slides.sliding
+            ? boardBottom(game.mode, game.sideToMove.opponent, rotate: rotate)
+            : boardBottomOf(game, rotate: rotate);
+        Widget panel(Colour side) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: boardMargin),
+          child: PlayerPanel(controller: controller, side: side),
         );
-        final gap = ((spare - board) / 3).clamp(minBoardGap, boardGap);
-        return ListenableBuilder(
-          listenable: Listenable.merge([controller, slides]),
-          builder: (context, _) {
-            final game = controller.game;
-            final rotate = controller.options.rotateEachTurn;
-            // A turning board turns once the move has slid: meanwhile it
-            // faces the side that moved.
-            final bottom = slides.sliding
-                ? boardBottom(
-                    game.mode,
-                    game.sideToMove.opponent,
-                    rotate: rotate,
-                  )
-                : boardBottomOf(game, rotate: rotate);
-            Widget panel(Colour side) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: boardMargin),
-              child: PlayerPanel(controller: controller, side: side),
-            );
-            return Column(
-              children: [
-                panel(bottom.opponent),
-                SizedBox(height: gap),
-                SizedBox(
-                  width: width,
-                  height: board,
-                  // The ticking clocks never repaint the board.
-                  child: RepaintBoundary(
-                    child: BoardInteraction(
-                      controller: controller,
-                      bottom: bottom,
-                      slides: slides,
-                    ),
-                  ),
-                ),
-                SizedBox(height: gap),
-                panel(bottom),
-                SizedBox(height: gap),
-                ToolRow(
+        return CustomMultiChildLayout(
+          delegate: _BoardColumnLayout(),
+          children: [
+            LayoutId(id: _Part.opponent, child: panel(bottom.opponent)),
+            LayoutId(
+              id: _Part.board,
+              // The ticking clocks never repaint the board.
+              child: RepaintBoundary(
+                child: BoardInteraction(
                   controller: controller,
-                  onNew: onNew,
-                  onRestart: onRestart,
+                  bottom: bottom,
+                  slides: slides,
                 ),
-              ],
-            );
-          },
+              ),
+            ),
+            LayoutId(id: _Part.you, child: panel(bottom)),
+            LayoutId(
+              id: _Part.tools,
+              child: ToolRow(
+                controller: controller,
+                onNew: onNew,
+                onRestart: onRestart,
+              ),
+            ),
+          ],
         );
       },
     );
   }
+}
+
+enum _Part { opponent, board, you, tools }
+
+/// The column under the top bar: the panels and the tool row take the
+/// height their text needs, and the board, as wide as the screen allows,
+/// gives up whatever height they took, so the screen never scrolls. The
+/// gaps between them shrink first, from [boardGap] down to [minBoardGap].
+class _BoardColumnLayout extends MultiChildLayoutDelegate {
+  _BoardColumnLayout();
+
+  @override
+  void performLayout(Size size) {
+    final width = size.width;
+    final loose = BoxConstraints(
+      minWidth: width,
+      maxWidth: width,
+      maxHeight: size.height,
+    );
+    final opponent = layoutChild(_Part.opponent, loose).height;
+    final you = layoutChild(_Part.you, loose).height;
+    final tools = layoutChild(_Part.tools, loose).height;
+    final spare = size.height - opponent - you - tools;
+    final board = math.max(
+      0.0,
+      math.min(width - 2 * boardMargin, spare - 3 * minBoardGap),
+    );
+    final gap = ((spare - board) / 3).clamp(minBoardGap, boardGap);
+    layoutChild(_Part.board, BoxConstraints.tight(Size(width, board)));
+    var y = 0.0;
+    for (final (part, height) in [
+      (_Part.opponent, opponent),
+      (_Part.board, board),
+      (_Part.you, you),
+      (_Part.tools, tools),
+    ]) {
+      positionChild(part, Offset(0, y));
+      y += height + gap;
+    }
+  }
+
+  @override
+  bool shouldRelayout(_BoardColumnLayout oldDelegate) => false;
+}
+
+enum _Slot { top, panels, promotion, loss, pause, result }
+
+/// The play screen's layers: the top bar at the top, at least
+/// [topBarHeight] tall and taller when its text needs it; the panels and
+/// board below it; the cards over everything; and the Restart notice just
+/// under the top bar.
+class _ScreenLayout extends MultiChildLayoutDelegate {
+  _ScreenLayout();
+
+  @override
+  void performLayout(Size size) {
+    final top = layoutChild(
+      _Slot.top,
+      BoxConstraints(
+        minWidth: size.width,
+        maxWidth: size.width,
+        maxHeight: size.height,
+      ),
+    ).height;
+    // The design's place for the panels, unless a grown top bar or result
+    // bar needs more; the result bar is the taller, by what it takes from
+    // the gap.
+    final below = math.max(
+      topBarHeight + barGap,
+      top + barGap - (resultBarHeight - topBarHeight),
+    );
+    layoutChild(
+      _Slot.panels,
+      BoxConstraints.tight(Size(size.width, math.max(0, size.height - below))),
+    );
+    positionChild(_Slot.panels, Offset(0, below));
+    for (final layer in [_Slot.promotion, _Slot.pause, _Slot.result]) {
+      layoutChild(layer, BoxConstraints.tight(size));
+    }
+    if (hasChild(_Slot.loss)) {
+      final width = math.max(0.0, size.width - 2 * boardMargin);
+      layoutChild(_Slot.loss, BoxConstraints(minWidth: width, maxWidth: width));
+      positionChild(_Slot.loss, Offset(boardMargin, below));
+    }
+  }
+
+  @override
+  bool shouldRelayout(_ScreenLayout oldDelegate) => false;
 }
 
 /// [restartLossText] in a card over the opponent's panel, read out as it

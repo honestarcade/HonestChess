@@ -163,53 +163,46 @@ class _SplashScreenState extends State<SplashScreen>
     final instant = Motion.of(context).isOff;
     return PopScope(
       canPop: false,
-      // Screen text ignores the system text scale, as the board does, until
-      // M5's accessibility work.
-      child: MediaQuery.withNoTextScaling(
-        child: Material(
-          type: MaterialType.transparency,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              const ColoredBox(
-                key: Key('splash-navy'),
-                color: Palette.screenBg,
+      child: Material(
+        type: MaterialType.transparency,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            const ColoredBox(key: Key('splash-navy'), color: Palette.screenBg),
+            FadeTransition(
+              key: const Key('splash-gradient'),
+              opacity: CurvedAnimation(
+                parent: _gradient,
+                curve: Curves.easeOut,
               ),
-              FadeTransition(
-                key: const Key('splash-gradient'),
-                opacity: CurvedAnimation(
-                  parent: _gradient,
-                  curve: Curves.easeOut,
-                ),
-                child: const ScreenBackground(gradient: ScreenGradient.splash),
-              ),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final s =
-                      math.min(constraints.maxWidth, splashScaleCapWidth) /
-                      designWidth;
-                  return SafeArea(
-                    child: Center(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Semantics(
-                          key: const Key('splash'),
-                          container: true,
-                          label: splashSemanticsLabel,
-                          excludeSemantics: true,
-                          child: _SplashColumn(
-                            scale: s,
-                            progress: widget.loader.progress,
-                            instant: instant,
-                          ),
+              child: const ScreenBackground(gradient: ScreenGradient.splash),
+            ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final s =
+                    math.min(constraints.maxWidth, splashScaleCapWidth) /
+                    designWidth;
+                return SafeArea(
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Semantics(
+                        key: const Key('splash'),
+                        container: true,
+                        label: splashSemanticsLabel,
+                        excludeSemantics: true,
+                        child: _SplashColumn(
+                          scale: s,
+                          progress: widget.loader.progress,
+                          instant: instant,
                         ),
                       ),
                     ),
-                  );
-                },
-              ),
-            ],
-          ),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );

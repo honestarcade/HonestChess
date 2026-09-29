@@ -17,8 +17,8 @@ import 'package:honest_chess/feedback/haptics.dart';
 import 'package:honest_chess/feedback/music_controller.dart';
 import 'package:honest_chess/feedback/sound_player.dart';
 import 'package:honest_chess/platform/platform_channel.dart';
+import 'package:honest_chess/ui/app_builder.dart';
 import 'package:honest_chess/ui/app_scope.dart';
-import 'package:honest_chess/ui/motion.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/navigation.dart';
@@ -250,15 +250,7 @@ class HonestChessAppState extends State<HonestChessApp> {
         navigatorObservers: [navigation, boardRoutes],
         debugShowCheckedModeBanner: false,
         theme: appTheme(),
-        // One system-bar style for every route; screens set none of their
-        // own.
-        builder: (context, child) => SettingsMotion(
-          board: settings.board,
-          child: AnnotatedRegion<SystemUiOverlayStyle>(
-            value: appOverlayStyle,
-            child: child ?? const SizedBox.shrink(),
-          ),
-        ),
+        builder: appBuilder(settings.board),
         home: widget.skipSplash
             ? const MenuScreen()
             : SplashScreen(loader: _loader),

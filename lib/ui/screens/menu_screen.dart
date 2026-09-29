@@ -77,34 +77,30 @@ class MenuScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scope = AppScope.of(context);
-    // Screen text ignores the system text scale, as the board does, until
-    // M5's accessibility work.
-    return MediaQuery.withNoTextScaling(
-      child: Scaffold(
-        backgroundColor: Palette.screenBg,
-        resizeToAvoidBottomInset: false,
-        body: ScreenBackground(
-          gradient: ScreenGradient.menu,
-          child: SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final s =
-                    math.min(constraints.maxWidth, menuScaleCapWidth) /
-                    designWidth;
-                return ListenableBuilder(
-                  listenable: Listenable.merge([
-                    scope.saves,
-                    scope.store.corruptionNotices,
-                  ]),
-                  builder: (context, _) => _MenuBody(
-                    scale: s,
-                    offered: scope.saves.offered,
-                    notices: scope.store.corruptionNotices.value,
-                    store: scope.store,
-                  ),
-                );
-              },
-            ),
+    return Scaffold(
+      backgroundColor: Palette.screenBg,
+      resizeToAvoidBottomInset: false,
+      body: ScreenBackground(
+        gradient: ScreenGradient.menu,
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final s =
+                  math.min(constraints.maxWidth, menuScaleCapWidth) /
+                  designWidth;
+              return ListenableBuilder(
+                listenable: Listenable.merge([
+                  scope.saves,
+                  scope.store.corruptionNotices,
+                ]),
+                builder: (context, _) => _MenuBody(
+                  scale: s,
+                  offered: scope.saves.offered,
+                  notices: scope.store.corruptionNotices.value,
+                  store: scope.store,
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -453,8 +449,6 @@ class _ContinueButton extends StatelessWidget {
               child: Text(
                 label,
                 key: const Key('menu-continue-label'),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
                 style: _font(
                   Fonts.outfit,
                   FontWeight.w600,
@@ -551,7 +545,11 @@ class _ModeCard extends StatelessWidget {
                 ),
                 padding: EdgeInsets.only(left: 16 * s, top: 14 * s),
                 alignment: Alignment.topLeft,
-                child: ExcludeSemantics(child: _miniBoard(s)),
+                // The art keeps its size at any system text size, as the
+                // board does.
+                child: ExcludeSemantics(
+                  child: MediaQuery.withNoTextScaling(child: _miniBoard(s)),
+                ),
               ),
               Padding(
                 padding: EdgeInsets.fromLTRB(16 * s, 13 * s, 16 * s, 16 * s),
