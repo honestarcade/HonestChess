@@ -1,31 +1,74 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_interaction.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
+import 'package:honest_chess/ui/board/board_view.dart' show boardMargin;
 import 'package:honest_chess/ui/board/orientation.dart';
 import 'package:honest_chess/ui/board/promotion_sheet.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
+import 'package:honest_chess/ui/game/labels.dart';
+import 'package:honest_chess/ui/game/player_panel.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
-/// The play screen: a two-player game on the playable board.
+/// The top bar's height.
+const double topBarHeight = 52;
+
+/// The design's gaps: top bar to the opponent's panel, and a panel to the
+/// board — the latter shrinking, never below [minBoardGap], on a phone too
+/// short for it.
+const double barGap = 12, boardGap = 48, minBoardGap = 8;
+
+/// The status chip's text: the ending word once the game is over, else
+/// THINKING… while the computer chooses, else who is in check, else who is
+/// to move.
+String statusText(Game game, {required bool thinking}) {
+  final ending = game.status.endingWord;
+  if (ending != null) return ending;
+  if (thinking) return 'THINKING…';
+  final side = game.sideToMove.label.toUpperCase();
+  return switch (game.status) {
+    Ongoing(inCheck: true) => '$side IN CHECK',
+    _ => '$side TO MOVE',
+  };
+}
+
+/// The pause pill's title: "vs Club", or "Two players".
+String gameTitle(GameMode mode) => switch (mode) {
+  VsComputer(:final step) => 'vs ${step.label}',
+  TwoPlayer() => 'Two players',
+};
+
+/// The play screen: the top bar, the two player panels with their clocks
+/// and the playable board between them, over the design's radial gradient.
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key, required this.options, this.fen});
+  const GameScreen({
+    super.key,
+    required this.options,
+    this.fen,
+    this.controller,
+  });
 
   final BoardOptions options;
 
   /// The position the game starts from; the standard start when null.
   final String? fen;
 
+  /// A game to show instead of a new two-player one from [fen]; its owner
+  /// disposes it.
+  final GameController? controller;
+
   @override
   State<GameScreen> createState() => GameScreenState();
 }
 
 class GameScreenState extends State<GameScreen> {
-  late final GameController controller = GameController(
-    options: widget.options,
-    fen: widget.fen,
-  );
+  late final GameController controller =
+      widget.controller ??
+      GameController(options: widget.options, fen: widget.fen);
 
   @override
   void didUpdateWidget(GameScreen oldWidget) {
@@ -35,7 +78,7 @@ class GameScreenState extends State<GameScreen> {
 
   @override
   void dispose() {
-    controller.dispose();
+    if (widget.controller == null) controller.dispose();
     super.dispose();
   }
 
@@ -48,27 +91,207 @@ class GameScreenState extends State<GameScreen> {
       ),
       child: Scaffold(
         backgroundColor: Palette.navy,
-        body: SafeArea(
-          // Overlays are layers over the board rather than routes, so the
-          // screen's own controls above them stay live.
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ListenableBuilder(
-                listenable: controller,
-                builder: (context, _) => BoardInteraction(
-                  controller: controller,
-                  bottom: boardBottomOf(
-                    controller.game,
-                    rotate: controller.options.rotateEachTurn,
-                  ),
+        body: DecoratedBox(
+          decoration: const BoxDecoration(gradient: _screenGradient),
+          child: SafeArea(
+            // Overlays are layers over the board rather than routes, so the
+            // top bar above them stays live.
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Column(
+                  children: [
+                    const SizedBox(height: topBarHeight + barGap),
+                    Expanded(child: _PanelsAndBoard(controller: controller)),
+                  ],
                 ),
-              ),
-              PromotionSheet(controller: controller),
-            ],
+                PromotionSheet(controller: controller),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  height: topBarHeight,
+                  child: _TopBar(controller: controller),
+                ),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The design's `radial-gradient(120% 80% at 50% 0%, …)`: an ellipse
+/// centred on the top edge, 1.2 widths across and 0.8 heights down.
+const _screenGradient = RadialGradient(
+  center: Alignment.topCenter,
+  radius: 1.2,
+  colors: [Palette.navyLight, Palette.navy, Palette.navyDeep],
+  stops: [0, 0.52, 1],
+  transform: _Ellipse(),
+);
+
+/// Stretches a [RadialGradient] sized on the width (radius 1.2 of the
+/// shortest side, the width on a phone) into the design's ellipse, whose
+/// vertical radius is 0.8 of the height.
+class _Ellipse extends GradientTransform {
+  const _Ellipse();
+
+  @override
+  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) {
+    final horizontal = 1.2 * bounds.shortestSide;
+    final vertical = 0.8 * bounds.height;
+    final top = bounds.topCenter;
+    return Matrix4.identity()
+      ..translateByDouble(top.dx, top.dy, 0, 1)
+      ..scaleByDouble(1, vertical / horizontal, 1, 1)
+      ..translateByDouble(-top.dx, -top.dy, 0, 1);
+  }
+}
+
+class _TopBar extends StatelessWidget {
+  const _TopBar({required this.controller});
+
+  final GameController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final game = controller.game;
+        final text = statusText(game, thinking: controller.state.thinking);
+        final (fill, ink) = switch (game.status) {
+          _ when game.isOver => (Palette.statusOverFill, Palette.teal),
+          Ongoing(inCheck: true) when !controller.state.thinking => (
+            Palette.statusCheckFill,
+            Palette.alarm,
+          ),
+          _ => (Palette.statusFill, Palette.choiceLabel),
+        };
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                // Pause arrives with #77's overlay; until then the pill is
+                // shown but does nothing.
+                child: Semantics(
+                  button: true,
+                  enabled: false,
+                  child: Container(
+                    key: const Key('pause-pill'),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Palette.pillFill,
+                      borderRadius: const BorderRadius.all(Radius.circular(10)),
+                      border: Border.all(color: Palette.pillEdge),
+                    ),
+                    child: Text(
+                      '❚❚ ${gameTitle(game.mode)}',
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: Fonts.outfit,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 11.5,
+                        height: 1,
+                        color: Palette.pieceWhite,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                key: const Key('status-chip'),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: fill,
+                  borderRadius: const BorderRadius.all(Radius.circular(9)),
+                ),
+                child: Text(
+                  text,
+                  key: const Key('status-text'),
+                  style: TextStyle(
+                    fontFamily: Fonts.plexMono,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 10,
+                    height: 1,
+                    letterSpacing: 10 * .08,
+                    color: ink,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// The opponent's panel, the board and your panel, top to bottom, each
+/// following the board's orientation.
+class _PanelsAndBoard extends StatelessWidget {
+  const _PanelsAndBoard({required this.controller});
+
+  final GameController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final height = constraints.maxHeight;
+        final spare = height - 2 * panelHeight;
+        final board = math.max(
+          0.0,
+          math.min(width - 2 * boardMargin, spare - 2 * minBoardGap),
+        );
+        final gap = ((spare - board) / 2).clamp(minBoardGap, boardGap);
+        return ListenableBuilder(
+          listenable: controller,
+          builder: (context, _) {
+            final bottom = boardBottomOf(
+              controller.game,
+              rotate: controller.options.rotateEachTurn,
+            );
+            Widget panel(Colour side) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: boardMargin),
+              child: PlayerPanel(controller: controller, side: side),
+            );
+            return Column(
+              children: [
+                panel(bottom.opponent),
+                SizedBox(height: gap),
+                SizedBox(
+                  width: width,
+                  height: board,
+                  // The ticking clocks never repaint the board.
+                  child: RepaintBoundary(
+                    child: BoardInteraction(
+                      controller: controller,
+                      bottom: bottom,
+                    ),
+                  ),
+                ),
+                SizedBox(height: gap),
+                panel(bottom),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

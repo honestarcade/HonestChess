@@ -491,3 +491,18 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** (Rule 1) `GameController._play` now returns `false` when `Game.play` hands back a flag-ended game without the move (a pick after the flag fell), while still adopting that game so the card closes and the result shows.
   **Why:** It returned `true` for a move that was never played; the plan requires the controller to refuse a late pick.
   **Issue:** #73
+- **Decision:** `GameController` gains `remaining(Colour)` → `Duration?`, `clockRunning(Colour)`, `checkFlag()` (adopts `Game.flag()`'s ended game and `_refresh`es, closing a pending promotion), and minimal `pause()`/`resume()` over `Game.pause`/`resume` that feed `GameViewState.paused` and drop a pending promotion. The test-only thinking switch is a private-named constructor parameter `thinking` (`this._thinking`), fixed for the controller's life until #75 sets it for real.
+  **Why:** The test plan's "no flag while paused" complement needs a paused clock, and #77 needs these two actions anyway; #77 wires the overlay onto them rather than adding its own. `prefer_initializing_formals` asks for the private-named form.
+  **Issue:** #74
+- **Decision:** `GameScreen` takes an optional `controller` (its owner disposes it) instead of mode/time-control parameters; the home stays two-player untimed until M4's New game screen. Layout: `Stack` of a `SafeArea` column (52 dp spacer for the bar, 12 dp gap, opponent panel, board in a `RepaintBoundary`, your panel; panel–board gaps 48 dp shrinking to 8 dp on a short screen, board capped at width − 16), the promotion sheet, then the top bar `Positioned` above it. The tool row is left to #76.
+  **Why:** Tests need a controller with a fake time source and the thinking switch; M4 builds games from its own setup screen. The top bar above the sheet keeps the pause pill live over the scrim (#73's note).
+  **Issue:** #74
+- **Decision:** #73's two scrim-tap tests now tap `Offset(20, topBarHeight + 20)` instead of `(20, 20)`, which is now the pause pill above the scrim.
+  **Why:** The planned top bar legitimately covers that point; the tests still tap the scrim.
+  **Issue:** #74
+- **Decision:** Status colours follow the chosen word: red fill/ink only when the chip reads IN CHECK (the design paints the check colour even behind THINKING…); teal once over; otherwise the neutral fill with `choiceLabel` ink. New Palette tokens: `pillFill`, `pillEdge`, `statusFill`, `statusOverFill`, `statusCheckFill`, `alarm` (FF8C7E, check text and a low clock), `panelLit`, `panelLitEdge`, `panelDim`, `kingChipLight`, `kingChipDark`. The screen background is the design's elliptical radial gradient via a `GradientTransform`.
+  **Why:** A red THINKING… chip would read as an alarm about the computer; one colour name per token.
+  **Issue:** #74
+- **Decision:** Clock's spoken label: updates at once on a lit/dim change, a red change, or whenever the clock is not running (a move, a pause, a flag); while it runs, at most every 10 s of ticker time — a selection tap does not re-announce it. Text "0:00.0" at zero; "∞"/"no clock" untimed; semantics "5 minutes" (no "0 seconds"), "1 minute 1 second". The pause pill text keeps the design's literal "❚❚", which Outfit lacks and Android draws from its system symbol font.
+  **Why:** The plan's throttle line; a stopped clock's value no longer changes, so speaking it at once costs nothing.
+  **Issue:** #74

@@ -72,12 +72,16 @@ class GameController extends ChangeNotifier {
   /// A new game in [mode] under [timeControl], from the start position or
   /// from [fen]. [now] is the clock's time source (default a monotonic
   /// stopwatch); tests pass a fake.
+  ///
+  /// [thinking] is for tests only, until #75's computer player sets it: it
+  /// shows the computer as choosing a move.
   GameController({
     String? fen,
     GameMode mode = const TwoPlayer(),
     TimeControl timeControl = const Untimed(),
     BoardOptions options = const BoardOptions(),
     TimeSource? now,
+    this._thinking = false,
   }) : _options = options,
        _game = Game.start(
          mode,
@@ -91,6 +95,8 @@ class GameController extends ChangeNotifier {
 
   Game _game;
   BoardOptions _options;
+  final bool _thinking;
+  bool _paused = false;
   Square? _selection;
   PendingPromotion? _pendingPromotion;
   late List<Move> _legal;
@@ -226,6 +232,54 @@ class GameController extends ChangeNotifier {
     return true;
   }
 
+  /// [side]'s time left now; null in an untimed game.
+  Duration? remaining(Colour side) {
+    final ms = _game.remaining(side);
+    return ms == null ? null : Duration(milliseconds: ms);
+  }
+
+  /// Whether [side]'s clock is counting down: a timed game under way (from
+  /// White's first move), not paused, not over, and [side] to move.
+  bool clockRunning(Colour side) {
+    final clock = _game.clock;
+    return clock.control is Timed &&
+        clock.phase == ClockPhase.running &&
+        clock.runningSide == side;
+  }
+
+  /// Ends the game on time if the running clock has reached zero; the
+  /// panels' ticker calls it every frame. Returns whether the game ended.
+  bool checkFlag() {
+    if (_game.isOver) return false;
+    final next = _game.flag();
+    if (identical(next, _game)) return false;
+    _game = next;
+    _refresh();
+    notifyListeners();
+    return true;
+  }
+
+  /// Holds both clocks and locks the board; a pending promotion is dropped.
+  /// Refused once the game is over or while already paused.
+  bool pause() {
+    if (_paused || _game.isOver) return false;
+    _paused = true;
+    _game = _game.pause();
+    _refresh();
+    notifyListeners();
+    return true;
+  }
+
+  /// Restarts the clock that was running when [pause] held it.
+  bool resume() {
+    if (!_paused) return false;
+    _paused = false;
+    _game = _game.resume();
+    _refresh();
+    notifyListeners();
+    return true;
+  }
+
   /// Plays [move]. When a flag fell before it, the game the engine hands
   /// back is the flag-ended one without the move: it is taken, and the move
   /// counts as refused.
@@ -286,8 +340,8 @@ class GameController extends ChangeNotifier {
       marks: List.unmodifiable(marks),
       lastMove: lastMove,
       pendingPromotion: _pendingPromotion,
-      thinking: false,
-      paused: false,
+      thinking: _thinking,
+      paused: _paused,
       over: _game.isOver,
     );
   }

@@ -45,6 +45,25 @@ abstract final class Palette {
   static const choiceFill = Color(0x0FFFFFFF); // rgba(255,255,255,.06)
   static const choiceEdge = Color(0x29FFFFFF); // rgba(255,255,255,.16)
   static const choiceLabel = Color(0xFF9FC3EE);
+
+  /// The play screen's top bar: the pause pill's fill and edge, and the
+  /// status chip's fill as the game goes on, has ended, or is in check.
+  static const pillFill = choiceFill;
+  static const pillEdge = Color(0x24FFFFFF); // rgba(255,255,255,.14)
+  static const statusFill = Color(0x12FFFFFF); // rgba(255,255,255,.07)
+  static const statusOverFill = Color(0x2900D6B4); // rgba(0,214,180,.16)
+  static const statusCheckFill = Color(0x33E05A4E); // rgba(224,90,78,.2)
+
+  /// Red text: a side in check on the status chip, a clock under 30 s.
+  static const alarm = Color(0xFFFF8C7E);
+
+  /// A player panel: lit for the side to move (fill and 1 px inset edge),
+  /// dim otherwise; the king chip's two faces.
+  static const panelLit = Color(0x2400D6B4); // rgba(0,214,180,.14)
+  static const panelLitEdge = Color(0x6600D6B4); // rgba(0,214,180,.4)
+  static const panelDim = Color(0x0DFFFFFF); // rgba(255,255,255,.05)
+  static const kingChipLight = Color(0xFFF1EFE7);
+  static const kingChipDark = pieceBlack;
 }
 
 /// The app's font families, as pubspec.yaml declares them.

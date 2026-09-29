@@ -46,6 +46,10 @@ Future<void> tapMove(WidgetTester tester, String from, String to) async {
 
 Finder get card => find.byKey(const Key('promo-card'));
 
+/// A point on the scrim clear of the card and of the top bar, whose pause
+/// pill and status chip stay above the scrim.
+const scrimSpot = Offset(20, topBarHeight + 20);
+
 PieceKind? kindOn(GameController c, String square) =>
     c.state.position.pieceAt(Square.parse(square))?.kind;
 
@@ -180,7 +184,7 @@ void main() {
     testWidgets('a tap on the scrim cancels', (tester) async {
       final c = await pumpScreen(tester);
       await tapMove(tester, 'e7', 'e8');
-      await tester.tapAt(const Offset(20, 20));
+      await tester.tapAt(scrimSpot);
       await expectUntouched(tester, c);
     });
 
@@ -212,7 +216,7 @@ void main() {
       await dragTo(tester, 'e7', centre(tester, 'e8'));
       await tester.pump(promotionEnterDuration);
       expect(card, findsOneWidget);
-      await tester.tapAt(const Offset(20, 20));
+      await tester.tapAt(scrimSpot);
       await expectUntouched(tester, c);
       expect(find.byKey(const Key('piece-e7')), findsOneWidget);
     });
