@@ -389,7 +389,11 @@ MUTATIONS: list[Mutation] = [
              ".github/workflows/weekly.yml",
              sub(r"^on:\n  # schedule:\n  #   - cron: \"0 3 \* \* 0\"[^\n]*\n", 'on:\n  schedule:\n    - cron: "0 3 * * 0"\n', flags=re.M),
              "the weekly job would fail every Sunday",
-             'weekly-schedule: weekly.yml is scheduled but no test is tagged weekly'),
+             'weekly-schedule: weekly.yml is scheduled but no test is tagged weekly',
+             # Every weekly-tagged test loses its tag too, so the defect is
+             # still "scheduled with no weekly test" (#61 added the first).
+             also=(("test/engine/perft_weekly_test.dart",
+                    sub(r"^@Tags\(\['weekly'\]\)\n", "", flags=re.M)),)),
     Mutation("ci", "CI's guard step would run weekly-tagged guards (#48)",
              ".github/workflows/ci.yml",
              sub(r"--tags guard --exclude-tags weekly", "--tags guard"),
@@ -622,6 +626,30 @@ MUTATIONS: list[Mutation] = [
              'engine-purity: 1 offender',
              adds=(("lib/engine/internal/io_probe.dart",
                     "import 'dart:io';\n\nFile? probe;\n"),)),
+
+    # movegen -- test/engine/movegen_test.dart, test/guards/perft_test.dart (#61)
+    Mutation("movegen", "castling through an attacked square is allowed",
+             "lib/engine/src/board.dart",
+             sub(r"!isAttacked\(crossed, by\) &&\s*", ""),
+             "the king could castle across a square the opponent attacks",
+             'movegen: castling through an attacked square'),
+    Mutation("movegen", "en passant is allowed a move late",
+             "lib/engine/src/board.dart",
+             sub(r"\? \(from \+ to\) >> 1 : -1;", "? (from + to) >> 1 : enPassant;"),
+             "a double push could be taken en passant after an intervening move",
+             'movegen: en passant was offered a move late'),
+    Mutation("movegen", "a pawn may promote to a king",
+             "lib/engine/src/board.dart",
+             sub(r"const _promotionKinds = \[queen, rook, bishop, knight\];",
+                 "const _promotionKinds = [queen, rook, bishop, knight, king];"),
+             "a pawn reaching the last rank could become a second king",
+             'movegen: a pawn promoted to a king'),
+    Mutation("movegen", "castling through an attacked square, seen by perft",
+             "lib/engine/src/board.dart",
+             sub(r"!isAttacked\(crossed, by\) &&\s*", ""),
+             "the perft guard alone must also notice an illegal castle",
+             'perft: kiwipete at depth',
+             slow=True),
 ]
 
 

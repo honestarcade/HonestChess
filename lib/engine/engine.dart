@@ -4,6 +4,9 @@ library;
 
 export 'attacks.dart';
 export 'fen.dart';
+export 'move.dart';
+export 'movegen.dart';
+export 'perft.dart';
 export 'piece.dart';
 export 'position.dart';
 export 'square.dart';

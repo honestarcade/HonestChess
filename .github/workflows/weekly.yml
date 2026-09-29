@@ -2,9 +2,8 @@
 # `weekly` tag, which tools/gate.sh excludes. tools/weekly_tests.sh runs them
 # and fails if none ran, so this job can never go green by testing nothing.
 #
-# Dispatch-only until M2 adds the first weekly test (the computer's strength
-# ladder, epic #4); that change enables the schedule below. Until then a
-# dispatched run is expected to fail with "no weekly test ran".
+# Dispatch-only until the computer's strength ladder (#69, epic #4) joins
+# the deeper perft counts here; that change enables the schedule below.
 name: Weekly tests
 
 on:
