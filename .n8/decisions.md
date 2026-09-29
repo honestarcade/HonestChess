@@ -309,3 +309,5 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - #71 keeps `lib/main.dart`'s `_navy` literal for the launcher-colours guard. #102 gets an accessible-navigation test seam. #104 declares its `a11y` tag.
 - Device tests: local SDK paths or a `device.yml` dispatch on the milestone branch; a device test that cannot run is reported, not blocking.
 - The CI mutations job may have its timeout raised from 30 to 45 min if a milestone PR's run passes 25 min. The job's own comment asks for this. It is the one CI edit M2–M5 may make, an exception to the owner's infra-before-features rule, and the owner may veto it.
+
+## /n8-exec M2 — 2026-09-28
