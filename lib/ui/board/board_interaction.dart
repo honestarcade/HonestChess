@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 
+import 'package:honest_chess/a11y/announcer.dart';
 import 'package:honest_chess/engine/engine.dart';
+import 'package:honest_chess/ui/board/board_semantics.dart';
 import 'package:honest_chess/ui/board/board_view.dart';
 import 'package:honest_chess/ui/board/move_animation.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
@@ -79,13 +81,20 @@ class CornerMarkPainter extends CustomPainter {
 /// the piece back to its square and moves nothing.
 ///
 /// Each move slides by [slides] (#98); without one the board runs its own.
+///
+/// For a screen reader (#102) the board is one labelled node holding a node
+/// per square, whose double-tap is the tap above and speaks what it did
+/// through [announcer] (by default nobody).
 class BoardInteraction extends StatefulWidget {
   const BoardInteraction({
     super.key,
     required this.controller,
     required this.bottom,
     this.slides,
+    this.announcer = const NoAnnouncer(),
   });
+
+  final Announcer announcer;
 
   final GameController controller;
 
@@ -178,29 +187,35 @@ class _BoardInteractionState extends State<BoardInteraction>
           onPointerCancel: (event) {
             if (event.pointer == _dragPointer) _pointerCancelled = true;
           },
-          child: BoardView(
-            position: state.position,
-            bottom: widget.bottom,
-            options: _controller.options,
-            decorate: (square, side, scale) =>
-                _highlights(state, square, side, scale),
-            decorateAbove: (square, side, scale) =>
-                _overPiece(state, square, side, scale),
-            wrapPiece: (square, piece, child, side) => _draggable(
-              square,
-              piece,
-              hidden.contains(square)
-                  ? Opacity(opacity: 0, child: child)
-                  : child,
-              side,
-            ),
-            wrapSquare: _target,
-            above: (cell, side, scale) => MoveSlideLayer(
-              animation: slides,
-              style: _controller.options.pieceStyle,
-              cell: cell,
-              side: side,
-              scale: scale,
+          child: Semantics(
+            container: true,
+            explicitChildNodes: true,
+            label: boardLabel(_controller.game.mode, widget.bottom),
+            child: BoardView(
+              position: state.position,
+              bottom: widget.bottom,
+              options: _controller.options,
+              decorate: (square, side, scale) =>
+                  _highlights(state, square, side, scale),
+              decorateAbove: (square, side, scale) =>
+                  _overPiece(state, square, side, scale),
+              wrapPiece: (square, piece, child, side) => _draggable(
+                square,
+                piece,
+                hidden.contains(square)
+                    ? Opacity(opacity: 0, child: child)
+                    : child,
+                side,
+              ),
+              wrapSquare: _target,
+              above: (cell, side, scale) => MoveSlideLayer(
+                animation: slides,
+                style: _controller.options.pieceStyle,
+                cell: cell,
+                side: side,
+                scale: scale,
+              ),
+              describe: describeSquares(_controller, widget.announcer),
             ),
           ),
         );

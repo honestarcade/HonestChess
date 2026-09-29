@@ -274,10 +274,9 @@ class ResultOverlayState extends State<ResultOverlay>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Inserted afresh each time the card appears, so a screen
-              // reader hears the result on every showing.
+              // Not a live region: the feedback hub speaks the result once,
+              // as the game ends (#102), and a re-showing is silent.
               Semantics(
-                liveRegion: true,
                 container: true,
                 header: true,
                 label: '${text.tag}, ${text.title}',

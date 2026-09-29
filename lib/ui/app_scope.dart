@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/widgets.dart';
 
+import '../a11y/announcer.dart';
 import '../data/app_store.dart';
 import '../data/game_saves.dart';
 import '../data/settings_store.dart';
@@ -18,7 +19,7 @@ import 'navigation.dart';
 /// controller and the saved games (#81), the statistics (#82) and the
 /// settings (#83), the navigating flag and the random source for
 /// Random's colour (#85), the sounds and the music loop's gate (#96), the
-/// haptic port (#97). Later stories add their own fields. The root creates
+/// haptic port (#97), the screen reader's announcer (#102). Later stories add their own fields. The root creates
 /// each object once, and live changes reach widgets through those objects'
 /// own listenables.
 class AppScope extends InheritedWidget {
@@ -35,6 +36,7 @@ class AppScope extends InheritedWidget {
     required this.sound,
     required this.music,
     required this.haptics,
+    required this.announcer,
     required super.child,
   });
 
@@ -73,6 +75,10 @@ class AppScope extends InheritedWidget {
   /// Settings ticks its sample (#97).
   final HapticsPort haptics;
 
+  /// The one door to TalkBack: the feedback hub and the board speak
+  /// through it (#102).
+  final Announcer announcer;
+
   /// The nearest scope. It does not register a dependency, so it works in
   /// `initState` and callbacks; there is no `maybeOf`, because a widget
   /// outside the scope is a wiring mistake.
@@ -99,5 +105,6 @@ class AppScope extends InheritedWidget {
       !identical(random, oldWidget.random) ||
       !identical(sound, oldWidget.sound) ||
       !identical(music, oldWidget.music) ||
-      !identical(haptics, oldWidget.haptics);
+      !identical(haptics, oldWidget.haptics) ||
+      !identical(announcer, oldWidget.announcer);
 }

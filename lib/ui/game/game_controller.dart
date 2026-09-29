@@ -650,7 +650,7 @@ class GameController extends ChangeNotifier {
       ),
       final other => other,
     };
-    return _replace(mode, _game.clock.control, fen: _fen);
+    return _replace(mode, _game.clock.control, fen: _fen, restart: true);
   }
 
   /// Starts a new game from [setup] at the standard start position; against
@@ -673,14 +673,19 @@ class GameController extends ChangeNotifier {
     );
   }
 
-  Future<bool> _replace(GameMode mode, TimeControl timeControl, {String? fen}) {
+  Future<bool> _replace(
+    GameMode mode,
+    TimeControl timeControl, {
+    String? fen,
+    bool restart = false,
+  }) {
     final outgoing = _freeze();
     final outgoingRecorded = outgoing == null ? null : _recordedState;
     final stages = List.of(_replaceStages);
     // With no stages the new game goes in within the call, so a controller
     // nothing listens to stays synchronous.
     if (stages.isEmpty) {
-      _start(outgoing, mode, timeControl, fen);
+      _start(outgoing, mode, timeControl, fen, restart: restart);
       return Future.value(true);
     }
     return () async {
@@ -692,7 +697,7 @@ class GameController extends ChangeNotifier {
         }
       }
       if (_disposed) return false;
-      _start(outgoing, mode, timeControl, fen);
+      _start(outgoing, mode, timeControl, fen, restart: restart);
       return true;
     }();
   }
@@ -719,8 +724,9 @@ class GameController extends ChangeNotifier {
     Game? outgoing,
     GameMode mode,
     TimeControl timeControl,
-    String? fen,
-  ) {
+    String? fen, {
+    required bool restart,
+  }) {
     if (outgoing != null && !outgoing.isOver) {
       _emit(GameAbandoned(outgoing, _recorded));
     }
@@ -740,7 +746,7 @@ class GameController extends ChangeNotifier {
     _turns = _turnsFor(mode);
     _refresh();
     notifyListeners();
-    _emit(GameStarted(_game, _recorded));
+    _emit(GameStarted(_game, _recorded, restart: restart));
   }
 
   /// Puts a saved, unfinished [game] on the board, paused, with the

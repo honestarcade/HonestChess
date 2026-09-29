@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:honest_chess/a11y/announcer.dart';
 import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/feedback/clips.dart';
 import 'package:honest_chess/feedback/game_feedback.dart';
+import 'package:honest_chess/data/game_event.dart';
 import 'package:honest_chess/feedback/music_controller.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
@@ -29,6 +31,7 @@ class _Rig {
       foreground: foreground,
       player: sound,
       haptics: haptics,
+      announcer: announcer,
     );
   }
 
@@ -37,6 +40,7 @@ class _Rig {
   final foreground = ValueNotifier<bool>(true);
   final sound = FakeSoundPlayer();
   final haptics = FakeHaptics();
+  final announcer = RecordingAnnouncer();
   late final GameFeedback feedback;
 
   void move(String uci) => expect(
@@ -225,6 +229,88 @@ void main() {
         Clip.capture,
         Clip.capture,
       ], reason: "feedback: the computer's move plays by the same rule");
+    });
+  });
+
+  group('announcements', () {
+    test('every change of game is spoken, in order', () async {
+      final rig = _Rig();
+      addTearDown(rig.dispose);
+      rig.move('g1f3');
+      rig.move('e7e5');
+      expect(rig.controller.takeBack(), isTrue);
+      expect(rig.controller.pause(), isTrue);
+      expect(rig.controller.resume(), isTrue);
+      expect(await rig.controller.restart(), isTrue);
+      rig.move('e2e4');
+      expect(
+        await rig.controller.newGame((
+          mode: GameKind.vsComputer,
+          strength: Strength.club,
+          colour: Colour.black,
+          timeControl: const Untimed(),
+        )),
+        isTrue,
+      );
+      expect(rig.announcer.spoken, [
+        'White knight to f3',
+        'Black pawn to e5',
+        'Took back Black pawn to e5',
+        'Paused',
+        'Resumed',
+        'Game restarted, two players',
+        'White pawn to e4',
+        // The unfinished game it replaced is abandoned in silence.
+        'New game, you play Black',
+      ]);
+    });
+
+    test('a restored game says whose move it is', () {
+      final rig = _Rig();
+      addTearDown(rig.dispose);
+      final game = Game.start(
+        const TwoPlayer(),
+        const Untimed(),
+      ).play(Move.fromUci(Position.initial(), 'e2e4'));
+      expect(rig.controller.restore(game), isTrue);
+      expect(rig.announcer.spoken, ['Game restored, Black to move']);
+    });
+
+    test('an end with no move is spoken once, as the card words it', () {
+      final rig = _Rig();
+      addTearDown(rig.dispose);
+      rig.move('e2e4');
+      rig.announcer.spoken.clear();
+      expect(rig.controller.resign(), isTrue);
+      expect(rig.announcer.spoken, ['White wins. Black resigned.']);
+    });
+
+    test('a refusal is spoken with the piece that could not go', () {
+      final rig = _Rig();
+      addTearDown(rig.dispose);
+      expect(rig.controller.tapSquare(Square.parse('b1')), isTrue);
+      rig.controller.tapSquare(Square.parse('b4'));
+      expect(rig.announcer.spoken, ["Knight can't move there, put down"]);
+    });
+
+    test('no setting and no lifecycle silences them', () {
+      final rig = _Rig(options: const BoardOptions(sfx: false, haptics: false));
+      addTearDown(rig.dispose);
+      rig.foreground.value = false;
+      rig.move('e2e4');
+      rig.controller.tapSquare(Square.parse('b8'));
+      rig.controller.tapSquare(Square.parse('b4'));
+      expect(rig.sound.played, isEmpty);
+      expect(rig.haptics.ticks, 0);
+      expect(rig.announcer.spoken, [
+        'White pawn to e4',
+        "Knight can't move there, put down",
+      ]);
+    });
+
+    test('an abandoned game has no words of its own', () {
+      final game = Game.start(const TwoPlayer(), const Untimed());
+      expect(announcementFor(GameAbandoned(game, const {})), isNull);
     });
   });
 

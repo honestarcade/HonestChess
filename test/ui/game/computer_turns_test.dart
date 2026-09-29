@@ -14,6 +14,7 @@ import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/game_screen.dart';
 
 import '../board/board_interaction_test.dart' show tap;
+import '../../support/app_harness.dart';
 import 'fake_computer.dart';
 import 'player_panel_test.dart' show pumpGame, play, text, Harness;
 
@@ -260,13 +261,12 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       final fakes = FakeComputers();
-      await tester.pumpWidget(
-        MaterialApp(
-          home: GameScreen(
-            options: const BoardOptions(),
-            setup: vsComputerDefault,
-            computerFactory: fakes.call,
-          ),
+      await pumpUnderScope(
+        tester,
+        GameScreen(
+          options: const BoardOptions(),
+          setup: vsComputerDefault,
+          computerFactory: fakes.call,
         ),
       );
       await tap(tester, 'e2');

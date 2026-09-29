@@ -40,6 +40,9 @@ const double barGap = 12, boardGap = 48, minBoardGap = 8;
 /// asks again when tapped.
 const String computerFailedText = 'The computer could not move — tap to retry';
 
+/// What a screen reader says for the pause pill (#102).
+const String pausePillLabel = 'Pause game';
+
 /// The status chip's text: the ending word once the game is over, else
 /// [computerFailedText] when the computer could not move, else THINKING…
 /// while it chooses, else who is in check, else who is to move.
@@ -442,7 +445,8 @@ class _TopBar extends StatelessWidget {
                     child: Semantics(
                       button: true,
                       enabled: !game.isOver,
-                      label: 'Pause',
+                      label: pausePillLabel,
+                      excludeSemantics: true,
                       child: GestureDetector(
                         onTap: game.isOver ? null : onPause,
                         child: Container(
@@ -564,6 +568,7 @@ class _PanelsAndBoard extends StatelessWidget {
                   controller: controller,
                   bottom: bottom,
                   slides: slides,
+                  announcer: AppScope.of(context).announcer,
                 ),
               ),
             ),

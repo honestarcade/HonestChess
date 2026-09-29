@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:honest_chess/data/app_store.dart';
@@ -198,28 +197,6 @@ void _expectEmpty(WidgetTester tester, PlayMode tab) {
   }
 }
 
-List<String> _captureAnnouncements(WidgetTester tester) {
-  final said = <String>[];
-  tester.binding.defaultBinaryMessenger.setMockDecodedMessageHandler<Object?>(
-    SystemChannels.accessibility,
-    (message) async {
-      final map = message! as Map<Object?, Object?>;
-      if (map['type'] == 'announce') {
-        said.add((map['data']! as Map<Object?, Object?>)['message']! as String);
-      }
-      return null;
-    },
-  );
-  addTearDown(
-    () => tester.binding.defaultBinaryMessenger
-        .setMockDecodedMessageHandler<Object?>(
-          SystemChannels.accessibility,
-          null,
-        ),
-  );
-  return said;
-}
-
 void main() {
   group('opening tab', () {
     testWidgets('openOn wins over the mode played last', (tester) async {
@@ -337,8 +314,8 @@ void main() {
     testWidgets('opens the confirmation, reworded for Android backup', (
       tester,
     ) async {
-      final said = _captureAnnouncements(tester);
-      await _pump(tester);
+      final rig = await _pump(tester);
+      final said = rig.harness.announcer.spoken;
       expect(_key('stats-reset-card'), findsNothing);
       await _open(tester);
       expect(_text(tester, 'stats-reset-title'), 'Reset statistics?');
@@ -418,8 +395,8 @@ void main() {
     });
 
     testWidgets('Reset clears both tabs at once and persists', (tester) async {
-      final said = _captureAnnouncements(tester);
       final rig = await _pump(tester, size: const Size(390, 600));
+      final said = rig.harness.announcer.spoken;
       await _open(tester);
       final scrolled = _offset(tester);
       await tester.tap(_key('stats-reset-confirm'));

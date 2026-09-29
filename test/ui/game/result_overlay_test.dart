@@ -412,21 +412,20 @@ void main() {
       }
     });
 
-    testWidgets('announced as a live region; stats read "Moves, 2"', (
-      tester,
-    ) async {
+    testWidgets('a header, not a live region (the hub speaks the result, '
+        '#102); stats read "Moves, 2"', (tester) async {
       final semantics = tester.ensureSemantics();
       final h = await pumpGame(tester);
       await playAll(tester, h, _foolsMate);
       await cardIn(tester);
-      final live = find.bySemanticsLabel(
+      final heading = find.bySemanticsLabel(
         'BLACK WINS, Black delivers checkmate',
       );
-      expect(live, findsOneWidget);
+      expect(heading, findsOneWidget);
       expect(
-        tester.getSemantics(live),
-        isSemantics(isLiveRegion: true, isHeader: true),
-        reason: 'result-card: the result is not announced',
+        tester.getSemantics(heading),
+        isSemantics(isLiveRegion: false, isHeader: true),
+        reason: 'result-card: the card would read the result a second time',
       );
       expect(find.bySemanticsLabel('Moves, 2'), findsOneWidget);
       expect(find.bySemanticsLabel('Time left, no clock'), findsOneWidget);

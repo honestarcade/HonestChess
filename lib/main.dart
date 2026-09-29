@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:honest_chess/a11y/announcer.dart';
 import 'package:honest_chess/data/app_loader.dart';
 import 'package:honest_chess/data/app_store.dart';
 import 'package:honest_chess/data/game_saves.dart';
@@ -75,7 +76,9 @@ class HonestChessApp extends StatefulWidget {
     this.platform,
     this.sound,
     this.haptics,
+    this.announcer,
     this.skipSplash = false,
+    this.forceAccessibleNavigation = false,
   });
 
   /// The device store; null builds the production one over [platform].
@@ -89,6 +92,15 @@ class HonestChessApp extends StatefulWidget {
 
   /// The haptic port; null ticks through Flutter's own haptic call.
   final HapticsPort? haptics;
+
+  /// The screen reader's announcer; null speaks through the platform while
+  /// TalkBack is on.
+  final Announcer? announcer;
+
+  /// For the device test only: the app behaves as under a screen reader
+  /// (`accessibleNavigation` on), which an emulator's TalkBack cannot be
+  /// relied on to give.
+  final bool forceAccessibleNavigation;
 
   /// Builds the computer for each game against it; tests pass a fake.
   final ComputerFactory computerFactory;
@@ -127,6 +139,11 @@ class HonestChessAppState extends State<HonestChessApp> {
   late final AppLoader _loader;
   late final SoundPlayer sound;
   late final HapticsPort haptics;
+  late final Announcer announcer;
+
+  /// Marks the context the platform announcer speaks from: under the forced
+  /// `accessibleNavigation`, when there is one.
+  final _speaker = GlobalKey();
 
   /// False from the moment the app starts leaving the foreground
   /// (inactive, hidden, paused or detached) until it is back.
@@ -170,6 +187,8 @@ class HonestChessAppState extends State<HonestChessApp> {
     // fails to load stays silent, and nothing waits on it.
     unawaited(sound.load(clips));
     haptics = widget.haptics ?? FlutterHaptics();
+    announcer =
+        widget.announcer ?? FlutterAnnouncer(() => _speaker.currentContext);
     _feedback = GameFeedback(
       events: controller.events,
       refusals: controller.refusals,
@@ -177,6 +196,7 @@ class HonestChessAppState extends State<HonestChessApp> {
       foreground: foreground,
       player: sound,
       haptics: haptics,
+      announcer: announcer,
     );
     music = MusicController(
       controller: controller,
@@ -233,7 +253,7 @@ class HonestChessAppState extends State<HonestChessApp> {
   Widget build(BuildContext context) {
     // Without the splash, a plain navy frame while the launch load runs.
     if (widget.skipSplash && !_launched) return const ColoredBox(color: _navy);
-    return AppScope(
+    final app = AppScope(
       store: store,
       platform: platform,
       controller: controller,
@@ -245,6 +265,7 @@ class HonestChessAppState extends State<HonestChessApp> {
       sound: sound,
       music: music,
       haptics: haptics,
+      announcer: announcer,
       child: MaterialApp(
         title: 'Honest Chess',
         navigatorObservers: [navigation, boardRoutes],
@@ -255,6 +276,12 @@ class HonestChessAppState extends State<HonestChessApp> {
             ? const MenuScreen()
             : SplashScreen(loader: _loader),
       ),
+    );
+    final speaking = KeyedSubtree(key: _speaker, child: app);
+    if (!widget.forceAccessibleNavigation) return speaking;
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(accessibleNavigation: true),
+      child: speaking,
     );
   }
 }

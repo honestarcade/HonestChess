@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 
 import '../../data/play_mode.dart';
 import '../app_scope.dart';
@@ -95,13 +94,8 @@ class _StatsScreenState extends State<StatsScreen>
     if (_scroll.hasClients) _scroll.jumpTo(0);
   }
 
-  void _announce(String message) {
-    SemanticsService.sendAnnouncement(
-      View.of(context),
-      message,
-      Directionality.of(context),
-    ).ignore();
-  }
+  void _announce(String message) =>
+      AppScope.of(context).announcer.announce(message);
 
   void _ask() {
     if (_open) return;

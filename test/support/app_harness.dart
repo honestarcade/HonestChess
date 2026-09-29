@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:honest_chess/a11y/announcer.dart';
 import 'package:honest_chess/data/app_store.dart';
 import 'package:honest_chess/data/game_saves.dart';
 import 'package:honest_chess/data/recorded_state.dart';
@@ -42,6 +43,7 @@ class AppHarness {
     this.boardRoutes,
     this.foreground,
     this.haptics,
+    this.announcer,
   );
 
   final AppStore store;
@@ -60,6 +62,9 @@ class AppHarness {
   /// a test sets it.
   final ValueNotifier<bool> foreground;
   final FakeHaptics haptics;
+
+  /// What the screen reader would have heard.
+  final RecordingAnnouncer announcer;
 }
 
 /// Pumps [child] as the home of a `MaterialApp` with the app's theme, under
@@ -70,7 +75,8 @@ class AppHarness {
 /// default a recorder over the store, with no listener wiring it to the
 /// controller, so nothing is recorded) and [settings] (by default on the
 /// defaults, not loaded from the store) and [random] (by default a seeded
-/// source) and [sound] and [haptics] (by default recording fakes), with a
+/// source) and [sound], [haptics] and [announcer] (by default recording
+/// fakes), with a
 /// fresh [NavigationGuard] and a [BoardRouteObserver] registered ahead of
 /// [observers], and a [MusicController] over them, as the root registers its
 /// own. What the harness builds it also disposes; what the test passes, the
@@ -87,6 +93,7 @@ Future<AppHarness> pumpUnderScope(
   Random? random,
   FakeSoundPlayer? sound,
   FakeHaptics? haptics,
+  RecordingAnnouncer? announcer,
   List<NavigatorObserver> observers = const [],
 }) async {
   final theStore = store ?? AppStore.memory();
@@ -137,6 +144,7 @@ Future<AppHarness> pumpUnderScope(
     boardRoutes,
     foreground,
     haptics ?? FakeHaptics(),
+    announcer ?? RecordingAnnouncer(),
   );
   await tester.pumpWidget(
     AppScope(
@@ -151,6 +159,7 @@ Future<AppHarness> pumpUnderScope(
       sound: harness.sound,
       music: harness.music,
       haptics: harness.haptics,
+      announcer: harness.announcer,
       child: MaterialApp(
         theme: appTheme(),
         navigatorObservers: [

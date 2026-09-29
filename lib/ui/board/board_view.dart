@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 
 import 'package:honest_chess/engine/engine.dart';
@@ -69,6 +70,25 @@ typedef BoardLayer = Widget Function(
   double scale,
 );
 
+/// What a screen reader gets for one square in place of [squareLabel]: the
+/// [label] it reads, the [onTap] a double-tap runs and, when there is one,
+/// the [onTapHint] naming what it does ("select", "move here").
+@immutable
+class SquareSemantics {
+  const SquareSemantics({
+    required this.label,
+    required this.onTap,
+    this.onTapHint,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final String? onTapHint;
+}
+
+/// [square]'s semantics, given its [piece].
+typedef SquareDescriber = SquareSemantics Function(Square square, Piece? piece);
+
 /// What a screen reader says for [square]: its name and what stands on it.
 String squareLabel(Square square, Piece? piece) => piece == null
     ? '${square.name}, empty'
@@ -88,6 +108,12 @@ String squareLabel(Square square, Piece? piece) => piece == null
 /// the piece, each filling the square and taking no touches, [wrapPiece] wraps the square's piece
 /// and [wrapSquare] the whole square; [above] is one layer over all of
 /// them, which takes no touches.
+///
+/// Each square is one semantics node, read in the order the squares are
+/// seen — rank by rank from the top, left to right, whichever way the board
+/// faces. [describe] replaces its plain [squareLabel] with a label, a tap
+/// action and its hint, and then everything inside the square is left out
+/// of the semantics tree, so the node is the square's only one.
 class BoardView extends StatelessWidget {
   const BoardView({
     super.key,
@@ -99,6 +125,7 @@ class BoardView extends StatelessWidget {
     this.wrapPiece,
     this.wrapSquare,
     this.above,
+    this.describe,
   });
 
   final Position position;
@@ -109,6 +136,7 @@ class BoardView extends StatelessWidget {
   final PieceWrapper? wrapPiece;
   final SquareWrapper? wrapSquare;
   final BoardLayer? above;
+  final SquareDescriber? describe;
 
   @override
   Widget build(BuildContext context) {
@@ -211,10 +239,15 @@ class BoardView extends StatelessWidget {
             ),
         ],
       );
+      cell = wrapSquare?.call(square, cell) ?? cell;
+      final described = describe?.call(square, piece);
       cell = Semantics(
         container: true,
-        label: squareLabel(square, piece),
-        child: wrapSquare?.call(square, cell) ?? cell,
+        sortKey: OrdinalSortKey((row * 8 + column).toDouble()),
+        label: described?.label ?? squareLabel(square, piece),
+        onTap: described?.onTap,
+        onTapHint: described?.onTapHint,
+        child: described == null ? cell : ExcludeSemantics(child: cell),
       );
       overlays.add(
         Positioned.fromRect(

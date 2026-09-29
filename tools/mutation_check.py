@@ -1007,6 +1007,20 @@ MUTATIONS: list[Mutation] = [
                  "await HapticFeedback.selectionClick();"),
              "the tick would not be the light impact the design asks for",
              'haptics-scan: lib/feedback/haptics.dart no longer ticks with lightImpact'),
+    # ---- #102: announcer ------------------------------------------------------
+    Mutation("announcer", "Statistics speaks past the announcer",
+             "lib/ui/screens/stats_screen.dart",
+             sub(r"  void _announce\(String message\) =>\n"
+                 r"      AppScope\.of\(context\)\.announcer\.announce\(message\);",
+                 "  void _announce(String message) => SemanticsService.sendAnnouncement(\n"
+                 "    View.of(context),\n    message,\n    TextDirection.ltr,\n  ).ignore();"),
+             "the reset would be spoken to everyone, and no test would hear it",
+             'announcer-scan: SemanticsService. in lib/ui/screens/stats_screen.dart'),
+    Mutation("announcer", "the announcer speaks without a screen reader",
+             "lib/a11y/announcer.dart",
+             sub(r"    if \(!MediaQuery\.accessibleNavigationOf\(from\)\) return;\n", ""),
+             "every move would be announced to players with no screen reader",
+             'announcer-scan: lib/a11y/announcer.dart speaks without a screen reader'),
     # ---- #99: contrast -------------------------------------------------------
     Mutation("contrast", "bone's dark square goes back to the design's",
              "lib/ui/board/board_options.dart",
