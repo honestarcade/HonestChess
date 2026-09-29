@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:honest_chess/engine/engine.dart' hide play;
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
+import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/tool_row.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
@@ -293,15 +294,30 @@ void main() {
         reason: 'resign: black was to move',
       );
       expect(text(tester, 'status-text'), 'RESIGNED');
-      expect(enabled(tester, Tool.resign), isFalse, reason: 'resign: once');
-      expect(opacity(tester, Tool.resign), disabledToolOpacity);
+      // From View board, where the result card's scrim no longer covers
+      // the row, so the tap reaches the disabled button itself.
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('result-view-board')));
+      await tester.pumpAndSettle();
+      expect(c.state.resultView, ResultView.board);
+      expect(find.byKey(const Key('result-card')), findsNothing);
       final over = c.game;
+      WidgetController.hitTestWarningShouldBeFatal = true;
+      addTearDown(() => WidgetController.hitTestWarningShouldBeFatal = false);
       await press(tester, Tool.resign);
+      WidgetController.hitTestWarningShouldBeFatal = false;
       expect(
         identical(c.game, over),
         isTrue,
         reason: 'resign: no-op once over',
       );
+      expect(
+        c.state.resultView,
+        ResultView.board,
+        reason: 'resign: the tap leaves View board as it was',
+      );
+      expect(enabled(tester, Tool.resign), isFalse, reason: 'resign: once');
+      expect(opacity(tester, Tool.resign), disabledToolOpacity);
       expect(enabled(tester, Tool.restart), isTrue);
       expect(enabled(tester, Tool.newGame), isTrue);
       expect(enabled(tester, Tool.takeback), isTrue);
