@@ -30,11 +30,22 @@ const _scales = [1.0, 1.3];
 const _insets = FakeViewPadding(top: 24, bottom: 48);
 
 /// The least a square may measure at text scale 1.0 on a screen this
-/// size, by width (owner, #104's approval gate, 2026-09-28): a board as
-/// wide as the screen allows. Held with the whole screen the app's; with
-/// the status and gesture bars the board is shorter than that, and those
-/// sizes are reported instead (see the decisions ledger's #104 entry).
+/// size with no system bars, by width (owner, #104's approval gate,
+/// 2026-09-28): a board as wide as the screen allows.
 final _squareFloor = {const Size(320, 568): 38.0, const Size(360, 640): 43.0};
+
+/// The least a square may measure with the status and gesture bars in
+/// ([_insets]), by screen size and text scale; there the board is limited
+/// by the screen's height. At 1.0 these are the owner's floors for short
+/// phones (#104, 2026-09-29: "1) Accept 39/30"); at 1.3 they are the
+/// smallest squares this suite measured on 2026-09-29, kept so the board
+/// cannot shrink further unnoticed (planner, #104).
+final _squareFloorWithBars = {
+  (const Size(320, 568), 1.0): 30.0,
+  (const Size(360, 640), 1.0): 39.0,
+  (const Size(320, 568), 1.3): 24.0,
+  (const Size(360, 640), 1.3): 36.0,
+};
 
 /// A board square's node, as #102 labels it: "e4, empty".
 final _squareLabel = RegExp(r'^[a-h][1-8], ');
@@ -210,8 +221,6 @@ String _at(Size size, double scale) =>
     '${size.width.toInt()} × ${size.height.toInt()} at $scale';
 
 void main() {
-  /// Square sizes with the system bars in: reported, not held to the floor.
-  final reported = <String>[];
   var boardsChecked = 0, squaresUnder48 = 0;
 
   group('every screen', () {
@@ -242,9 +251,19 @@ void main() {
               squaresUnder48 += seen.exempt
                   .where((e) => e.size.width < 48 || e.size.height < 48)
                   .length;
-              reported.add(
-                '$where: squares ${_square(tester).toStringAsFixed(1)} dp',
-              );
+              final floor = _squareFloorWithBars[(size, scale)];
+              if (floor != null) {
+                final whose = scale == 1.0
+                    ? 'the owner\'s floor for short phones'
+                    : 'the current layout\'s floor at this text scale';
+                expect(
+                  _square(tester),
+                  greaterThanOrEqualTo(floor),
+                  reason:
+                      'guidelines: with the system bars in, a square is at '
+                      'least $floor dp at ${_at(size, scale)} ($whose)',
+                );
+              }
             }
             handle.dispose();
           });
@@ -265,8 +284,9 @@ void main() {
             _square(tester),
             greaterThanOrEqualTo(floor),
             reason:
-                'guidelines: a square is at least $floor dp at '
-                '${size.width.toInt()} wide',
+                'guidelines: with no system bars, a square is at least '
+                '$floor dp at ${size.width.toInt()} wide (the owner\'s floor '
+                'with the whole screen the app\'s)',
           );
         });
       }
@@ -367,10 +387,5 @@ void main() {
       greaterThan(0),
       reason: 'guidelines: the square exemption was never needed',
     );
-    if (reported.isNotEmpty) {
-      debugPrint(
-        'Squares with the system bars in:\n  ${reported.join('\n  ')}',
-      );
-    }
   });
 }
