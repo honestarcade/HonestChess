@@ -1125,3 +1125,4 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** #139's new splash test sends `inactive` alone before the reads are released. The app is only put back to `resumed` in a tear-down, so the whole hand-over runs while inactive. The test checks there is no menu at 849 ms and that the menu is shown at 851 ms. No mutation is added to `tools/mutation_check.py`, because that battery runs only `guard`-tagged tests. With `_away` also counting `inactive`, this test was the only one of the file's 12 that failed (`flutter test --no-pub test/ui/splash_test.dart`, 2026-09-29), and that edit was reverted.
   **Why:** The bug's expected test is launch, `inactive` only, release every read, and the menu at 851 ms. The 849 ms check keeps the test from passing when the menu comes early.
   **Issue:** #139
+## /n8-exec M5 (verification fix pass) — 2026-09-29
