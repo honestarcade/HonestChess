@@ -15,7 +15,6 @@ import 'repo_files.dart';
 /// Paths a fresh clone legitimately lacks, and what creates each one.
 const createdLater = {
   '.n8/memory/play-console.md': 'the Play Console runbook',
-  '.n8/memory/engine-strength.md': 'tools/benchmark_stockfish.sh, whose first run lands on the M3 branch (#69)',
   'android/app/src/release/AndroidManifest.xml':
       'nothing: tools/mutation_check.py writes it for one mutation (#30)',
   'lib/engine/internal/io_probe.dart':
@@ -111,7 +110,7 @@ const fixture = 'tools/thing.sh';
     final existing = {...tracked.where(pathExists)};
     final offenders = <String>[];
     for (final path in tracked) {
-      if (RegExp(r'\.(png|jar|lock|jks|keystore|pem)$').hasMatch(path)) {
+      if (RegExp(r'\.(png|jar|ttf|lock|jks|keystore|pem)$').hasMatch(path)) {
         continue;
       }
       final text = claimText(path, readFile(path));

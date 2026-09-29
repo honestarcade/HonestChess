@@ -25,3 +25,36 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Bundled, never fetched (invariant 1); sources and hashes in
+  # assets/fonts/SOURCE.md. The OFL texts are assets so the licence page can
+  # read them.
+  assets:
+    - assets/fonts/outfit/OFL.txt
+    - assets/fonts/plexmono/OFL.txt
+    - assets/fonts/pieces/OFL.txt
+
+  fonts:
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/outfit/Outfit-Light.ttf
+          weight: 300
+        - asset: assets/fonts/outfit/Outfit-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/outfit/Outfit-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/outfit/Outfit-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/outfit/Outfit-Bold.ttf
+          weight: 700
+    - family: PlexMono
+      fonts:
+        - asset: assets/fonts/plexmono/IBMPlexMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/plexmono/IBMPlexMono-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/plexmono/IBMPlexMono-SemiBold.ttf
+          weight: 600
+    - family: HonestPieces
+      fonts:
+        - asset: assets/fonts/pieces/HonestPieces.ttf

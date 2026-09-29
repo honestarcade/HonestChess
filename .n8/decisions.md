@@ -447,3 +447,131 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** The CI `mutations` job's `timeout-minutes` is raised from 30 to 45 in `.github/workflows/ci.yml`.
   **Why:** The first M2 PR run (PR #126, job 109257466458, 2026-09-29) caught 108 of 109 mutations and was cancelled at 30 minutes, with the last one still running. The readiness pass pre-authorised exactly this edit (decisions entry 2026-09-28), and the job's own comment asks for it. At this rate M4/M5's added mutations may pass 45 minutes. If they do, the battery gets split across jobs, as that comment also offers.
   **Issue:** #69
+
+## /n8-exec M3 — 2026-09-29
+- **Decision:** Outfit's static weights come from Outfitio/Outfit-Fonts @ `902773808eb3` (the pin Honest Solitaire and Honest Sudoku use, copied byte for byte and hash-checked), not google/fonts; IBM Plex Mono and Noto Sans Symbols 2 come from google/fonts @ `23e54b51ddff` (main's head when #71 was filed, per the GitHub API on 2026-09-29). Fonts live one family per folder (`assets/fonts/{outfit,plexmono,pieces}/`, each with `OFL.txt`), with sources, dates and SHA-256s in `assets/fonts/SOURCE.md`; the piece font is `tools/subset_piece_font.sh`'s output (U+2654–265F only).
+  **Why:** google/fonts carries Outfit only as a variable font (`ofl/outfit/Outfit[wght].ttf`, listed via the GitHub API on 2026-09-29), and the plan asked for static TTFs; the studio's existing pin is a known-good source. U+FE0E is not in the upstream Noto font, so the subset cannot carry it; the glyph strings still do.
+  **Issue:** #71
+- **Decision:** `BoardView` takes `Colour bottom` (the engine's type) rather than a new `Side`; orientation lives in `lib/ui/board/orientation.dart` as `boardBottom(GameMode, Colour sideToMove, {rotate})` plus `boardBottomOf(Game, {rotate})`, which keeps the mover at the bottom when the last move ended the game (a checkmate does not turn the board to the loser) and follows the side to move after a takeback.
+  **Why:** The engine already names the sides `Colour`; a second enum would need converting at every call. The game-over rule needs the game's history, so it gets its own helper over the pure function.
+  **Issue:** #71
+- **Decision:** The board's 1 px ring (the design's `0 0 0 1px rgba(255,255,255,.12)`) is drawn as a border inside the clipped frame, and the surface stripes sit in one painter layer between the square colours and the coordinates/pieces (the design's per-cell order: colour, texture, …, labels, piece). `BoardOptions` names the design's Settings keys `legalMoveDots`, `lastMoveHighlight`, `takebackAllowed`, `autoQueen`, `rotateEachTurn`, `animations`, `flagCheck`.
+  **Why:** The AC calls it an inset ring and the frame clips its children; drawing it inside keeps it visible. Surfaces below the pieces match the design's layer order.
+  **Issue:** #71
+- **Decision:** `lib/main.dart`'s placeholder is replaced by `BoardPreviewScreen` (a static start position); `test/widget_test.dart` and `integration_test/app_smoke_test.dart` now assert the board instead of the wordmark. `test/flutter_test_config.dart` (new) loads the three font families for every test.
+  **Why:** The plan puts the static board in `main.dart` until #72; the old tests asserted the placeholder this story removes.
+  **Issue:** #71
+- **Decision:** Rule 3: `test/guards/references_test.dart` and `test/guards/template_leftovers_test.dart` now skip `.ttf` files as they already skipped `.png` and `.jar`.
+  **Why:** Both read every tracked file as UTF-8 text and threw on the first bundled font, failing the gate; a font carries no file reference or template name to check.
+  **Issue:** #71
+- **Decision:** `BoardView` gains three per-square hooks instead of highlight parameters: `decorate` (layers under the coordinates and piece), `wrapPiece` and `wrapSquare`. `lib/ui/board/board_interaction.dart`'s `BoardInteraction(controller:, bottom:)` draws the tint, rings and dots through them and routes taps and drops straight to `GameController.tapSquare` / `pickUp` / `canDrop` / `drop(from, to?)` (null = off the board), rather than exposing `onTapSquare`/`onDrop` callbacks of its own. Every layer in a square is keyed, and each square's overlay is keyed `cell-<name>` and labelled `"e4, white knight"` / `"e4, empty"` (coordinates excluded from semantics).
+  **Why:** The board stays free of game state; one widget owns the gestures. Unkeyed layers let a new tint make Flutter rebuild the dragged piece's `Draggable` mid-drag (the drag lost its origin and spring-back); keys keep it.
+  **Issue:** #72
+- **Decision:** `GameController({String? fen, GameMode mode, TimeControl timeControl, BoardOptions options, TimeSource? now})` — `timeControl`, not the plan's `tc`; `now` is the engine's `TimeSource`. `GameViewState` holds `tints`/`marks` lists (`SquareTint { none, selected, check, lastMove }`, `SquareMark { none, dot, ring }`, precedence selected > check > last move, as the design's `hl`), `lastMove`, `pendingPromotion` (`({Square from, Square to})`), `thinking`/`paused` (always false until #74/#75/#77 set them), `over`. `inputLocked` also covers "not the player's turn" against the computer. Auto-queen is left to #73: every promotion opens `pendingPromotion`, the pawn staying selected.
+  **Why:** A spelled-out name reads better at call sites; the rest follows the plan's lines. #73's plan owns auto-queen and the selected pawn while the card is open.
+  **Issue:** #72
+- **Decision:** A drag carries its square as `int` (`Square.index`); an illegal or off-board drop is a rejected `DragTarget` so `onDraggableCanceled` flies the piece back in an `OverlayEntry` (150 ms easeOut); a drop on the origin is accepted and keeps the selection. A drop is accepted only while the controller still has that square selected, so a position change mid-drag (which clears the selection) returns the piece unplayed.
+  **Why:** `Square` is an extension type over `int`, which does not satisfy `Draggable<T extends Object>`. A rejected target is the one path on which `Draggable` reports the drop offset the spring needs.
+  **Issue:** #72
+- **Decision:** `lib/ui/game/game_screen.dart` (`GameScreen(options:)`, state `GameScreenState.controller`, two-player, board only, oriented by `boardBottomOf`) replaces `BoardPreviewScreen` as `main.dart`'s home. The takeback half of "after takeback the tint is the previous move" is not tested here: the controller has no takeback until #75/#76; the tint reads `history.last.move`, which a takeback restores.
+  **Why:** The plan's Demo must run on a device; takeback is a later story's controller method.
+  **Issue:** #72
+- **Decision:** The promotion card's pieces use a new public `PieceGlyph(piece:, style:, fontSize:, scale:, textKey:)` extracted from `BoardView`'s private piece builder (the board now draws through it, unchanged), so the card shows the board's own ink and outline (`Palette.pieceWhite`/`pieceBlack`) rather than the design mock's slightly different sheet colours (`#F9F7F2`, a lighter shadow). All four choices are drawn at 28 dp in every style, as the design draws them.
+  **Why:** The plan says the sheet reuses #71's piece widget; one widget keeps the pieces identical wherever they appear.
+  **Issue:** #73
+- **Decision:** The design's card and choice colours became `Palette` tokens (`scrim`, `card` 0B3670, `cardEdge`, `cardShadow`, `choiceFill`, `choiceEdge`, `choiceLabel`) for #77's pause card to reuse. The card's title and "PAWN TO E8" line are excluded from semantics because the card's live-region label ("Promote pawn on E8") already says them.
+  **Why:** Palette's rule that a colour has one name; without the exclusion a screen reader reads the heading twice.
+  **Issue:** #73
+- **Decision:** No spring-back on a cancelled drag-promotion: a drop on the promotion square is an accepted drop, the pawn is drawn on its origin square while the card is open, so on cancel there is nothing in flight to fly back — the pawn is simply put down where it stands.
+  **Why:** The plan's "a cancelled drag's pawn springs back" assumed the pawn left its square; #72's controller keeps it there (the plan's own "the pawn stays on its origin square").
+  **Issue:** #73
+- **Decision:** `GameScreen` gains an optional `fen` (the Demo's test position) and its body becomes a `Stack` with the sheet as a full-body layer; #74 adds the top bar above it. Android back is a `PopScope` (`canPop` false only while a promotion is pending) inside the sheet layer.
+  **Why:** The plan's layer-not-route line; the top bar does not exist yet.
+  **Issue:** #73
+- **Decision:** (Rule 1) `GameController._play` now returns `false` when `Game.play` hands back a flag-ended game without the move (a pick after the flag fell), while still adopting that game so the card closes and the result shows.
+  **Why:** It returned `true` for a move that was never played; the plan requires the controller to refuse a late pick.
+  **Issue:** #73
+- **Decision:** `GameController` gains `remaining(Colour)` → `Duration?`, `clockRunning(Colour)`, `checkFlag()` (adopts `Game.flag()`'s ended game and `_refresh`es, closing a pending promotion), and minimal `pause()`/`resume()` over `Game.pause`/`resume` that feed `GameViewState.paused` and drop a pending promotion. The test-only thinking switch is a private-named constructor parameter `thinking` (`this._thinking`), fixed for the controller's life until #75 sets it for real.
+  **Why:** The test plan's "no flag while paused" complement needs a paused clock, and #77 needs these two actions anyway; #77 wires the overlay onto them rather than adding its own. `prefer_initializing_formals` asks for the private-named form.
+  **Issue:** #74
+- **Decision:** `GameScreen` takes an optional `controller` (its owner disposes it) instead of mode/time-control parameters; the home stays two-player untimed until M4's New game screen. Layout: `Stack` of a `SafeArea` column (52 dp spacer for the bar, 12 dp gap, opponent panel, board in a `RepaintBoundary`, your panel; panel–board gaps 48 dp shrinking to 8 dp on a short screen, board capped at width − 16), the promotion sheet, then the top bar `Positioned` above it. The tool row is left to #76.
+  **Why:** Tests need a controller with a fake time source and the thinking switch; M4 builds games from its own setup screen. The top bar above the sheet keeps the pause pill live over the scrim (#73's note).
+  **Issue:** #74
+- **Decision:** #73's two scrim-tap tests now tap `Offset(20, topBarHeight + 20)` instead of `(20, 20)`, which is now the pause pill above the scrim.
+  **Why:** The planned top bar legitimately covers that point; the tests still tap the scrim.
+  **Issue:** #74
+- **Decision:** Status colours follow the chosen word: red fill/ink only when the chip reads IN CHECK (the design paints the check colour even behind THINKING…); teal once over; otherwise the neutral fill with `choiceLabel` ink. New Palette tokens: `pillFill`, `pillEdge`, `statusFill`, `statusOverFill`, `statusCheckFill`, `alarm` (FF8C7E, check text and a low clock), `panelLit`, `panelLitEdge`, `panelDim`, `kingChipLight`, `kingChipDark`. The screen background is the design's elliptical radial gradient via a `GradientTransform`.
+  **Why:** A red THINKING… chip would read as an alarm about the computer; one colour name per token.
+  **Issue:** #74
+- **Decision:** Clock's spoken label: updates at once on a lit/dim change, a red change, or whenever the clock is not running (a move, a pause, a flag); while it runs, at most every 10 s of ticker time — a selection tap does not re-announce it. Text "0:00.0" at zero; "∞"/"no clock" untimed; semantics "5 minutes" (no "0 seconds"), "1 minute 1 second". The pause pill text keeps the design's literal "❚❚", which Outfit lacks and Android draws from its system symbol font.
+  **Why:** The plan's throttle line; a stopped clock's value no longer changes, so speaking it at once costs nothing.
+  **Issue:** #74
+- **Decision:** `ComputerOpponent.chooseMove(Game)` takes the game only — no `remaining`/`increment` arguments as the plan's member list had.
+  **Why:** #68's `ComputerPlayer` reads the game's clock itself (`gameClockCapMs`); passing the clock twice could only disagree.
+  **Issue:** #75
+- **Decision:** `GameController(computer: ComputerFactory?)` — with no factory the computer never moves (tests, a board to look at); `HonestChessApp` and `GameScreen(setup:)` default the factory to `ComputerPlayerOpponent.new`, which warms the worker in its constructor. `GameScreen` gains `setup` (a `GameSetup`; null keeps the untimed two-player board the earlier tests use) and `seed`. The test-only `thinking:` controller parameter is gone: tests use a fake computer that never answers.
+  **Why:** Existing controller and screen tests build vs-computer games with the computer to move; a real isolate there would move pieces under them. One way to be thinking, the real one.
+  **Issue:** #75
+- **Decision:** `main({Strength? strength, int? seed})` forwards the overrides as `HonestChessApp(firstGame:, seed:)` rather than through the computer factory.
+  **Why:** `ComputerPlayer` refuses a game whose mode names another step or seed, so the override has to change the game's mode, not only the computer built for it.
+  **Issue:** #75
+- **Decision:** `lib/ui/game/defaults.dart` is created here (for #76 too): `GameSetup` record `(mode: GameKind, strength?, colour?, timeControl, rotate)`, `vsComputerDefault`, `twoPlayerDefault`, and `modeFor(setup, {seed, random})` drawing the seed (and a null colour) per game.
+  **Why:** The record's `mode` cannot be a `GameMode`, which already carries a seed; a kind enum keeps "same settings, new seed" one call.
+  **Issue:** #75
+- **Decision:** Retries: one automatic retry per turn shared by an unasked cancel and a worker error (or an answer that fails the stale check); the second failure shows the chip "The computer could not move — tap to retry" (alarm colours, wraps to two lines). Each chip tap is a fresh request with its own one retry. `thinking` stays true while the chip shows (still the computer's turn; input stays locked). The 400 ms floor is a `Timer` cancelled with the request, so a stale answer is dropped by the cancelled floor, the turn token, the ply check and the game's own turn check.
+  **Why:** The plan names both retry kinds but not whether they share a budget; one retry per turn keeps a broken worker from looping.
+  **Issue:** #75
+- **Decision:** `GameController` gains `takeBack()`, `restart()` (same mode, time control and start FEN; fresh seed; the old computer cancelled and disposed; the takeback option re-read) and `resign()` (you vs the computer, the side to move between two players), all `bool`; `newGame(GameSetup)` is left to #76. The status chip and pause pill now share the top bar's width (both `Flexible`).
+  **Why:** The plan's split (#75 adds the three; #76 wires the buttons and New); a long chip must not overflow the bar.
+  **Issue:** #75
+- **Decision:** The device smoke test holds "at least 10 frames" on the reply with the most pumped frames and the 200 ms frame-gap bar on every reply after the first, not on each reply.
+  **Why:** On the sudoku-dev emulator (2026-09-29, `flutter test integration_test/app_smoke_test.dart -d emulator-5554`) a pump took about 36 ms, so a ~430 ms Beginner reply fit 11–12 pumps, and the first reply — carrying the app's first frames after launch — fit 4 with a 178 ms gap; the first CI dispatch (run 36530840756) failed with the per-reply reading and its log does not show which assertion.
+  **Issue:** #75
+- **Decision:** `GameController.newGame(GameSetup, {int? seed})` returns `void` and shares a private start path with `restart()`; a new game always starts from the standard position (a screen started from a FEN drops it), and `setup.rotate` is not applied — rotation stays `BoardOptions.rotateEachTurn`, off by default. `ToolRow(controller:, onNew:)` takes New's action as a callback; `GameScreen` opens `TemporaryNewGamePicker.show` and calls `newGame` with the screen's `seed`, so M4 swaps only the callback.
+  **Why:** The plan names `newGame(GameSetup)` without a return value and relies on the options default for "rotate off"; a callback keeps the temporary picker out of the tool row M4 keeps.
+  **Issue:** #76
+- **Decision:** Tool glyphs: ↺ is drawn in the bundled PlexMono; ⟳ ⚑ ✚ fall back to `Icons.refresh`, `Icons.flag`, `Icons.add` because neither Outfit nor PlexMono has them (the widget test reads both fonts' cmaps and fails if a fallback's glyph becomes available or a drawn glyph goes missing).
+  **Why:** The plan's per-glyph fallback rule; Outfit, the design's face for the glyphs, has none of the four.
+  **Issue:** #76
+- **Decision:** The tool row sits in the panels-and-board column under your panel, 62 dp high, and the panel-to-row gap shares the board gap's rule (48 dp, shrinking to 8): the board is sized from the height left after two panels, the row and three gaps. The picker is a modal bottom sheet in the card colours with the scrim as its barrier; each option's semantics label is its full text ("vs Computer — Club · White · Rapid 10+5"). New Palette tokens: `toolFill`, `toolEdge`, `toolInk` (DCE9F8), `accentFill`, `accentEdge`, `accentInk`.
+  **Why:** The design's tool row is 48 px under your panel; one gap rule keeps a short phone's board as large as it can be.
+  **Issue:** #76
+- **Decision:** `GameScreen` with no `setup` (the untimed two-player board) now passes its computer factory to the controller, so New → vs Computer on that board gets a computer; a two-player game still builds none.
+  **Why:** Without it the picker's vs-computer game would never move (Rule 2).
+  **Issue:** #76
+- **Decision:** #74's "a clock at zero ends the game" test pumps one more frame before asserting no ticker is left.
+  **Why:** Resign turning disabled at the flag releases its focus node, which schedules one rebuild frame — a frame, not a ticking clock; the assertion still catches a clock that keeps ticking.
+  **Issue:** #76
+- **Decision:** `GameController` gains `offerDraw()` → `Future<bool>` (only while paused; two-player agrees at once; vs computer asks `ComputerOpponent.acceptsDraw` on the paused game, whose search the pause already cancelled, so Resume's re-request covers "re-request on decline"), `drawOffer` → `DrawOffer { open, tooEarly, afterNextMove, asking, over }`, `autoPause()`, const `drawDeclineShown` (2 s), and `GameViewState.drawAsking`/`drawDeclined`. `resume()` and `resign()` are refused while the computer answers; resign and an agreed draw clear the pause, so the card closes as the game ends. A vs-computer game built without a computer factory refuses the offer.
+  **Why:** The plan puts pause state in the controller; one enum gives the card both its enabled state and its hint.
+  **Issue:** #77
+- **Decision:** The one-offer lockout re-enables once the ply count passes the declined offer's ply — any move, the computer's reply included, so an offer declined on the computer's turn is open again after its move — and a takeback below that ply clears it.
+  **Why:** The plan's literal rule ("once the ply count passes it"); "one per move of yours" and it agree whenever the offer was made on your turn, the usual case.
+  **Issue:** #77
+- **Decision:** A decline that lands while the app is away (auto-paused during `acceptsDraw`) shows its message with no 2 s timer; the card stays up until you press Resume. Making a new offer clears the away state.
+  **Why:** The plan says the decline "shows on return" and returning never auto-resumes; a timer running in the background would resume play unseen.
+  **Issue:** #77
+- **Decision:** Card layout: the decline line (Outfit 13, `choiceLabel`, live region) sits between the meta line and the buttons; the hint caption 6 dp under the draw button; disabled buttons at 0.4 opacity as the tool row's; the spinner (16 dp, 2 dp stroke) sits left of the draw label. The overlay is the Stack's top layer (over the top bar), fades in and out over 200 ms, and its `PopScope` blocks back only while it is open. New Palette tokens `resumeInk` (04213F), `drawFill`, `drawEdge`, `resignFill`, `resignEdge` from the design's pause card.
+  **Why:** The design gives no place for either line; these keep the card's order (title, meta, buttons) and reuse #73/#76's styles.
+  **Issue:** #77
+- **Decision:** The pause pill is a `GestureDetector` (semantics "Pause", disabled once over). Pausing closes #76's picker by popping to the screen's own route (the picker completes with null); an auto-pause's pop plays its exit once frames resume on return. `FakeComputer.acceptsDraw` is now scripted (`draws`, `FakeDraw.accept/decline/fail`) instead of always declining.
+  **Why:** The picker is a modal route, not a layer; the plan's fake-computer seam.
+  **Issue:** #77
+- **Decision:** #69's recorded Stockfish run is committed as `.n8/memory/engine-strength.md`: Master ≈ 2207 (95% interval 2125–2289), above the 1800–2000 target, so no follow-up issue was filed. Two caveats were added by hand. Master played with no clock enforced (0.87 s per move) against Stockfish's 5 s + 0.1 s. The Mac was busy with M3 builds during the run, which can only have slowed Stockfish.
+  **Why:** The AC asks for the estimate to be stated honestly against the target; both conditions push the number up, so the record says so.
+  **Issue:** #69
+- **Decision:** In view-board mode the slim result bar takes the top bar's place (pill and status chip), not the tool row's; the tool row stays under the board.
+  **Why:** The plan contradicts itself. One #78 line says the bar "replaces the tool row". But #78's test plan ("Takeback hiding the bar (#76's tool)") and #76's discretion (after the game ends, Takeback re-opens the game, Restart and New work) both need the tool row live under the bar. Once the game is over the pill is disabled and the chip only repeats the ending, so the bar loses nothing by sitting there. The bar is 56 dp inside the 64 dp top area (52 dp bar plus 12 dp gap), inset 8 dp like the panels.
+  **Issue:** #78
+- **Decision:** `describeResult(result, mode, you)`: `you` is your colour against the computer, and the side to move at the end between two players (`resultYou(game)`). It names the side that resigned in a drawn resignation.
+  **Why:** `Draw(resignationNoMatingMaterial)` carries no side. The controller always resigns for exactly that side (#75/#76), so the pure function can name it without a new engine field.
+  **Issue:** #78
+- **Decision:** Card state is `GameViewState.resultView` (`ResultView {card, board}`, null while the game goes on), set in `_refresh()` and cleared by any new game, restart or takeback. `GameController.viewBoard()` and `showResult()` move between the two. The 600 ms delay, the `hc-rise` (350 ms, 8 dp) and the 150 ms fade live in the widget (`ResultOverlay`, the Stack's top layer), which reads `MediaQuery.disableAnimations`. A takeback during the delay cancels the widget's timer. Android back always toggles while the game is over; during the delay it goes straight to the bar.
+  **Why:** The plan puts the card-or-bar state on `GameViewState`. The delay and the motion depend on the system animation setting, which only the widget tree can read.
+  **Issue:** #78
+- **Decision:** TIME LEFT reads "0:00" for a side whose flag fell, not the clocks' "0:00.0". Otherwise it uses `clockText`. Its spoken form is `clockSemantics('Time left', ms)`. The two-player CLOCK tile names the control as the design's `tName` does ("Rapid 10+5", "Untimed", "15+10"). Stat values scale down to fit their tile.
+  **Why:** The discretion lines ask for exactly "0:00" and the design's names. "Classical 30+0" at 18 px is about as wide as a tile.
+  **Issue:** #78
+- **Decision:** The pause card's private `_CardButton` became the public `CardButton` in pause_overlay.dart, reused for the result card's Rematch (filled teal) and View board (the design's secondary outline: `panelDim` fill, `choiceEdge` edge). New Palette tokens from the design's `isOver` card: `resultScrim` (.85), `resultCardEnd` (04213F), `resultEdge`, `resultBody`, `statFill`. #74's flag test now also waits out the card's rise before asserting no tickers remain.
+  **Why:** This reuses the existing button instead of duplicating it. The card's rise is a ticker that #74's test could not have known about.
+  **Issue:** #78

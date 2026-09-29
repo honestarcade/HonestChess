@@ -1,23 +1,86 @@
-// The device-level smoke test (#38): the real app, launched on an Android
-// device or emulator, opens on the Honest Chess placeholder. It proves the
-// harness end to end so later milestones only add tests (M6, epic #10).
+// The device-level smoke test (#38, rewritten by #75): the real app, launched
+// on an Android device or emulator, plays five moves against the real
+// computer at Beginner, and the screen keeps drawing frames while it thinks
+// on its background isolate.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-import 'package:honest_chess/main.dart';
+import 'package:honest_chess/engine/engine.dart';
+import 'package:honest_chess/main.dart' as app;
+import 'package:honest_chess/ui/game/game_screen.dart';
+
+/// The longest the computer may take to reply before the test fails.
+const replyTimeout = Duration(seconds: 30);
+
+/// The longest gap between two frames while the computer thinks.
+const maxFrameGap = Duration(milliseconds: 200);
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('the app launches on a device and shows the placeholder', (
+  testWidgets('five moves against Beginner, frames flowing while it thinks', (
     tester,
   ) async {
-    await tester.pumpWidget(const HonestChessApp());
-    await tester.pumpAndSettle();
+    app.main(strength: Strength.beginner, seed: 2026);
+    await tester.pump();
+    expect(find.byKey(const Key('board')), findsOneWidget);
+    final controller = tester
+        .state<GameScreenState>(find.byType(GameScreen))
+        .controller;
+    expect(controller.game.mode, isA<VsComputer>());
 
-    expect(find.text('HonestChess', findRichText: true), findsOneWidget);
-    expect(find.text('BY HONEST ARCADE'), findsOneWidget);
-    expect(find.byType(Scaffold), findsOneWidget);
+    var mostFrames = 0;
+    for (var turn = 0; turn < 5; turn++) {
+      final move = legalMoves(controller.game.position).first;
+      await tester.tap(find.byKey(Key('cell-${move.from.name}')));
+      await tester.pump();
+      await tester.tap(find.byKey(Key('cell-${move.to.name}')));
+      await tester.pump();
+      if (move.promotion != null) {
+        await tester.tap(find.byKey(const Key('promo-q')));
+        await tester.pump();
+      }
+      final played = controller.game.history.length;
+      expect(controller.state.thinking, isTrue, reason: 'smoke: its turn');
+
+      final waited = Stopwatch()..start();
+      final gap = Stopwatch()..start();
+      var frames = 0;
+      var longest = Duration.zero;
+      while (controller.game.history.length == played) {
+        expect(
+          waited.elapsed,
+          lessThan(replyTimeout),
+          reason: 'smoke: the computer replies within $replyTimeout',
+        );
+        await tester.pump(const Duration(milliseconds: 16));
+        frames++;
+        if (gap.elapsed > longest) longest = gap.elapsed;
+        gap.reset();
+      }
+      if (frames > mostFrames) mostFrames = frames;
+      // The first reply also carries the app's first frames after launch
+      // (on the sudoku-dev emulator, 2026-09-29: a 178 ms gap there, at most
+      // 73 ms in the replies after it), so the gap is held from the second.
+      if (turn > 0) {
+        expect(
+          longest,
+          lessThanOrEqualTo(maxFrameGap),
+          reason: 'smoke: no frame waited on the search',
+        );
+      }
+      if (controller.game.isOver) break;
+    }
+    expect(
+      mostFrames,
+      greaterThanOrEqualTo(10),
+      reason: 'smoke: frames kept coming during a reply',
+    );
+    expect(
+      controller.game.moves.length >= 10 || controller.game.isOver,
+      isTrue,
+      reason: 'smoke: five moves each, or a game that ended sooner',
+    );
   });
 }

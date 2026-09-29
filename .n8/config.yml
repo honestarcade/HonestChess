@@ -26,7 +26,7 @@ ci:
   release: "tag v* -> gate -> signed, scanned, certificate-checked AAB -> Google Play internal track and the GitHub release"
   scheduled: [weekly.yml — slow `weekly`-tagged tests, Sunday 03:00 UTC (#37), device.yml — integration_test on an Android emulator, nightly + manual (#38)]
   secrets_needed: [HS_KEYSTORE_B64, HS_KEYSTORE_PASS, HS_KEY_ALIAS, HS_KEY_PASS, PLAY_SERVICE_ACCOUNT_JSON]
-fonts: bundled in the app (Outfit, IBM Plex Mono); never fetched at runtime
+fonts: bundled in the app (Outfit, IBM Plex Mono, and the pieces from Noto Sans Symbols 2 subset to U+2654–265F as HonestPieces); never fetched at runtime
 chess:
   rules: FIDE Laws of Chess 2023, Basic Rules (Arts. 1-5) plus 6.9 and 9; threefold repetition and fifty-move draw automatically
   engine: own pure-Dart search in an isolate; five steps Beginner..Master; Master targets roughly 1800-2000
