@@ -281,6 +281,30 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('the shade pulled during launch (inactive alone) leaves the '
+      'hand-over on time', (tester) async {
+    final store = GatedStore();
+    await _launch(tester, store);
+    final binding = tester.binding;
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    // The shade is put back only after the test, so every step of the
+    // hand-over runs with the app inactive.
+    addTearDown(
+      () => binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed),
+    );
+    store.releaseAll();
+    await _pumpMs(tester, 849);
+    expect(_menuShown, isFalse, reason: 'splash: no menu before 850 ms');
+    await _pumpMs(tester, 2);
+    expect(
+      _menuShown,
+      isTrue,
+      reason: 'splash: inactive alone is not away, so the menu comes at 850 ms',
+    );
+    // The fade finishes before the navigating flag's timer is checked.
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('leaving during the READY hold restarts it on the return', (
     tester,
   ) async {

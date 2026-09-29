@@ -443,10 +443,58 @@ void main() {
           0.4,
         );
       }
-      await tester.tapAt(const Offset(10, 10));
+      // Each attempt is given longer than the card's exit fade, so a card
+      // that had started closing would be gone or fading by the checks.
+      void expectStillOpen(String after) {
+        expect(
+          _key('stats-reset-card'),
+          findsOneWidget,
+          reason: 'stats: the confirmation stays up after $after',
+        );
+        final overlay = find.byKey(const Key('stats-reset-overlay'));
+        expect(
+          tester.widget<FadeTransition>(overlay).opacity.value,
+          1.0,
+          reason: 'stats: the confirmation is not fading after $after',
+        );
+        expect(
+          tester
+              .widget<IgnorePointer>(
+                find
+                    .ancestor(of: overlay, matching: find.byType(IgnorePointer))
+                    .first,
+              )
+              .ignoring,
+          isFalse,
+          reason: 'stats: the confirmation still takes touches after $after',
+        );
+        expect(
+          tester
+              .widget<PopScope>(
+                find
+                    .descendant(
+                      of: find.byType(StatsScreen),
+                      matching: find.byWidgetPredicate((w) => w is PopScope),
+                    )
+                    .first,
+              )
+              .canPop,
+          isFalse,
+          reason: 'stats: back is still held by the confirmation after $after',
+        );
+      }
+
       await tester.binding.handlePopRoute();
       await tester.pump();
-      expect(_key('stats-reset-card'), findsOneWidget);
+      await tester.pump(resetExitDuration * 2);
+      expectStillOpen('Android back');
+      expect(find.byType(StatsScreen), findsOneWidget);
+
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pump();
+      await tester.pump(resetExitDuration * 2);
+      expectStillOpen('a scrim tap');
+      expect(rig.stats.resets, 1);
       rig.stats.gate!.complete();
       // The held reset writes, then the card closes.
       await tester.pump(const Duration(milliseconds: 16));
