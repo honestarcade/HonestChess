@@ -4,6 +4,7 @@ library;
 
 export 'attacks.dart';
 export 'clock.dart';
+export 'evaluate.dart';
 export 'fen.dart';
 export 'game.dart';
 export 'game_status.dart';
@@ -13,6 +14,8 @@ export 'perft.dart';
 export 'piece.dart';
 export 'play.dart';
 export 'position.dart';
+export 'search.dart';
 export 'square.dart';
 export 'strength.dart';
+export 'transposition.dart';
 export 'zobrist.dart';

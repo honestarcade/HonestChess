@@ -158,6 +158,32 @@ final class Board {
     out.length = kept;
   }
 
+  /// Appends every pseudo-legal move (packed) to [out], in the same order
+  /// [legalMoves] keeps: a move here may leave the mover's king attacked, so
+  /// the search makes it and checks [isAttacked] itself.
+  void pseudoLegalMoves(List<int> out) => _pseudoLegal(out);
+
+  /// Passes the turn without moving (a null move), for the search's
+  /// null-move pruning. The en-passant square goes, and the halfmove clock
+  /// is zeroed so no repetition is found across the pass; [unmakeNull]
+  /// restores both.
+  void makeNull() {
+    _history.add((enPassant + 1) | halfmoveClock << 8);
+    enPassant = -1;
+    halfmoveClock = 0;
+    side ^= 1;
+    _baseKey ^= zobristKeys[zobristSide];
+  }
+
+  /// Takes back the last [makeNull].
+  void unmakeNull() {
+    final undo = _history.removeLast();
+    side ^= 1;
+    _baseKey ^= zobristKeys[zobristSide];
+    enPassant = (undo & 255) - 1;
+    halfmoveClock = undo >> 8;
+  }
+
   void _pseudoLegal(List<int> out) {
     final us = side, them = side ^ 1;
     final base = us * 6;

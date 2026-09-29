@@ -709,6 +709,20 @@ MUTATIONS: list[Mutation] = [
              sub(r"\n\s*'clock': _clockToJson\(game, now\),", ""),
              "a restored game would lose both players' remaining time and every takeback's clock",
              'game-json: a saved game did not come back'),
+
+    # search -- test/engine/search_test.dart (#66)
+    Mutation("search", "the search chooses among pseudo-legal root moves",
+             "lib/engine/search.dart",
+             sub(r"_board\.legalMoves\(rootMoves\);",
+                 "_board.pseudoLegalMoves(rootMoves);"),
+             "the computer could play a move that leaves its own king in check (invariant 3)",
+             'search-legal:',
+             slow=True),
+    Mutation("search", "the search reads a clock", "lib/engine/search.dart",
+             sub(r"^(const int mateScore = 32000;)",
+                 r"\1\n\nfinal searchClock = Stopwatch();", flags=re.M),
+             "a search that reads the time could answer differently on another device (invariant 4)",
+             'search-pure:'),
 ]
 
 
