@@ -1074,3 +1074,9 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
   #103's labels test runs them too.
   **Why:** The plan's pass 1 state list and pass 2's folder-scoped config.
   **Issue:** #104
+
+## /n8-exec M5 (#104 finish) — 2026-09-29
+
+- **Decision:** Owner chose option 1 on #104: accept 39 dp (360 × 640) and 30 dp (320 × 568) squares, with the system bars in, as the floors on short phones. There is no layout change.
+  **Why:** Owner, 2026-09-29: "1) Accept 39/30".
+  **Issue:** #104
