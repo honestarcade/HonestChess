@@ -56,6 +56,7 @@ void main() {
                 builder: (_) => const Scaffold(
                   body: ScreenHeader(
                     title: 'Two players',
+                    keyPrefix: 'psetup',
                     kicker: 'ONE PHONE',
                     kickerColor: Palette.violet,
                   ),
@@ -82,15 +83,15 @@ void main() {
       reason: 'screen-header: the kicker takes the caller\'s colour',
     );
     expect(
-      tester.getSize(find.byKey(const Key('header-back'))),
+      tester.getSize(find.byKey(const Key('psetup-back'))),
       const Size(48, 48),
       reason: 'screen-header: back has a 48 dp touch area',
     );
     expect(
-      tester.getSemantics(find.byKey(const Key('header-back'))),
+      tester.getSemantics(find.byKey(const Key('psetup-back'))),
       isSemantics(isButton: true, label: 'Back', hasTapAction: true),
     );
-    await tester.tap(find.byKey(const Key('header-back')));
+    await tester.tap(find.byKey(const Key('psetup-back')));
     await tester.pumpAndSettle();
     expect(find.text('Two players'), findsNothing, reason: 'back pops');
     expect(find.text('open'), findsOneWidget);

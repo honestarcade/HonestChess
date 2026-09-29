@@ -17,8 +17,8 @@ import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/game_screen.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
-// The launcher-icon guard reads this literal here; Palette.navy is the same
-// colour for everything else.
+// The launcher-icon guard reads this literal here; Palette.screenBg is the
+// same colour for everything else.
 const _navy = Color(0xFF05285F);
 
 /// Starts the app on the saved game, or a new game against the computer.

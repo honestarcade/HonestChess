@@ -9,16 +9,20 @@ const backGlyph = '‹';
 /// The design's screen header: the ‹ back button and the title, with an
 /// optional upper-case [kicker] line under the title in [kickerColor].
 /// Back pops the route, returning to wherever the screen was opened from.
+/// Its parts are keyed `<keyPrefix>-back`, `-title` and `-kicker`, the
+/// prefix being the screen's id (`settings`, `csetup`…).
 class ScreenHeader extends StatelessWidget {
   const ScreenHeader({
     super.key,
     required this.title,
+    required this.keyPrefix,
     this.kicker,
     this.kickerColor = Palette.kicker,
     this.onBack,
   });
 
   final String title;
+  final String keyPrefix;
   final String? kicker;
   final Color kickerColor;
 
@@ -39,7 +43,7 @@ class ScreenHeader extends StatelessWidget {
           onTap: back,
           excludeSemantics: true,
           child: GestureDetector(
-            key: const Key('header-back'),
+            key: Key('$keyPrefix-back'),
             behavior: HitTestBehavior.opaque,
             onTap: back,
             // 48 dp to touch, 34 dp drawn at its left; the rest of the
@@ -81,7 +85,7 @@ class ScreenHeader extends StatelessWidget {
                 header: true,
                 child: Text(
                   title,
-                  key: const Key('header-title'),
+                  key: Key('$keyPrefix-title'),
                   style: const TextStyle(
                     fontFamily: Fonts.outfit,
                     fontWeight: FontWeight.w600,
@@ -95,7 +99,7 @@ class ScreenHeader extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   kicker,
-                  key: const Key('header-kicker'),
+                  key: Key('$keyPrefix-kicker'),
                   style: TextStyle(
                     fontFamily: Fonts.plexMono,
                     fontWeight: FontWeight.w500,

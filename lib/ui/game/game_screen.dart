@@ -197,14 +197,14 @@ class GameScreenState extends State<GameScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_idle) return const ColoredBox(color: Palette.navy);
+    if (_idle) return const ColoredBox(color: Palette.screenBg);
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
         statusBarColor: Colors.transparent,
-        systemNavigationBarColor: Palette.navy,
+        systemNavigationBarColor: Palette.screenBg,
       ),
       child: Scaffold(
-        backgroundColor: Palette.navy,
+        backgroundColor: Palette.screenBg,
         body: DecoratedBox(
           decoration: const BoxDecoration(gradient: _screenGradient),
           child: SafeArea(
@@ -248,7 +248,7 @@ class GameScreenState extends State<GameScreen> {
 const _screenGradient = RadialGradient(
   center: Alignment.topCenter,
   radius: 1.2,
-  colors: [Palette.navyLight, Palette.navy, Palette.navyDeep],
+  colors: [Palette.navyLight, Palette.screenBg, Palette.navyDeep],
   stops: [0, 0.52, 1],
   transform: _Ellipse(),
 );

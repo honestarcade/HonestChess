@@ -5,7 +5,7 @@ import 'package:flutter/painting.dart';
 abstract final class Palette {
   /// The screen background; `lib/main.dart` keeps its own `_navy` with the
   /// same value because the launcher-icon guard reads it there.
-  static const navy = Color(0xFF05285F);
+  static const screenBg = Color(0xFF05285F);
   static const navyLight = Color(0xFF0A3A80);
   static const navyDeep = Color(0xFF031634);
   static const teal = Color(0xFF00D6B4);
@@ -104,6 +104,9 @@ abstract final class Palette {
   static const textMuted = Color(0xFF87A9D0);
   static const textChoice = toolInk;
   static const kicker = Color(0xFF6E93C4);
+
+  /// The faintest text: Settings' version line.
+  static const textFaint = Color(0xFF4E739F);
 
   /// The two accents a choice is selected in ([Accent]): teal's fills (the
   /// soft one is [accentFill]) and the two-player screen's violet.

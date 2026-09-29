@@ -650,3 +650,18 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** M4's shared-conventions block (screen chrome, navigation, keys, palette token names, symbol rule) was restored to #84–#93 during execution. /n8-plan M4 drafted it, but the issues were filed without it; M3's issues likewise went out without their footer. #80–#83 were built from the design file instead. Where their names differ from the block, the code on the branch wins and later stories reconcile.
   **Why:** #83's executor found that "the footer" cited by M4 stories existed nowhere; a planning miss, logged here honestly. M5's issues do carry theirs.
   **Issue:** #83
+- **Decision:** `SettingRow`'s `onChanged` is a `VoidCallback`, not a `ValueChanged<bool>`: the row only reports a tap, and Settings flips the stored value (`updateBoard((o) => write(o, !read(o)))`). The row's own `key` sits on its outer `Semantics` (a `container`), over the one row-wide `GestureDetector`; `ToggleSwitch` exposes `knobKey`, `slideDuration`, `knobOn`/`knobOff` for tests.
+  **Why:** A bool argument would be the drawn value, which the plan says must not be the one negated; a bare callback cannot be misused that way. Without `container: true` the DISPLAY kicker merged into its single row's semantics node.
+  **Issue:** #84
+- **Decision:** Reconciled toward the shared M4 conventions where it was cheap: `ScreenHeader` takes a required `keyPrefix` (keys `<prefix>-back|-title|-kicker`; Settings' back is now `settings-back`, #83's tests updated), `Palette.navy` is renamed `screenBg`, and `textFaint` (#4E739F) is added for the version line. The other M3 tokens with canonical names (`navyLight`/`navyDeep`, `card`, `alarm`, `choiceLabel`, `byline`, `resultBody`, `resumeInk`) are left for the story that first uses them.
+  **Why:** The conventions block says code on the branch wins but later stories reconcile; these were the names this story touches.
+  **Issue:** #84
+- **Decision:** The Settings screen ignores the system text scale (`MediaQuery.withNoTextScaling`), per the shared conventions; row sizes are the design's px as dp without the `width / 390` scale, matching the three look sections #83 built.
+  **Why:** One screen with two sizing rules would look broken on wide phones; screen-wide scaling is a change to #83's sections, not in this story's AC.
+  **Issue:** #84
+- **Decision:** The version line is formatted by a public `versionLine(AppVersion?)` in settings_screen.dart; a thrown error from `appVersion()` reads "Version unavailable" like a null. The screen became a `StatefulWidget` so the future is made once per visit (in `didChangeDependencies`). #80's wrapper accepts any integer code, so the "code ≥ 1" check lives in `versionLine`.
+  **Why:** #89 formats the same line; one function keeps them identical.
+  **Issue:** #84
+- **Decision:** #83's `settings_look_test` now scrolls the list back to the top before tapping back.
+  **Why:** With the PLAY/DISPLAY groups the list outgrows an 844 dp view, and `ensureVisible` on a look choice scrolls the header out of the built range. The behaviour is unchanged; the test's reach was.
+  **Issue:** #84

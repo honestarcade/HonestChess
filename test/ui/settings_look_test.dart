@@ -365,7 +365,13 @@ void main() {
       reason: 'settings-look: the change is saved with the rest',
     );
 
-    await tester.tap(find.byKey(const Key('header-back')));
+    // Settings is taller than the phone now: back is at the top.
+    await tester.drag(
+      find.byKey(const Key('settings-list')),
+      const Offset(0, 2000),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('settings-back')));
     await tester.pumpAndSettle();
     expect(find.byType(SettingsScreen), findsNothing);
     expect(
