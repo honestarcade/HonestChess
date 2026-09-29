@@ -96,7 +96,7 @@ class PlayerPanel extends StatelessWidget {
                     fontSize: 9,
                     height: 1,
                     letterSpacing: 9 * .14,
-                    color: lit ? Palette.teal : Palette.byline,
+                    color: lit ? Palette.teal : Palette.textDim,
                   ),
                 ),
               ],
@@ -273,10 +273,10 @@ class _ClockDisplayState extends State<ClockDisplay>
             height: 1,
             fontFeatures: const [FontFeature.tabularFigures()],
             color: _red
-                ? Palette.alarm
+                ? Palette.dangerText
                 : lit
                 ? Palette.pieceWhite
-                : Palette.byline,
+                : Palette.textDim,
           ),
         ),
       ),

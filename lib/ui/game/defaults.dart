@@ -72,6 +72,16 @@ enum TimeChoice {
       null => custom,
     },
   };
+
+  /// The time control this choice starts: [minutes] and [increment] are
+  /// the custom pair, used only by [custom].
+  TimeControl toTimeControl(int minutes, int increment) => switch (this) {
+    untimed => const Untimed(),
+    blitz => Timed.blitz,
+    rapid => Timed.rapid,
+    classical => Timed.classical,
+    custom => Timed(minutes, increment),
+  };
 }
 
 /// Play as White, Black, or drawn at random each game.
@@ -205,6 +215,25 @@ final class SetupChoices {
   final ComputerChoices computer;
   final TwoPlayerChoices two;
   final CustomTime custom;
+
+  /// The game against the computer these choices start, with you playing
+  /// [colour] — random already resolved by the screen.
+  GameSetup computerSetup(Colour colour) => (
+    mode: GameKind.vsComputer,
+    strength: computer.step,
+    colour: colour,
+    timeControl: computer.time.toTimeControl(custom.minutes, custom.increment),
+    rotate: false,
+  );
+
+  /// The two-player game these choices start.
+  GameSetup twoPlayerSetup({bool rotate = false}) => (
+    mode: GameKind.twoPlayers,
+    strength: null,
+    colour: null,
+    timeControl: two.time.toTimeControl(custom.minutes, custom.increment),
+    rotate: rotate,
+  );
 
   SetupChoices copyWith({
     ComputerChoices? computer,

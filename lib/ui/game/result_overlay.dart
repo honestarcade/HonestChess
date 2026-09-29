@@ -186,7 +186,7 @@ class _ResultOverlayState extends State<ResultOverlay>
   }
 
   static Color _kicker(ResultText text) =>
-      text.lost ? Palette.alarm : Palette.teal;
+      text.lost ? Palette.dangerText : Palette.teal;
 
   Widget _layer() {
     return Stack(
@@ -336,7 +336,7 @@ class _ResultOverlayState extends State<ResultOverlay>
                 label: 'Rematch',
                 fill: Palette.teal,
                 edge: null,
-                ink: Palette.resumeInk,
+                ink: Palette.onTeal,
                 weight: FontWeight.w600,
                 fontSize: 15,
                 padding: 15,
@@ -451,7 +451,7 @@ class _ResultOverlayState extends State<ResultOverlay>
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
                             height: 1,
-                            color: Palette.resumeInk,
+                            color: Palette.onTeal,
                           ),
                         ),
                       ),
@@ -499,7 +499,7 @@ class _StatTile extends StatelessWidget {
                   fontSize: 9,
                   height: 1,
                   letterSpacing: 9 * .14,
-                  color: Palette.byline,
+                  color: Palette.textDim,
                 ),
               ),
               const SizedBox(height: 7),

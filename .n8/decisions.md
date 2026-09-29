@@ -665,3 +665,24 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** #83's `settings_look_test` now scrolls the list back to the top before tapping back.
   **Why:** With the PLAY/DISPLAY groups the list outgrows an 844 dp view, and `ensureVisible` on a look choice scrolls the header out of the built range. The behaviour is unchanged; the test's reach was.
   **Issue:** #84
+- **Decision:** `isAbandonable(PlayMode)` is now also a top-level `wouldAbandon(controller, saves, mode)` in lib/data/stats_listener.dart, and `StatsListener.isAbandonable` delegates to it. The setup screen calls it with the scope's controller and saves.
+  **Why:** The root keeps its `StatsListener` private, and `AppScope` does not carry it. The rule reads only the controller and the saved games, which are already in the scope, so exposing the function is smaller than adding the listener to the scope. #92's Restart message can call it the same way.
+  **Issue:** #85
+- **Decision:** Keep playing does not call `restore` when the controller already holds the unfinished computer game. It resumes that live game. Otherwise it saves any unfinished two-player game on the board (`GameSaves.save`), restores the saved computer game, and resumes it. From the menu it then goes through `openBoard`; with `fromBoard` it pops.
+  **Why:** The plan's pass 2 restores from the slot. The slot mirrors the live game as of its last event, so restoring would give the same game, but it would build a second computer and drop the live game's in-memory state for nothing.
+  **Issue:** #85
+- **Decision:** `NavigationGuard` (lib/ui/navigation.dart) holds busy for a pushed, replaced or popped route until its animation's status stops animating, with the 1 s fallback. It ignores status changes while a `ModalRoute` is `offstage`. `AppScope` gains required `navigation` and `random`. The root makes `Random.secure()` and registers the guard in `navigatorObservers`. `pumpUnderScope` builds a fresh guard, registers it ahead of the test's observers, and takes `random:` (default `Random(85)`). Test support gains `test/support/scripted_random.dart` `ScriptedRandom`.
+  **Why:** The route's animation is a proxy. On a push, `HeroController` holds the new route offstage for one frame, and the proxy reports "completed" during that frame. Without the offstage check, the flag released on the push's first frame. The test "a push holds the flag until its transition completes" caught this.
+  **Issue:** #85
+- **Decision:** `boardRoute()` (named `board`) builds `GameScreen` over the scope's controller and `settings.board`. `startGame` returns without pushing when `newGame` is refused. The production home is still M3's board until #91 makes the menu the root, so the screen is reached only in tests for now, as the plan says.
+  **Why:** One route builder keeps "at most one board" in a single place for #91, #92 and #93.
+  **Issue:** #85
+- **Decision:** Design differences: each stepper button has a 48 × 48 dp touch area over the design's 28 dp box. The area takes in the gaps around the value and 10 of the 11 dp right padding, so the row is 48 dp tall rather than the design's 46. Keep playing gets a 48 dp minimum height, which is taller than the design draws it. ⁇ is drawn as `⁇\u{FE0E}` with the platform fallback, because none of the bundled Outfit faces has U+2047, as the test's cmap read shows. Start game's pressed colour is the design's hover #31E7CB, added as `Palette.tealPressed`.
+  **Why:** The shared conventions ask for 48 dp hit areas and for the symbol rule.
+  **Issue:** #85
+- **Decision:** Palette tokens: M3's tokens this screen uses were renamed to the canonical names across lib/ and test/: `alarm` → `dangerText`, `choiceLabel` → `textBody`, `byline` → `textDim`, `resumeInk` → `onTeal`. Values are unchanged.
+  **Why:** The shared M4 conventions ask the first story that uses a value to rename M3's token.
+  **Issue:** #85
+- **Decision:** The setup screen uses the design's px as dp without the `width / 390` scale. It sits in a `SafeArea` with 12/20/30 dp padding in a `CustomScrollView`, and a `SliverFillRemaining` pins the buttons at the bottom when the cards fit, as Settings (#83/#84) does.
+  **Why:** This keeps one sizing rule across M4's screens (#84's decision).
+  **Issue:** #85

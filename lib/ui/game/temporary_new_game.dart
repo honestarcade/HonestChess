@@ -147,7 +147,7 @@ class _Choice extends StatelessWidget {
                     fontSize: 10,
                     height: 1,
                     letterSpacing: 10 * .14,
-                    color: Palette.byline,
+                    color: Palette.textDim,
                   ),
                 ),
               ],

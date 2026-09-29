@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:honest_chess/data/app_store.dart';
 import 'package:honest_chess/data/game_event.dart';
 import 'package:honest_chess/data/play_mode.dart';
+import 'package:honest_chess/data/recorded_state.dart';
 import 'package:honest_chess/engine/engine.dart';
 
 /// What Continue would resume: the mode, the computer's step (null for two
@@ -76,6 +77,16 @@ class GameSaves extends ChangeNotifier {
   /// The `recorded` map saved with [mode]'s game; empty when it has none.
   Map<String, Object?> recorded(PlayMode mode) =>
       _slots[mode]?.recorded ?? const {};
+
+  /// [mode]'s unfinished game, from its in-memory slot — which every save
+  /// keeps current, so for the live game it is the live game — with
+  /// whether it has been started (#82's sticky flag); null when it has
+  /// none. A finished game leaves its slot, so it is never unfinished here.
+  ({bool started})? unfinished(PlayMode mode) {
+    final slot = _slots[mode];
+    if (slot == null || slot.game.isOver) return null;
+    return (started: RecordedState.fromJson(slot.recorded, slot.game).started);
+  }
 
   /// Listens to the controller's [events]; [dispose] stops listening.
   void attach(Stream<GameEvent> events) {

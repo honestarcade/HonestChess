@@ -296,12 +296,12 @@ class _TopBar extends StatelessWidget {
         );
         final (fill, ink) = switch (game.status) {
           _ when game.isOver => (Palette.statusOverFill, Palette.teal),
-          _ when failed => (Palette.statusCheckFill, Palette.alarm),
+          _ when failed => (Palette.statusCheckFill, Palette.dangerText),
           Ongoing(inCheck: true) when !state.thinking => (
             Palette.statusCheckFill,
-            Palette.alarm,
+            Palette.dangerText,
           ),
-          _ => (Palette.statusFill, Palette.choiceLabel),
+          _ => (Palette.statusFill, Palette.textBody),
         };
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),

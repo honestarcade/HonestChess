@@ -10,6 +10,31 @@ import 'package:honest_chess/ui/game/game_controller.dart';
 bool _abandonable(Game game, RecordedState recorded) =>
     isAbandonable(game, recorded);
 
+/// Whether leaving [mode]'s game now would count as a loss: [controller]'s
+/// live game when it is of [mode], otherwise [mode]'s saved game in
+/// [saves]. For the new-game warning and the Restart message; a screen
+/// reads it through the scope's controller and saves.
+bool wouldAbandon(GameController controller, GameSaves saves, PlayMode mode) {
+  if (!controller.isIdle && PlayMode.of(controller.game.mode) == mode) {
+    final game = controller.game;
+    return _abandonable(
+      game,
+      RecordedState.fromJson(controller.recorded, game),
+    );
+  }
+  final saved = _saved(saves, mode);
+  return saved != null && _abandonable(saved.game, saved.recorded);
+}
+
+({Game game, RecordedState recorded})? _saved(GameSaves saves, PlayMode mode) {
+  final game = saves.load(mode);
+  if (game == null) return null;
+  return (
+    game: game,
+    recorded: RecordedState.fromJson(saves.recorded(mode), game),
+  );
+}
+
 /// Turns the controller's games into statistics.
 ///
 /// A game that ends is recorded by an end stage put first on [saves], so
@@ -36,29 +61,12 @@ class StatsListener {
   final StatsRecorder _recorder;
   final GameSaves _saves;
 
-  /// Whether leaving [mode]'s game now would count as a loss: the live game
-  /// when it is of [mode], otherwise [mode]'s saved game. For the new-game
-  /// warning and the Restart message.
-  bool isAbandonable(PlayMode mode) {
-    if (!_controller.isIdle && PlayMode.of(_controller.game.mode) == mode) {
-      final game = _controller.game;
-      return _abandonable(
-        game,
-        RecordedState.fromJson(_controller.recorded, game),
-      );
-    }
-    final saved = _savedState(mode);
-    return saved != null && _abandonable(saved.game, saved.recorded);
-  }
+  /// Whether leaving [mode]'s game now would count as a loss
+  /// ([wouldAbandon] over this listener's controller and saves).
+  bool isAbandonable(PlayMode mode) => wouldAbandon(_controller, _saves, mode);
 
-  ({Game game, RecordedState recorded})? _savedState(PlayMode mode) {
-    final game = _saves.load(mode);
-    if (game == null) return null;
-    return (
-      game: game,
-      recorded: RecordedState.fromJson(_saves.recorded(mode), game),
-    );
-  }
+  ({Game game, RecordedState recorded})? _savedState(PlayMode mode) =>
+      _saved(_saves, mode);
 
   Future<void> _replacing(
     Game? outgoing,

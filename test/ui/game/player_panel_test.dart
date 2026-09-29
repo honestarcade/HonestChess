@@ -258,12 +258,12 @@ void main() {
       expect(isLit(tester, Colour.white), isTrue);
       expect(textColour(tester, 'clock-white'), Palette.pieceWhite);
       expect(textColour(tester, 'sub-white'), Palette.teal);
-      expect(textColour(tester, 'clock-black'), Palette.byline);
-      expect(textColour(tester, 'sub-black'), Palette.byline);
+      expect(textColour(tester, 'clock-black'), Palette.textDim);
+      expect(textColour(tester, 'sub-black'), Palette.textDim);
       await play(tester, h.controller, 'e2e4');
       expect(isLit(tester, Colour.white), isFalse);
       expect(isLit(tester, Colour.black), isTrue);
-      expect(textColour(tester, 'clock-white'), Palette.byline);
+      expect(textColour(tester, 'clock-white'), Palette.textDim);
       expect(textColour(tester, 'clock-black'), Palette.pieceWhite);
       await h.clock.advance(const Duration(minutes: 5));
       expect(h.controller.state.over, isTrue);
@@ -289,10 +289,10 @@ void main() {
       expect(clockOf(tester, Colour.black), '0:30');
       expect(
         textColour(tester, 'clock-black'),
-        Palette.alarm,
+        Palette.dangerText,
         reason: 'clock-red: 29.9 s is red',
       );
-      expect(textColour(tester, 'clock-white'), isNot(Palette.alarm));
+      expect(textColour(tester, 'clock-white'), isNot(Palette.dangerText));
       await h.clock.advance(const Duration(milliseconds: 20500));
       expect(clockOf(tester, Colour.black), '0:09.4');
     });
@@ -479,10 +479,10 @@ void main() {
       final h = await pumpGame(tester, fen: '4k3/8/8/8/8/8/3r4/R3K3 b - - 0 1');
       await play(tester, h.controller, 'd2e2');
       expect(text(tester, 'status-text'), 'WHITE IN CHECK');
-      expect(textColour(tester, 'status-text'), Palette.alarm);
+      expect(textColour(tester, 'status-text'), Palette.dangerText);
       await play(tester, h.controller, 'e1e2');
       expect(text(tester, 'status-text'), 'BLACK TO MOVE');
-      expect(textColour(tester, 'status-text'), Palette.choiceLabel);
+      expect(textColour(tester, 'status-text'), Palette.textBody);
     });
 
     testWidgets('checkmate reads CHECKMATE', (tester) async {

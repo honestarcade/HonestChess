@@ -116,7 +116,7 @@ void main() {
       expect(s.body, 'Resignation ends the game at once.');
       expect(
         textColour(tester, 'result-tag'),
-        Palette.alarm,
+        Palette.dangerText,
         reason: 'result-card: the kicker is red when you lose',
       );
     });

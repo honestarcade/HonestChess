@@ -9,7 +9,7 @@ abstract final class Palette {
   static const navyLight = Color(0xFF0A3A80);
   static const navyDeep = Color(0xFF031634);
   static const teal = Color(0xFF00D6B4);
-  static const byline = Color(0xFF7FA6D8);
+  static const textDim = Color(0xFF7FA6D8);
 
   /// Piece ink: white pieces are [pieceWhite] outlined in [pieceBlack];
   /// black pieces are [pieceBlack] with a faint light halo.
@@ -44,7 +44,7 @@ abstract final class Palette {
   /// A choice button on a card: its fill, its edge and its label.
   static const choiceFill = Color(0x0FFFFFFF); // rgba(255,255,255,.06)
   static const choiceEdge = Color(0x29FFFFFF); // rgba(255,255,255,.16)
-  static const choiceLabel = Color(0xFF9FC3EE);
+  static const textBody = Color(0xFF9FC3EE);
 
   /// The play screen's top bar: the pause pill's fill and edge, and the
   /// status chip's fill as the game goes on, has ended, or is in check.
@@ -55,7 +55,7 @@ abstract final class Palette {
   static const statusCheckFill = Color(0x33E05A4E); // rgba(224,90,78,.2)
 
   /// Red text: a side in check on the status chip, a clock under 30 s.
-  static const alarm = Color(0xFFFF8C7E);
+  static const dangerText = Color(0xFFFF8C7E);
 
   /// A player panel: lit for the side to move (fill and 1 px inset edge),
   /// dim otherwise; the king chip's two faces.
@@ -74,9 +74,10 @@ abstract final class Palette {
   static const accentEdge = panelLitEdge;
   static const accentInk = teal;
 
-  /// The pause card's buttons: Resume's ink on teal, the draw button's
-  /// fill and edge, and Resign's red fill and edge (its ink is [alarm]).
-  static const resumeInk = Color(0xFF04213F);
+  /// The pause card's buttons: [onTeal], the ink of Resume and of every
+  /// label on teal, the draw button's fill and edge, and Resign's red fill
+  /// and edge (its ink is [dangerText]).
+  static const onTeal = Color(0xFF04213F);
   static const drawFill = panelDim;
   static const drawEdge = Color(0x2EFFFFFF); // rgba(255,255,255,.18)
   static const resignFill = Color(0x1FE05A4E); // rgba(224,90,78,.12)
@@ -107,6 +108,9 @@ abstract final class Palette {
 
   /// The faintest text: Settings' version line.
   static const textFaint = Color(0xFF4E739F);
+
+  /// A filled teal button while pressed (the design's hover colour).
+  static const tealPressed = Color(0xFF31E7CB);
 
   /// The two accents a choice is selected in ([Accent]): teal's fills (the
   /// soft one is [accentFill]) and the two-player screen's violet.

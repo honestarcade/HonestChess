@@ -605,4 +605,34 @@ void main() {
       },
     );
   });
+
+  group('unfinished', () {
+    test('the slot\'s game, with started read from its recorded map', () async {
+      final saves = GameSaves(AppStore.memory());
+      addTearDown(saves.dispose);
+      expect(saves.unfinished(PlayMode.computer), isNull);
+      await saves.save(computerGame(const []), {'started': false});
+      expect(saves.unfinished(PlayMode.computer), (started: false));
+      await saves.save(computerGame(), {'started': false});
+      expect(saves.unfinished(PlayMode.computer), (
+        started: true,
+      ), reason: 'game-saves: your move in the history counts as started');
+      expect(saves.unfinished(PlayMode.two), isNull);
+    });
+
+    test('a finished game leaves its slot and is not unfinished', () async {
+      final controller = GameController.idle(now: time);
+      final saves = GameSaves(AppStore.memory())..attach(controller.events);
+      addTearDown(() {
+        saves.dispose();
+        controller.dispose();
+      });
+      await controller.newGame(twoPlayerDefault);
+      await saves.flush();
+      expect(saves.unfinished(PlayMode.two), (started: false));
+      controller.resign();
+      await saves.flush();
+      expect(saves.unfinished(PlayMode.two), isNull);
+    });
+  });
 }

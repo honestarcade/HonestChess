@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,6 +17,7 @@ import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/defaults.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/game_screen.dart';
+import 'package:honest_chess/ui/navigation.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
 // The launcher-icon guard reads this literal here; Palette.screenBg is the
@@ -110,6 +113,12 @@ class HonestChessAppState extends State<HonestChessApp> {
   /// The board options and setup choices; every change to the board options
   /// reaches the controller and the board at once.
   final settings = SettingsStore();
+
+  /// The navigating flag, observing the app's one navigator.
+  final navigation = NavigationGuard();
+
+  /// Random's colour is drawn from the platform's secure source.
+  final random = Random.secure();
 
   /// Built once, never rebuilt: a test injecting only a platform gets a
   /// store resolved through it.
@@ -208,8 +217,11 @@ class HonestChessAppState extends State<HonestChessApp> {
       saves: saves,
       stats: stats,
       settings: settings,
+      navigation: navigation,
+      random: random,
       child: MaterialApp(
         title: 'Honest Chess',
+        navigatorObservers: [navigation],
         debugShowCheckedModeBanner: false,
         theme: appTheme(),
         home: ValueListenableBuilder<BoardOptions>(
