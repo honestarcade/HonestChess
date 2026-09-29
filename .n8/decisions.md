@@ -1163,3 +1163,6 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** New battery mutations (`--only contrast`): "the two-player Start's pressed fill goes back to the design's" (expects `contrast-text: below WCAG AA`) and "a pressed ink fill overshoots its nearest pass" (expects `contrast-shift: not the nearest pass`, through the new translucent-fill branch).
   **Why:** CLAUDE.md: a guard's new rule gets its mutation.
   **Issue:** #141
+- **Decision:** New battery mutation "a brand swatch drifts off the brand sheet": `Palette.teal` goes from #00D6B4 to #00D6B5 and must fire `contrast-brand: the swatches are the brand sheet's, unshifted`. Teal was picked because every screen draws it, and a one-step drift is the smallest change the rule must catch.
+  **Why:** #142: the brand-swatch rule had no mutation (CLAUDE.md: a guard means its mutation).
+  **Issue:** #142

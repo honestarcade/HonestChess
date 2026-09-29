@@ -1051,6 +1051,12 @@ MUTATIONS: list[Mutation] = [
                  "static const textMuted = Color(0xFFA6C8F0);"),
              "the muted text would drift further from the design than contrast needs",
              'contrast-shift: not the nearest pass'),
+    Mutation("contrast", "a brand swatch drifts off the brand sheet",
+             "lib/ui/theme/palette.dart",
+             sub(r"static const teal = Color\(0xFF00D6B4\);",
+                 "static const teal = Color(0xFF00D6B5);"),
+             "the app's teal would no longer be the brand sheet's",
+             'contrast-brand: the swatches are the brand sheet\'s, unshifted'),
     # ---- #141: pressed fills ------------------------------------------------
     Mutation("contrast", "the two-player Start's pressed fill goes back to the design's",
              "lib/ui/theme/palette.dart",
