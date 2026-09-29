@@ -7,12 +7,14 @@ import 'package:honest_chess/data/stats.dart';
 import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_interaction.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
+import 'package:honest_chess/ui/game/defaults.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/game/game_screen.dart';
 import 'package:honest_chess/ui/game/result_overlay.dart';
 import 'package:honest_chess/ui/motion.dart';
 import 'package:honest_chess/ui/screens/settings_screen.dart';
 import 'package:honest_chess/ui/screens/stats_screen.dart';
+import 'package:honest_chess/ui/widgets/time_control_picker.dart';
 import 'package:honest_chess/ui/widgets/toggle_switch.dart';
 
 import '../support/app_harness.dart';
@@ -234,6 +236,60 @@ void main() {
         ToggleSwitch.knobOff,
         reason: "motion: the switch's own knob follows its new value at once",
       );
+    });
+
+    testWidgets("the time control's stepper reveal", (tester) async {
+      tester.view.physicalSize = const Size(390, 400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      for (final animations in [true, false]) {
+        final controller = ScrollController();
+        addTearDown(controller.dispose);
+        var time = TimeChoice.untimed;
+        await pumpUnderScope(
+          tester,
+          Scaffold(
+            body: SingleChildScrollView(
+              key: ValueKey(animations),
+              controller: controller,
+              child: Column(
+                children: [
+                  const SizedBox(height: 300),
+                  StatefulBuilder(
+                    builder: (context, setState) => TimeControlPicker(
+                      keyPrefix: 'probe',
+                      selected: time,
+                      custom: const CustomTime(minutes: 15, increment: 10),
+                      onChanged: (t, _, _) => setState(() => time = t),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          settings: _settings(animations: animations),
+        );
+        final custom = _key('probe-time-custom');
+        await tester.ensureVisible(custom);
+        await tester.pumpAndSettle();
+        final before = controller.offset;
+        await tester.tap(custom);
+        await tester.pump();
+        final oneFrame = controller.offset;
+        await tester.pumpAndSettle();
+        expect(
+          controller.offset,
+          greaterThan(before),
+          reason: 'test: choosing Custom scrolls, animations $animations',
+        );
+        expect(
+          oneFrame == controller.offset,
+          !animations,
+          reason:
+              'motion: the stepper reveal lands in one frame only with '
+              'animations off (animations $animations)',
+        );
+      }
     });
 
     testWidgets("Statistics' reset card", (tester) async {
