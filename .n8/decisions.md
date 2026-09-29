@@ -830,3 +830,6 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** The guard reads `pubspec.yaml`'s `flutter: assets:` with `package:yaml` instead of Solitaire's line regex, and adds a mutation for the README naming LICENSES.md alongside the plan's "not covered by the MIT" one. The stray-file mutation adds a text stand-in `stray.wav` rather than a copy of `move.wav`.
   **Why:** This repository's guards read YAML structurally (`test/guards/repo_files.dart`); each README assertion is a rule and gets its own mutation; the battery's `adds` writes text, and the stray rule refuses the name before reading any bytes.
   **Issue:** #95
+- **Decision (Rule 3):** `references_test.dart` and `template_leftovers_test.dart` now skip `.wav` files alongside `.png`, `.jar` and `.ttf`: both read every tracked file as UTF-8 text and threw on the first committed clip.
+  **Why:** A WAV holds no file reference or placeholder name to scan; the skip lists already exist for binary files, and the WAVs are the first binary type this story added.
+  **Issue:** #95
