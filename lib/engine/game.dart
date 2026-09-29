@@ -7,6 +7,8 @@ import 'play.dart' as rules;
 import 'position.dart';
 import 'strength.dart';
 
+part 'game_json.dart';
+
 /// #63's `status`, reachable inside [Game], whose own `status` field shadows
 /// the name.
 GameStatus _rulesStatus(List<Position> history) => status(history);
@@ -201,6 +203,19 @@ final class Game {
     );
   }
 
+  /// The game saved in [json] by [toJson], rebuilt by replaying its moves
+  /// from its starting FEN — a stored position is never trusted — and then
+  /// applying and checking its clocks and result. A clock that was running
+  /// when saved comes back paused, as after a takeback. [time] is as for
+  /// [Game.start].
+  ///
+  /// Throws a [GameLoadError], and loads nothing, for a missing, unknown or
+  /// newer `version`, a missing or mistyped field, a FEN that does not
+  /// parse, an illegal move, moves after the game ended, a result or clock
+  /// the replay contradicts. Unknown fields are ignored.
+  factory Game.fromJson(Map<String, Object?> json, {TimeSource? time}) =>
+      _gameFromJson(json, time);
+
   final GameMode mode;
   final GameOptions options;
 
@@ -225,6 +240,10 @@ final class Game {
   Colour get sideToMove => position.sideToMove;
 
   bool get isOver => status.isOver;
+
+  /// This game as version-[gameJsonVersion] JSON data, keys in a fixed
+  /// order, with the clocks as they read now — see [Game.fromJson].
+  Map<String, Object?> toJson() => _gameToJson(this);
 
   /// [side]'s remaining milliseconds now; null in an untimed game.
   int? remaining(Colour side) => clock.remaining(side, _time());

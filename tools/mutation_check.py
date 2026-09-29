@@ -703,6 +703,12 @@ MUTATIONS: list[Mutation] = [
                  r"\1"),
              "the incremental key would drift from the position, breaking repetition and the transposition table",
              'key: the incremental key differs from positionKey'),
+
+    # game JSON -- test/engine/game_json_test.dart (#65)
+    Mutation("game-json", "a saved game drops its clock", "lib/engine/game_json.dart",
+             sub(r"\n\s*'clock': _clockToJson\(game, now\),", ""),
+             "a restored game would lose both players' remaining time and every takeback's clock",
+             'game-json: a saved game did not come back'),
 ]
 
 
