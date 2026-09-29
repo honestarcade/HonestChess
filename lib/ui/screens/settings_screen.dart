@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -63,7 +64,7 @@ typedef _Toggle = ({
 });
 
 /// The design's `SETTING_ROWS` that this build has: M5 adds piece
-/// animations and haptics when it builds them.
+/// animations when it builds them.
 final List<_Toggle> _toggles = [
   (
     id: 'dots',
@@ -128,6 +129,14 @@ final List<_Toggle> _toggles = [
     description: 'Quiet loop while you play.',
     read: (o) => o.music,
     write: (o, v) => o.copyWith(music: v),
+  ),
+  (
+    id: 'haptics',
+    group: 'SOUND',
+    label: 'Haptics',
+    description: 'A short tick on an illegal tap or a capture.',
+    read: (o) => o.haptics,
+    write: (o, v) => o.copyWith(haptics: v),
   ),
 ];
 
@@ -277,11 +286,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 : t.description,
                             value: t.read(options),
                             onChanged: () {
-                              final before = options.sfx;
+                              final before = options;
                               update((o) => t.write(o, !t.read(o)));
-                              // Turning effects on plays a sample of them.
-                              if (!before && settings.board.value.sfx) {
+                              final after = settings.board.value;
+                              // Turning effects on plays a sample of them;
+                              // turning haptics on ticks one.
+                              if (!before.sfx && after.sfx) {
                                 scope.sound.play(Clip.move);
+                              }
+                              if (!before.haptics && after.haptics) {
+                                unawaited(scope.haptics.tick());
                               }
                             },
                           ),

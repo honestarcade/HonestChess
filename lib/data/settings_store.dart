@@ -129,6 +129,7 @@ BoardOptions decodeBoard(Object? raw) {
     animations: _bool(json['animations'], d.animations),
     sfx: _bool(json['sfx'], d.sfx),
     music: _bool(json['music'], d.music),
+    haptics: _bool(json['haptics'], d.haptics),
     flagCheck: _bool(json['flagCheck'], d.flagCheck),
   );
 }
@@ -147,6 +148,7 @@ Map<String, Object?> encodeBoard(BoardOptions options, [Object? raw]) =>
       'animations': options.animations,
       'sfx': options.sfx,
       'music': options.music,
+      'haptics': options.haptics,
       'flagCheck': options.flagCheck,
     }, raw);
 

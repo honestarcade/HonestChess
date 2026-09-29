@@ -13,6 +13,7 @@ import 'package:honest_chess/data/stats.dart';
 import 'package:honest_chess/data/stats_listener.dart';
 import 'package:honest_chess/feedback/clips.dart';
 import 'package:honest_chess/feedback/game_feedback.dart';
+import 'package:honest_chess/feedback/haptics.dart';
 import 'package:honest_chess/feedback/music_controller.dart';
 import 'package:honest_chess/feedback/sound_player.dart';
 import 'package:honest_chess/platform/platform_channel.dart';
@@ -72,6 +73,7 @@ class HonestChessApp extends StatefulWidget {
     this.store,
     this.platform,
     this.sound,
+    this.haptics,
     this.skipSplash = false,
   });
 
@@ -83,6 +85,9 @@ class HonestChessApp extends StatefulWidget {
 
   /// The sound bridge; null builds the production channel.
   final SoundPlayer? sound;
+
+  /// The haptic port; null ticks through Flutter's own haptic call.
+  final HapticsPort? haptics;
 
   /// Builds the computer for each game against it; tests pass a fake.
   final ComputerFactory computerFactory;
@@ -120,6 +125,7 @@ class HonestChessAppState extends State<HonestChessApp> {
   late final StatsListener _statsListener;
   late final AppLoader _loader;
   late final SoundPlayer sound;
+  late final HapticsPort haptics;
 
   /// False from the moment the app starts leaving the foreground
   /// (inactive, hidden, paused or detached) until it is back.
@@ -162,11 +168,14 @@ class HonestChessAppState extends State<HonestChessApp> {
     // Once, beside the launch load rather than a step of it: a clip that
     // fails to load stays silent, and nothing waits on it.
     unawaited(sound.load(clips));
+    haptics = widget.haptics ?? FlutterHaptics();
     _feedback = GameFeedback(
       events: controller.events,
+      refusals: controller.refusals,
       board: settings.board,
       foreground: foreground,
       player: sound,
+      haptics: haptics,
     );
     music = MusicController(
       controller: controller,
@@ -234,6 +243,7 @@ class HonestChessAppState extends State<HonestChessApp> {
       random: random,
       sound: sound,
       music: music,
+      haptics: haptics,
       child: MaterialApp(
         title: 'Honest Chess',
         navigatorObservers: [navigation, boardRoutes],

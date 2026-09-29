@@ -854,3 +854,21 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** Every widget test that pumps `HonestChessApp` through `test/widget_test.dart`'s `_launch` passes a `FakeSoundPlayer`; the few other tests that pump the root without one get the production `ChannelSoundPlayer`, which finds no channel under test, logs once and stays silent.
   **Why:** That is the player's own failure path (a sound never throws into the UI), and adding a parameter to tests unrelated to sound would be churn.
   **Issue:** #96
+- **Decision:** `Refusal` lives in its own file, `lib/ui/game/refusal.dart` (`kind`, `from`, `to` — null for a drop off the board — and `via: RefusalVia.tap|drop`), and `GameController.refusals` is a synchronous broadcast stream beside `events`.
+  **Why:** #102 needs the same record without importing the controller; a sync broadcast matches `events`, so a tick lands in the same frame as the refused tap.
+  **Issue:** #97
+- **Decision:** A refused drop on the board reports the square it was let go on: `BoardInteraction` records the square under the pointer from each `DragTarget.onMove` (fired for targets that reject the drag too) and clears it on each pointer move of the drag's own pointer, rather than clearing it in `onLeave`.
+  **Why:** Flutter calls every entered target's `onLeave` at the drop itself, before `onDraggableCanceled`, so a leave cannot tell "left the board" from "let go here".
+  **Issue:** #97
+- **Decision:** A drag whose pointer is cancelled (the planner's "second pointer" case, or the system taking the gesture) ends through a new `GameController.abandonDrag(from)`, which clears the selection like a drop off the board but raises no refusal; the board spots the cancel with a `Listener.onPointerCancel` on the drag's own pointer, which runs before the drag recogniser sees the same event.
+  **Why:** `onDraggableCanceled` fires the same way for a drop that nothing accepted and for a cancelled pointer; the plan says only the first ticks.
+  **Issue:** #97
+- **Decision:** The tick is skipped while the app is not in the foreground, as the hub already does for sound.
+  **Why:** A capture by the computer landing as the app leaves should not buzz a phone in a pocket; the hub's one foreground check now covers both outputs.
+  **Issue:** #97
+- **Decision:** The haptics scan also bans `performHapticFeedback` in every `.kt` file under `android/app/src` (all source sets), and its lightImpact check reads `haptics.dart` with comments stripped. It has six mutations under issue `haptics` (`--only haptics`), one per banned form plus the lightImpact check. `stripDartComments` is Honest Solitaire's helper, copied into `test/guards/repo_files.dart`, and reads Kotlin's comments too (same syntax).
+  **Why:** The plan asks for one mutation per rule; scanning all source sets costs nothing and leaves no Kotlin corner unread.
+  **Issue:** #97
+- **Decision:** The `FlutterHaptics` test covers the `PlatformException` path only. `SystemChannels.platform` is an `OptionalMethodChannel`, so a missing handler answers null rather than throwing `MissingPluginException`; the catch for it stays, as in Honest Solitaire's port.
+  **Why:** You cannot make a missing plugin throw through that channel in a test. The catch costs nothing and still protects a platform whose channel does throw.
+  **Issue:** #97

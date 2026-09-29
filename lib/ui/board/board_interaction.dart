@@ -53,6 +53,21 @@ class _BoardInteractionState extends State<BoardInteraction>
   /// drives the board.
   Square? _dragging;
 
+  /// The square under the dragged piece, whether or not it would take it;
+  /// null off the board. A refused drop is reported with it. Each pointer
+  /// move clears it and the targets under the pointer set it again, because
+  /// a target's leave also fires at the drop and cannot tell the two apart.
+  Square? _hovered;
+
+  /// The drag's pointer was cancelled rather than lifted: the drag ends
+  /// with no drop, so nothing was refused.
+  bool _pointerCancelled = false;
+
+  /// The pointer that went down last while no drag ran, which is the one a
+  /// drag starting next belongs to; and the running drag's pointer.
+  int? _lastDown;
+  int? _dragPointer;
+
   GameController get _controller => widget.controller;
 
   @override
@@ -68,14 +83,27 @@ class _BoardInteractionState extends State<BoardInteraction>
       listenable: _controller,
       builder: (context, _) {
         final state = _controller.state;
-        return BoardView(
-          position: state.position,
-          bottom: widget.bottom,
-          options: _controller.options,
-          decorate: (square, side, scale) =>
-              _highlights(state, square, side, scale),
-          wrapPiece: _draggable,
-          wrapSquare: _target,
+        // The listener sees each pointer event before the drag's own
+        // recogniser does.
+        return Listener(
+          onPointerDown: (event) {
+            if (_dragging == null) _lastDown = event.pointer;
+          },
+          onPointerMove: (event) {
+            if (event.pointer == _dragPointer) _hovered = null;
+          },
+          onPointerCancel: (event) {
+            if (event.pointer == _dragPointer) _pointerCancelled = true;
+          },
+          child: BoardView(
+            position: state.position,
+            bottom: widget.bottom,
+            options: _controller.options,
+            decorate: (square, side, scale) =>
+                _highlights(state, square, side, scale),
+            wrapPiece: _draggable,
+            wrapSquare: _target,
+          ),
         );
       },
     );
@@ -147,6 +175,7 @@ class _BoardInteractionState extends State<BoardInteraction>
           _controller.canDrop(Square.values[details.data], square),
       onAcceptWithDetails: (details) =>
           _controller.drop(Square.values[details.data], square),
+      onMove: (_) => _hovered = square,
       builder: (context, candidates, rejected) => GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
@@ -177,14 +206,24 @@ class _BoardInteractionState extends State<BoardInteraction>
         ),
         childWhenDragging: Opacity(opacity: 0.3, child: child),
         onDragStarted: () {
+          _hovered = null;
+          _pointerCancelled = false;
+          _dragPointer = _lastDown;
           setState(() => _dragging = square);
           _controller.pickUp(square);
         },
         onDragEnd: (_) {
+          _dragPointer = null;
           if (mounted) setState(() => _dragging = null);
         },
         onDraggableCanceled: (velocity, offset) {
-          _controller.drop(square, null);
+          if (_pointerCancelled) {
+            _controller.abandonDrag(square);
+          } else {
+            _controller.drop(square, _hovered);
+          }
+          _hovered = null;
+          _pointerCancelled = false;
           if (mounted) _springBack(square, cellContext, offset, child, side);
         },
         child: shown,

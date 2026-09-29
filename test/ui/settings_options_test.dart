@@ -78,6 +78,12 @@ final _rows =
         description: 'Quiet loop while you play.',
         read: (o) => o.music,
       ),
+      (
+        key: 'settings-toggle-haptics',
+        label: 'Haptics',
+        description: 'A short tick on an illegal tap or a capture.',
+        read: (o) => o.haptics,
+      ),
     ];
 
 const _untimedTwo = (
@@ -207,7 +213,7 @@ void main() {
         greaterThan(tester.getTopLeft(find.text('Flag check on the board')).dy),
         reason: 'settings-options: SOUND comes after DISPLAY',
       );
-      for (final hidden in ['Piece animations', 'Haptics']) {
+      for (final hidden in ['Piece animations']) {
         expect(
           find.textContaining(hidden),
           findsNothing,
@@ -270,6 +276,7 @@ void main() {
         flagCheck: false,
         sfx: false,
         music: true,
+        haptics: false,
       ),
       reason: 'settings-options: the toggles touch nothing else',
     );
@@ -309,6 +316,37 @@ void main() {
       Clip.move,
     ], reason: 'settings-sound: no other switch plays the sample');
     expect(await _saved(store), harness.settings.board.value);
+  });
+
+  testWidgets('turning Haptics on ticks one sample; nothing else does', (
+    tester,
+  ) async {
+    final store = AppStore.memory();
+    final harness = await _pumpSettings(tester, store: store);
+    expect(harness.settings.board.value.haptics, isTrue);
+    await _toggle(tester, 'settings-toggle-haptics');
+    expect(harness.settings.board.value.haptics, isFalse);
+    expect(
+      harness.haptics.ticks,
+      0,
+      reason: 'settings-haptics: turning haptics off ticks nothing',
+    );
+    await _toggle(tester, 'settings-toggle-haptics');
+    expect(
+      harness.haptics.ticks,
+      1,
+      reason: 'settings-haptics: turning haptics on ticks one sample',
+    );
+    await _toggle(tester, 'settings-toggle-sfx');
+    await _toggle(tester, 'settings-toggle-sfx');
+    await _toggle(tester, 'settings-toggle-dots');
+    expect(
+      harness.haptics.ticks,
+      1,
+      reason: 'settings-haptics: no other switch ticks',
+    );
+    expect(harness.sound.played, hasLength(1));
+    expect((await _saved(store)).haptics, isTrue);
   });
 
   testWidgets('every tap counts, even mid-slide', (tester) async {

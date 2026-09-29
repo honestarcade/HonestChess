@@ -24,9 +24,11 @@ class _Rig {
        board = ValueNotifier(options) {
     feedback = GameFeedback(
       events: this.controller.events,
+      refusals: this.controller.refusals,
       board: board,
       foreground: foreground,
       player: sound,
+      haptics: haptics,
     );
   }
 
@@ -34,6 +36,7 @@ class _Rig {
   final ValueNotifier<BoardOptions> board;
   final foreground = ValueNotifier<bool>(true);
   final sound = FakeSoundPlayer();
+  final haptics = FakeHaptics();
   late final GameFeedback feedback;
 
   void move(String uci) => expect(

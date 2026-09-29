@@ -43,6 +43,7 @@ Future<HonestChessAppState> _launch(
       store: store,
       platform: platform ?? FakePlatformChannel(),
       sound: sound ?? FakeSoundPlayer(),
+      haptics: FakeHaptics(),
     ),
   );
   // The splash shows while the launch load runs, then the menu fades in,

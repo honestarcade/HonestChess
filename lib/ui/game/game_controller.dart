@@ -9,6 +9,7 @@ import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/defaults.dart';
+import 'package:honest_chess/ui/game/refusal.dart';
 
 /// A square's background layer, as the design's `hl`: at most one shows,
 /// in this order of precedence — the selected piece, a king in check, then
@@ -188,6 +189,10 @@ class GameController extends ChangeNotifier {
   /// done; see [_emit] for events raised during a delivery.
   final _events = StreamController<GameEvent>.broadcast(sync: true);
   final _undelivered = <GameEvent>[];
+
+  /// A broadcast rather than a listenable, so two identical refusals in a
+  /// row are each heard.
+  final _refusals = StreamController<Refusal>.broadcast(sync: true);
   bool _delivering = false;
   RecordedState? _recordedState;
   final _replaceStages = <ReplaceStage>[];
@@ -234,6 +239,9 @@ class GameController extends ChangeNotifier {
 
   /// Every change of game, for the saved games (#81) and statistics (#82).
   Stream<GameEvent> get events => _events.stream;
+
+  /// Every tap or drop the board refused (#97), for the feedback hub.
+  Stream<Refusal> get refusals => _refusals.stream;
 
   /// The statistics' state of the game on the board ([RecordedState]),
   /// carried as a map into every event and saved beside the game; empty
@@ -303,6 +311,9 @@ class GameController extends ChangeNotifier {
     if (selected != null && _isTarget(selected, square)) {
       return move(selected, square);
     }
+    if (selected != null && !_isMovable(square)) {
+      _refuse(selected, square, RefusalVia.tap);
+    }
     final next = _isMovable(square) && square != selected ? square : null;
     if (next == selected) return false;
     _select(next);
@@ -335,8 +346,18 @@ class GameController extends ChangeNotifier {
     if (to != null && canDrop(from, to)) {
       return to == from ? false : move(from, to);
     }
+    // Only a drag that still owns the selection was refused; one that
+    // outlived a position change, or a lock, just ends.
+    if (!inputLocked && _selection == from) _refuse(from, to, RefusalVia.drop);
     if (!inputLocked && _selection != null) _select(null);
     return false;
+  }
+
+  /// A drag from [from] ended without being let go (a pointer cancel):
+  /// the selection clears as for a drop off the board, and nothing is
+  /// refused.
+  void abandonDrag(Square from) {
+    if (!inputLocked && _selection != null) _select(null);
   }
 
   /// Plays the legal move from [from] to [to]. A pawn reaching its last
@@ -755,6 +776,7 @@ class GameController extends ChangeNotifier {
     _declineTimer?.cancel();
     _turns?.dispose();
     _events.close();
+    _refusals.close();
     super.dispose();
   }
 
@@ -830,6 +852,13 @@ class GameController extends ChangeNotifier {
     notifyListeners();
     _announce(before, played ? GameMoved.new : null);
     return played;
+  }
+
+  void _refuse(Square from, Square? to, RefusalVia via) {
+    if (_disposed) return;
+    final piece = _game.position.pieceAt(from);
+    if (piece == null) return;
+    _refusals.add(Refusal(kind: piece.kind, from: from, to: to, via: via));
   }
 
   void _select(Square? square) {

@@ -101,6 +101,7 @@ final class BoardOptions {
     this.animations = true,
     this.sfx = true,
     this.music = false,
+    this.haptics = true,
     this.flagCheck = true,
   });
 
@@ -132,6 +133,9 @@ final class BoardOptions {
   /// Play the quiet loop while a game is live on the board.
   final bool music;
 
+  /// A short tick on an illegal tap or drop and on a capture.
+  final bool haptics;
+
   /// Redden the king's square whenever it is in check.
   final bool flagCheck;
 
@@ -147,6 +151,7 @@ final class BoardOptions {
     bool? animations,
     bool? sfx,
     bool? music,
+    bool? haptics,
     bool? flagCheck,
   }) => BoardOptions(
     theme: theme ?? this.theme,
@@ -160,6 +165,7 @@ final class BoardOptions {
     animations: animations ?? this.animations,
     sfx: sfx ?? this.sfx,
     music: music ?? this.music,
+    haptics: haptics ?? this.haptics,
     flagCheck: flagCheck ?? this.flagCheck,
   );
 
@@ -177,6 +183,7 @@ final class BoardOptions {
       other.animations == animations &&
       other.sfx == sfx &&
       other.music == music &&
+      other.haptics == haptics &&
       other.flagCheck == flagCheck;
 
   @override
@@ -192,6 +199,7 @@ final class BoardOptions {
     animations,
     sfx,
     music,
+    haptics,
     flagCheck,
   );
 }

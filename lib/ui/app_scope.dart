@@ -6,6 +6,7 @@ import '../data/app_store.dart';
 import '../data/game_saves.dart';
 import '../data/settings_store.dart';
 import '../data/stats.dart';
+import '../feedback/haptics.dart';
 import '../feedback/music_controller.dart';
 import '../feedback/sound_player.dart';
 import '../platform/platform_channel.dart';
@@ -16,9 +17,10 @@ import 'navigation.dart';
 /// and overlay sees it: the store and the platform bridge (#80), the game
 /// controller and the saved games (#81), the statistics (#82) and the
 /// settings (#83), the navigating flag and the random source for
-/// Random's colour (#85), the sounds and the music loop's gate (#96). Later
-/// stories add their own fields. The root creates each object once, and live
-/// changes reach widgets through those objects' own listenables.
+/// Random's colour (#85), the sounds and the music loop's gate (#96), the
+/// haptic port (#97). Later stories add their own fields. The root creates
+/// each object once, and live changes reach widgets through those objects'
+/// own listenables.
 class AppScope extends InheritedWidget {
   const AppScope({
     super.key,
@@ -32,6 +34,7 @@ class AppScope extends InheritedWidget {
     required this.random,
     required this.sound,
     required this.music,
+    required this.haptics,
     required super.child,
   });
 
@@ -66,6 +69,10 @@ class AppScope extends InheritedWidget {
   /// the game and the app's lifecycle by itself (#96).
   final MusicController music;
 
+  /// The one place that ticks: the feedback hub ticks through it, and
+  /// Settings ticks its sample (#97).
+  final HapticsPort haptics;
+
   /// The nearest scope. It does not register a dependency, so it works in
   /// `initState` and callbacks; there is no `maybeOf`, because a widget
   /// outside the scope is a wiring mistake.
@@ -91,5 +98,6 @@ class AppScope extends InheritedWidget {
       !identical(navigation, oldWidget.navigation) ||
       !identical(random, oldWidget.random) ||
       !identical(sound, oldWidget.sound) ||
-      !identical(music, oldWidget.music);
+      !identical(music, oldWidget.music) ||
+      !identical(haptics, oldWidget.haptics);
 }
