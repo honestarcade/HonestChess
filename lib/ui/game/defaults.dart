@@ -9,14 +9,14 @@ enum GameKind { vsComputer, twoPlayers }
 
 /// Everything a new game is started from, before the computer's seed is
 /// drawn: the kind, the computer's [strength] and your [colour] (vs the
-/// computer only; a null colour is drawn at random), the time control, and
-/// whether the board turns to the side to move (two players only).
+/// computer only; a null colour is drawn at random) and the time control.
+/// Whether a two-player board turns to the side to move is the app-wide
+/// setting (`BoardOptions.rotateEachTurn`), never part of a game.
 typedef GameSetup = ({
   GameKind mode,
   Strength? strength,
   Colour? colour,
   TimeControl timeControl,
-  bool rotate,
 });
 
 /// The design's default game against the computer: Club, you White,
@@ -26,16 +26,14 @@ const GameSetup vsComputerDefault = (
   strength: Strength.club,
   colour: Colour.white,
   timeControl: Timed.rapid,
-  rotate: false,
 );
 
-/// The design's default two-player game: Rapid 10+5, the board not turning.
+/// The design's default two-player game: Rapid 10+5.
 const GameSetup twoPlayerDefault = (
   mode: GameKind.twoPlayers,
   strength: null,
   colour: null,
   timeControl: Timed.rapid,
-  rotate: false,
 );
 
 /// The [GameMode] a game from [setup] is played in. Against the computer
@@ -223,16 +221,14 @@ final class SetupChoices {
     strength: computer.step,
     colour: colour,
     timeControl: computer.time.toTimeControl(custom.minutes, custom.increment),
-    rotate: false,
   );
 
   /// The two-player game these choices start.
-  GameSetup twoPlayerSetup({bool rotate = false}) => (
+  GameSetup twoPlayerSetup() => (
     mode: GameKind.twoPlayers,
     strength: null,
     colour: null,
     timeControl: two.time.toTimeControl(custom.minutes, custom.increment),
-    rotate: rotate,
   );
 
   SetupChoices copyWith({

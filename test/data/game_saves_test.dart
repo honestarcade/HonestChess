@@ -117,7 +117,6 @@ void main() {
           strength: null,
           colour: null,
           timeControl: Timed.blitz,
-          rotate: false,
         ));
       });
       await step('a move', () {
@@ -484,7 +483,6 @@ void main() {
         strength: null,
         colour: null,
         timeControl: const Untimed(),
-        rotate: false,
       ));
       for (final uci in ['f2f3', 'e7e5', 'g2g4']) {
         controller.move(
@@ -597,7 +595,6 @@ void main() {
           strength: null,
           colour: null,
           timeControl: const Untimed(),
-          rotate: false,
         ));
         seen.clear();
         idle.resign();

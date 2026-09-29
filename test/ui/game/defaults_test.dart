@@ -35,7 +35,6 @@ void main() {
     expect(setup.strength, Strength.strong);
     expect(setup.colour, Colour.black);
     expect(setup.timeControl, Timed(15, 10));
-    expect(setup.rotate, isFalse);
   });
 
   test('twoPlayerSetup carries the two-player time, not the computer\'s', () {

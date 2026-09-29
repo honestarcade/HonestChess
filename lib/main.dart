@@ -40,7 +40,6 @@ void main({Strength? strength, int? seed}) {
               strength: strength,
               colour: vsComputerDefault.colour,
               timeControl: vsComputerDefault.timeControl,
-              rotate: false,
             ),
       seed: seed,
     ),

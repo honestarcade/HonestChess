@@ -8,7 +8,8 @@ const backGlyph = '‹';
 
 /// The design's screen header: the ‹ back button and the title, with an
 /// optional upper-case [kicker] line under the title in [kickerColor].
-/// Back pops the route, returning to wherever the screen was opened from.
+/// Back pops the route, returning to wherever the screen was opened from;
+/// while pressed its border is the [accent]'s.
 /// Its parts are keyed `<keyPrefix>-back`, `-title` and `-kicker`, the
 /// prefix being the screen's id (`settings`, `csetup`…).
 class ScreenHeader extends StatelessWidget {
@@ -19,6 +20,7 @@ class ScreenHeader extends StatelessWidget {
     this.kicker,
     this.kickerColor = Palette.kicker,
     this.onBack,
+    this.accent = Accent.teal,
   });
 
   final String title;
@@ -29,6 +31,9 @@ class ScreenHeader extends StatelessWidget {
   /// Replaces the default pop.
   final VoidCallback? onBack;
 
+  /// The back button's border while pressed: the accent's main colour.
+  final Accent accent;
+
   static const backSize = 34.0;
 
   @override
@@ -37,45 +42,7 @@ class ScreenHeader extends StatelessWidget {
     final back = onBack ?? () => Navigator.maybePop(context);
     return Row(
       children: [
-        Semantics(
-          button: true,
-          label: 'Back',
-          onTap: back,
-          excludeSemantics: true,
-          child: GestureDetector(
-            key: Key('$keyPrefix-back'),
-            behavior: HitTestBehavior.opaque,
-            onTap: back,
-            // 48 dp to touch, 34 dp drawn at its left; the rest of the
-            // touch area is the design's 13 dp gap before the title.
-            child: SizedBox.square(
-              dimension: 48,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  width: backSize,
-                  height: backSize,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: Palette.cardFill,
-                    borderRadius: BorderRadius.circular(11),
-                    border: Border.all(color: Palette.borderStrong),
-                  ),
-                  child: const Text(
-                    backGlyph,
-                    style: TextStyle(
-                      fontFamily: Fonts.outfit,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 16,
-                      height: 1,
-                      color: Color(0xFFFFFFFF),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
+        _BackButton(keyPrefix: keyPrefix, onBack: back, accent: accent),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,6 +81,78 @@ class ScreenHeader extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _BackButton extends StatefulWidget {
+  const _BackButton({
+    required this.keyPrefix,
+    required this.onBack,
+    required this.accent,
+  });
+
+  final String keyPrefix;
+  final VoidCallback onBack;
+  final Accent accent;
+
+  @override
+  State<_BackButton> createState() => _BackButtonState();
+}
+
+class _BackButtonState extends State<_BackButton> {
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (_pressed != value) setState(() => _pressed = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Back',
+      onTap: widget.onBack,
+      excludeSemantics: true,
+      child: GestureDetector(
+        key: Key('${widget.keyPrefix}-back'),
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onBack,
+        onTapDown: (_) => _setPressed(true),
+        onTapUp: (_) => _setPressed(false),
+        onTapCancel: () => _setPressed(false),
+        // 48 dp to touch, 34 dp drawn at its left; the rest of the touch
+        // area is the design's 13 dp gap before the title.
+        child: SizedBox.square(
+          dimension: 48,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              key: Key('${widget.keyPrefix}-back-box'),
+              width: ScreenHeader.backSize,
+              height: ScreenHeader.backSize,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Palette.cardFill,
+                borderRadius: BorderRadius.circular(11),
+                border: Border.all(
+                  color: _pressed ? widget.accent.main : Palette.borderStrong,
+                ),
+              ),
+              child: const Text(
+                backGlyph,
+                style: TextStyle(
+                  fontFamily: Fonts.outfit,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 16,
+                  height: 1,
+                  color: Color(0xFFFFFFFF),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

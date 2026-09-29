@@ -242,6 +242,7 @@ class _StepperRow extends StatelessWidget {
               delta: -1,
               min: min,
               max: max,
+              accent: accent,
               onStep: onStep,
             ),
             ConstrainedBox(
@@ -273,6 +274,7 @@ class _StepperRow extends StatelessWidget {
               delta: 1,
               min: min,
               max: max,
+              accent: accent,
               onStep: onStep,
             ),
           ],
@@ -294,6 +296,7 @@ class _StepButton extends StatefulWidget {
     required this.delta,
     required this.min,
     required this.max,
+    required this.accent,
     required this.onStep,
   });
 
@@ -303,6 +306,9 @@ class _StepButton extends StatefulWidget {
   final int delta;
   final int min;
   final int max;
+
+  /// The border while pressed.
+  final Accent accent;
   final ValueChanged<int> onStep;
 
   static const drawn = 28.0;
@@ -316,6 +322,12 @@ class _StepButtonState extends State<_StepButton> {
 
   /// The value as this hold has stepped it, ahead of the rebuild.
   int? _held;
+
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (_pressed != value) setState(() => _pressed = value);
+  }
 
   bool get _enabled {
     final next = widget.value + widget.delta;
@@ -364,46 +376,59 @@ class _StepButtonState extends State<_StepButton> {
       label: widget.semantics,
       onTap: enabled ? () => _step(widget.value) : null,
       excludeSemantics: true,
-      child: RawGestureDetector(
-        behavior: HitTestBehavior.opaque,
-        gestures: {
-          TapGestureRecognizer:
-              GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
-                TapGestureRecognizer.new,
-                (r) => r.onTap = () => _step(widget.value),
-              ),
-          LongPressGestureRecognizer:
-              GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
-                () => LongPressGestureRecognizer(duration: stepperHoldDelay),
-                (r) {
-                  r.onLongPressStart = (_) => _holdStart();
-                  r.onLongPressEnd = (_) => _stop();
-                  r.onLongPressCancel = _stop;
-                },
-              ),
-        },
-        child: SizedBox.square(
-          dimension: OptionButton.minTouch,
-          child: Center(
-            child: Opacity(
-              opacity: enabled ? 1 : disabledStepperOpacity,
-              child: Container(
-                width: _StepButton.drawn,
-                height: _StepButton.drawn,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Palette.cardFill,
-                  borderRadius: BorderRadius.circular(9),
-                  border: Border.all(color: Palette.borderStrong),
+      // A Listener, outside the gesture arena, so the tap and the hold
+      // both show the press.
+      child: Listener(
+        onPointerDown: (_) => _setPressed(true),
+        onPointerUp: (_) => _setPressed(false),
+        onPointerCancel: (_) => _setPressed(false),
+        child: RawGestureDetector(
+          behavior: HitTestBehavior.opaque,
+          gestures: {
+            TapGestureRecognizer:
+                GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+                  TapGestureRecognizer.new,
+                  (r) => r.onTap = () => _step(widget.value),
                 ),
-                child: Text(
-                  widget.glyph,
-                  style: const TextStyle(
-                    fontFamily: Fonts.outfit,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 15,
-                    height: 1,
-                    color: Color(0xFFFFFFFF),
+            LongPressGestureRecognizer:
+                GestureRecognizerFactoryWithHandlers<
+                  LongPressGestureRecognizer
+                >(
+                  () => LongPressGestureRecognizer(duration: stepperHoldDelay),
+                  (r) {
+                    r.onLongPressStart = (_) => _holdStart();
+                    r.onLongPressEnd = (_) => _stop();
+                    r.onLongPressCancel = _stop;
+                  },
+                ),
+          },
+          child: SizedBox.square(
+            dimension: OptionButton.minTouch,
+            child: Center(
+              child: Opacity(
+                opacity: enabled ? 1 : disabledStepperOpacity,
+                child: Container(
+                  width: _StepButton.drawn,
+                  height: _StepButton.drawn,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Palette.cardFill,
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(
+                      color: _pressed && enabled
+                          ? widget.accent.main
+                          : Palette.borderStrong,
+                    ),
+                  ),
+                  child: Text(
+                    widget.glyph,
+                    style: const TextStyle(
+                      fontFamily: Fonts.outfit,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 15,
+                      height: 1,
+                      color: Color(0xFFFFFFFF),
+                    ),
                   ),
                 ),
               ),

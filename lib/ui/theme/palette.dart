@@ -118,6 +118,11 @@ abstract final class Palette {
   static const violet = Color(0xFF8448FC);
   static const violetText = Color(0xFFB48CFF);
   static const violetFillSelected = Color(0x298448FC); // rgba(132,72,252,.16)
+
+  /// The two-player screen's own: its Start game while pressed (the
+  /// design's hover colour), and its header's kicker.
+  static const violetPressed = Color(0xFF9A68FF);
+  static const kickerViolet = Color(0xFF9E7BFF);
 }
 
 /// The colour a chosen option, a pressed option and a switch's track are

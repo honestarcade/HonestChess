@@ -686,3 +686,12 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** The setup screen uses the design's px as dp without the `width / 390` scale. It sits in a `SafeArea` with 12/20/30 dp padding in a `CustomScrollView`, and a `SliverFillRemaining` pins the buttons at the bottom when the cards fit, as Settings (#83/#84) does.
   **Why:** This keeps one sizing rule across M4's screens (#84's decision).
   **Issue:** #85
+- **Decision:** `GameSetup.rotate` is removed, along with `twoPlayerSetup({rotate})`'s parameter. Its callers and the tests that built setup records drop the field. The two-player screen's rotate row writes `BoardOptions.rotateEachTurn` through `SettingsStore.updateBoard`, the switch Settings shows.
+  **Why:** The acceptance criteria say rotate is never stored per game.
+  **Issue:** #86
+- **Decision:** Pressed feedback for outlined elements: `ScreenHeader` gains `accent:` (default teal), and its ‹ now shows the accent's border while pressed on every screen. The time picker's − / + buttons show the accent's border while pressed and enabled. This is tracked with a `Listener`, so both a tap and a hold show it. The ‹ box gets the key `<prefix>-back-box`. (Rule 2: the shared conventions ask for a pressed border on outlined elements, and #83/#85 had not drawn one on these two.)
+  **Why:** This follows the plan's pass-2 line. Teal screens now get the same feedback the violet screen needs.
+  **Issue:** #86
+- **Decision:** Design differences on Two players: the house-rules text is reworded as the acceptance criteria give it, and its first sentence reads "Takeback is off in Settings." when takeback is off. The rotate row uses Settings' `SettingRow` with the design's 13/15 padding and 14 radius (new optional `padding`/`radius` parameters). The layout follows #85's: `SafeArea` with 12/20/30 dp padding, and Start game pinned by `SliverFillRemaining`.
+  **Why:** The design's "Draw needs both taps" does not match what M3 built (a one-tap agreed draw from the pause card), and this keeps one sizing rule across M4's screens.
+  **Issue:** #86

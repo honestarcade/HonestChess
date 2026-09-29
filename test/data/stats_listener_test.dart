@@ -44,7 +44,6 @@ GameSetup vsComputer({
   strength: step,
   colour: Colour.white,
   timeControl: timeControl,
-  rotate: false,
 );
 
 GameSetup twoPlayers([TimeControl timeControl = Timed.blitz]) => (
@@ -52,7 +51,6 @@ GameSetup twoPlayers([TimeControl timeControl = Timed.blitz]) => (
   strength: null,
   colour: null,
   timeControl: timeControl,
-  rotate: false,
 );
 
 /// The app's objects as the root wires them, over [store].

@@ -73,7 +73,6 @@ const _untimedTwo = (
   strength: null,
   colour: null,
   timeControl: Untimed(),
-  rotate: false,
 );
 
 void _tallView(WidgetTester tester) {

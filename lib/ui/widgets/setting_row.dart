@@ -14,6 +14,8 @@ class SettingRow extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.accent = Accent.teal,
+    this.padding = const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+    this.radius = 12,
   });
 
   final String label;
@@ -25,6 +27,11 @@ class SettingRow extends StatelessWidget {
   final VoidCallback onChanged;
 
   final Accent accent;
+
+  /// The row's inner padding and corner radius: Settings' by default; the
+  /// two-player screen passes its design's own.
+  final EdgeInsets padding;
+  final double radius;
 
   @override
   Widget build(BuildContext context) {
@@ -40,10 +47,10 @@ class SettingRow extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: Palette.cardFill,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(radius),
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+            padding: padding,
             child: Row(
               children: [
                 Expanded(
