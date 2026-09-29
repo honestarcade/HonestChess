@@ -161,7 +161,13 @@ void main() {
       final events = <GameEvent>[];
       controller.events.listen(events.add);
 
-      expect(controller.restore(computerGame(), recorded: {'id': 'x'}), isTrue);
+      expect(
+        controller.restore(
+          computerGame(),
+          recorded: {'id': '00000000000000aa'},
+        ),
+        isTrue,
+      );
       await saves.flush();
       expect(events.map((e) => e.runtimeType), [GameRestored]);
       expect(
@@ -174,7 +180,11 @@ void main() {
       controller.resume();
       await saves.flush();
       final doc = documentOf(store, StoreDoc.gameComputer);
-      expect(doc['recorded'], {'id': 'x'}, reason: 'saves: recorded carried');
+      expect(doc['recorded'], {
+        'id': '00000000000000aa',
+        'started': true,
+        'outcome': false,
+      }, reason: 'saves: recorded carried, as the controller reads it');
     });
 
     test('round trip through the store equals the game', () async {
@@ -557,39 +567,42 @@ void main() {
       expect(seen.last.game.moves, isEmpty);
     });
 
-    test('resign emits only ended; the idle controller refuses everything', () {
-      final idle = GameController.idle(now: time);
-      addTearDown(idle.dispose);
-      final seen = <GameEvent>[];
-      idle.events.listen(seen.add);
-      expect(idle.isIdle, isTrue);
-      expect([
-        idle.pause(),
-        idle.resign(),
-        idle.takeBack(),
-        idle.restart(),
-      ], everyElement(isFalse));
-      expect(() => idle.game, throwsStateError);
-      expect(() => idle.state, throwsStateError);
-      expect(seen, isEmpty, reason: 'controller: an idle one raises nothing');
+    test(
+      'resign emits only ended; the idle controller refuses everything',
+      () async {
+        final idle = GameController.idle(now: time);
+        addTearDown(idle.dispose);
+        final seen = <GameEvent>[];
+        idle.events.listen(seen.add);
+        expect(idle.isIdle, isTrue);
+        expect([
+          idle.pause(),
+          idle.resign(),
+          idle.takeBack(),
+          await idle.restart(),
+        ], everyElement(isFalse));
+        expect(() => idle.game, throwsStateError);
+        expect(() => idle.state, throwsStateError);
+        expect(seen, isEmpty, reason: 'controller: an idle one raises nothing');
 
-      expect(
-        idle.restore(mated(vsClub)),
-        isFalse,
-        reason: 'controller: a finished game is not restored',
-      );
-      expect(idle.isIdle, isTrue);
+        expect(
+          idle.restore(mated(vsClub)),
+          isFalse,
+          reason: 'controller: a finished game is not restored',
+        );
+        expect(idle.isIdle, isTrue);
 
-      idle.newGame((
-        mode: GameKind.twoPlayers,
-        strength: null,
-        colour: null,
-        timeControl: const Untimed(),
-        rotate: false,
-      ));
-      seen.clear();
-      idle.resign();
-      expect(seen.map((e) => e.runtimeType), [GameEnded]);
-    });
+        idle.newGame((
+          mode: GameKind.twoPlayers,
+          strength: null,
+          colour: null,
+          timeControl: const Untimed(),
+          rotate: false,
+        ));
+        seen.clear();
+        idle.resign();
+        expect(seen.map((e) => e.runtimeType), [GameEnded]);
+      },
+    );
   });
 }

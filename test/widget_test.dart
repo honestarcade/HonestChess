@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -220,6 +222,54 @@ void main() {
       expect(second.game.moves, isEmpty);
       expect(second.state.paused, isFalse);
       expect(fakes.current.seed, 2026);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('a finished game found at launch is counted by the root', (
+      tester,
+    ) async {
+      var game = Game.start(
+        const VsComputer(
+          playerColour: Colour.black,
+          step: Strength.club,
+          seed: 4,
+        ),
+        const Untimed(),
+      );
+      for (final uci in ['f2f3', 'e7e5', 'g2g4', 'd8h4']) {
+        game = game.play(
+          Move.fromUci(game.position, uci),
+          byComputer: game.sideToMove == Colour.white,
+        );
+      }
+      final store = AppStore.memory()
+        ..putRaw(
+          StoreDoc.gameComputer,
+          jsonEncode({
+            'format': 1,
+            'data': {
+              'game': game.toJson(),
+              'recorded': {'id': '0123456789abcdef', 'started': true},
+            },
+          }),
+        );
+      await launch(tester, store);
+      await tester.pump();
+      final root = tester.state<HonestChessAppState>(
+        find.byType(HonestChessApp),
+      );
+      await root.saves.flush();
+      await root.stats.idle;
+      expect(root.stats.isLoaded, isTrue);
+      expect(
+        (root.stats.document.computer.played, root.stats.document.computer.won),
+        (1, 1),
+        reason: 'app: the listener is wired before the launch load',
+      );
+      expect(
+        AppScope.of(tester.element(find.byType(GameScreen))).stats,
+        same(root.stats),
+      );
       await tester.pumpWidget(const SizedBox());
     });
   });

@@ -45,7 +45,7 @@ AppStore _storeWithSavedGame() {
       'format': 1,
       'data': {
         'game': game.toJson(),
-        'recorded': {'id': 'saved'},
+        'recorded': {'id': '5a5a5a5a5a5a5a5a'},
       },
     }),
   );
@@ -78,7 +78,11 @@ void main() {
       controller.restore(game, recorded: saves.recorded(PlayMode.computer)),
       isTrue,
     );
-    expect(controller.recorded, {'id': 'saved'});
+    expect(controller.recorded, {
+      'id': '5a5a5a5a5a5a5a5a',
+      'started': true,
+      'outcome': false,
+    }, reason: 'resume: the saved statistics id is kept');
     await pumpUnderScope(
       tester,
       GameScreen(options: const BoardOptions(), controller: controller),

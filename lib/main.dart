@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 
 import 'package:honest_chess/data/app_store.dart';
 import 'package:honest_chess/data/game_saves.dart';
+import 'package:honest_chess/data/stats.dart';
+import 'package:honest_chess/data/stats_listener.dart';
 import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/platform/platform_channel.dart';
 import 'package:honest_chess/ui/app_scope.dart';
@@ -112,6 +114,8 @@ class HonestChessAppState extends State<HonestChessApp> {
   late final AppStore store;
   late final GameController controller;
   late final GameSaves saves;
+  late final StatsRecorder stats;
+  late final StatsListener _statsListener;
 
   /// Leaving the app pauses the live game, whose pause is saved, and then
   /// waits for the store to write it.
@@ -130,11 +134,19 @@ class HonestChessAppState extends State<HonestChessApp> {
       options: boardOptions,
     );
     saves = GameSaves(store)..attach(controller.events);
+    stats = StatsRecorder(store: store);
+    // Before the launch load, so a finished game found there is counted.
+    _statsListener = StatsListener(
+      controller: controller,
+      recorder: stats,
+      saves: saves,
+    );
     _lifecycle = AppLifecycleListener(onStateChange: _left);
     _launch();
   }
 
   Future<void> _launch() async {
+    stats.load().ignore();
     try {
       await saves.loadAll();
     } on Object catch (e) {
@@ -146,7 +158,8 @@ class HonestChessAppState extends State<HonestChessApp> {
     final game = offered == null ? null : saves.load(offered.mode);
     if (game == null ||
         !controller.restore(game, recorded: saves.recorded(offered!.mode))) {
-      controller.newGame(widget.firstGame, seed: widget.seed);
+      await controller.newGame(widget.firstGame, seed: widget.seed);
+      if (!mounted) return;
     }
     setState(() => _launched = true);
   }
@@ -166,6 +179,8 @@ class HonestChessAppState extends State<HonestChessApp> {
   @override
   void dispose() {
     _lifecycle.dispose();
+    _statsListener.dispose();
+    stats.dispose();
     saves.dispose();
     controller.dispose();
     super.dispose();
@@ -180,6 +195,7 @@ class HonestChessAppState extends State<HonestChessApp> {
       platform: platform,
       controller: controller,
       saves: saves,
+      stats: stats,
       child: MaterialApp(
         title: 'Honest Chess',
         debugShowCheckedModeBanner: false,

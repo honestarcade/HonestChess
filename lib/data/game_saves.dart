@@ -84,8 +84,10 @@ class GameSaves extends ChangeNotifier {
   }
 
   /// Adds a step to run, in registration order, when a game ends and
-  /// before its document is deleted.
-  void addEndStage(EndStage stage) => _endStages.add(stage);
+  /// before its document is deleted; [first] puts it ahead of those
+  /// already added.
+  void addEndStage(EndStage stage, {bool first = false}) =>
+      first ? _endStages.insert(0, stage) : _endStages.add(stage);
 
   void removeEndStage(EndStage stage) => _endStages.remove(stage);
 
