@@ -71,6 +71,10 @@ class GameSaves extends ChangeNotifier {
   /// with none there, the other mode's; null when neither holds one.
   OfferedGame? get offered => _offered;
 
+  /// The mode played last: the last saved this session, else `meta`'s;
+  /// null when neither says.
+  PlayMode? get lastPlayed => _lastPlayed;
+
   /// [mode]'s saved game, from memory; null when it has none.
   Game? load(PlayMode mode) => _slots[mode]?.game;
 

@@ -731,3 +731,15 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** The double-tap test calls the Promises button's `onTap` twice in one frame rather than tapping twice through the tester.
   **Why:** A second real tap during the push is absorbed by the Navigator's transition, so the test stayed green with `NavigationGuard.run` removed (checked locally 2026-09-29 by editing the screen and running `flutter test test/ui/about_app_test.dart`); two direct calls fail without the guard.
   **Issue:** #89
+- **Decision:** Statistics reads the mode played last from a new `GameSaves.lastPlayed` getter (the last save this session, else `meta`'s), passed to `openingTab(openOn, lastPlayed)` in `lib/ui/content/stats_view.dart`.
+  **Why:** #81's `GameSaves` kept the value private; the acceptance criteria need it for the default tab, and reading `meta` again from the store would miss a save made this session. (Rule 2)
+  **Issue:** #90
+- **Decision:** The Statistics screen scales by min(width, 480)/390 like #87–#89 (the header unscaled), and its buttons are drawn at the design's size — Reset statistics 41 dp, the confirmation's Cancel and Reset 39 dp at 390 wide — inside a 48 dp touch slot centred on each, the extra taken from the gaps around them, as #88's and #89's links do.
+  **Why:** The shared conventions ask invisible hit areas to grow to 48 dp without changing the drawn layout; #77's `CardButton` grows the drawn button instead, so it was not reused.
+  **Issue:** #90
+- **Decision:** Design differences on Statistics: the confirmation's body is reworded as the acceptance criteria give it; the WIN RATE caption with no games is "— won" and the two-player shares "—% of games"; the Two players tab shows WHITE WINS and BLACK WINS in place of the design's WIN RATE and CURRENT STREAK, and its DRAWS caption is a share; empty rows are drawn with their labels ("0 / 0 · —", "0 games") where the design's wiped state drops the rows; a fifth clock row, Custom, follows the design's four in the fifth bar colour.
+  **Why:** The acceptance criteria and the planner's discretion lines settle each; the design's wiped state has no rows to keep in place after a reset.
+  **Issue:** #90
+- **Decision:** Palette: new `brandBlue` (#0076F1), `barRed` (#C6483D), `barTrack` (white .09), `danger` (#E05A4E), `dangerPressed` (#C94A3F), `cancelEdge` (white .20) and `confirmShadow` (black .50); the Reset statistics button's fill and edge reuse the identical `resignFill` (red .12) and `resignEdge` (red .50), and WIN RATE's wash the identical `accentFill` (teal .12). The reset failure is caught for any error from `resetAll()`, not only `StatsResetFailed`, since either leaves the statistics unchanged.
+  **Why:** The conventions reuse a token only when its value is identical; a failure the screen did not catch would leave both buttons disabled for good.
+  **Issue:** #90

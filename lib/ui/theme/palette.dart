@@ -150,6 +150,19 @@ abstract final class Palette {
   /// About the App's promises panel: its fill and its inset ring.
   static const tealPanelFill = Color(0x1A00D6B4); // rgba(0,214,180,.1)
   static const tealPanelRing = Color(0x5200D6B4); // rgba(0,214,180,.32)
+
+  /// Statistics': the bars' blue and red (with [teal], [violet] and
+  /// [skyBlue], by row), a bar's empty track, the reset red and its
+  /// pressed shade, the Cancel button's edge, and the confirmation card's
+  /// drop shadow. The Reset statistics button's fill and edge are
+  /// [resignFill] and [resignEdge], the same red washes.
+  static const brandBlue = Color(0xFF0076F1);
+  static const barRed = Color(0xFFC6483D);
+  static const barTrack = Color(0x17FFFFFF); // rgba(255,255,255,.09)
+  static const danger = Color(0xFFE05A4E);
+  static const dangerPressed = Color(0xFFC94A3F);
+  static const cancelEdge = Color(0x33FFFFFF); // rgba(255,255,255,.2)
+  static const confirmShadow = Color(0x80000000); // rgba(0,0,0,.5)
 }
 
 /// The system bars on every route, set once at the app root: light icons
