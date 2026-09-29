@@ -1080,3 +1080,9 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** Owner chose option 1 on #104: accept 39 dp (360 × 640) and 30 dp (320 × 568) squares, with the system bars in, as the floors on short phones. There is no layout change.
   **Why:** Owner, 2026-09-29: "1) Accept 39/30".
   **Issue:** #104
+- **Decision:** `test/a11y/guidelines_test.dart` now asserts the squares with the status and gesture bars in (24/48 dp) on every board case: at least 39 dp at 360 × 640 and 30 dp at 320 × 568 at text scale 1.0, the owner's floors. The no-bars floors (43 / 38 dp) are still asserted. The printed report of sizes with the bars in is gone, since those sizes are now asserted.
+  **Why:** Owner's option 1 on #104 (2026-09-29). Raising the 360 × 640 floor to 40 dp and the 320 × 568 at 1.3 floor to 25 dp failed 14 tests (`flutter test test/a11y/guidelines_test.dart`, 2026-09-29), so the check can fail; both were reverted.
+  **Issue:** #104
+- **Decision:** (planner call) At text scale 1.3, with the bars in, the floors are the smallest squares the suite measured on 2026-09-29 (`flutter test test/a11y/guidelines_test.dart`): 36 dp at 360 × 640 and 24 dp at 320 × 568 (View board). The layout is unchanged; 390 × 844 has no floor.
+  **Why:** The owner accepted the current layout. The plan (pass 2) only reported the 1.3 sizes; holding them as floors means the board cannot shrink further without a failing test.
+  **Issue:** #104
