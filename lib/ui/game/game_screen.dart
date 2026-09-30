@@ -79,7 +79,8 @@ String gameTitle(GameMode mode) => switch (mode) {
 ///
 /// Android's back never leaves it by itself: on a live game it opens the
 /// pause card — or cancels an open promotion, or waits while the computer
-/// answers a draw offer — and on the pause card it resumes; on a finished
+/// answers a draw offer — and on the pause card it resumes; the
+/// declined-draw card resumes on its own Resume alone (#160); on a finished
 /// game it shows a result card still waiting to appear, then does what
 /// View board does, and from the final position goes to the menu through
 /// `leaveToMenu`. While the app's navigating flag is set it does nothing.
@@ -209,7 +210,7 @@ class GameScreenState extends State<GameScreen>
       }
     } else if (state.pendingPromotion != null) {
       controller.cancelPromotion();
-    } else if (state.drawAsking) {
+    } else if (state.drawAsking || state.drawDeclined) {
       return;
     } else if (state.paused) {
       controller.resume();
@@ -226,11 +227,10 @@ class GameScreenState extends State<GameScreen>
     if (!left && mounted) setState(() => _leaving = false);
   }
 
-  /// A pause card button opening [open]'s screen over the board: the card,
-  /// cleared of a declined draw's message, is there on return.
+  /// A pause card button opening [open]'s screen over the board: the card
+  /// is there on return.
   void _fromPause(Future<bool> Function(BuildContext) open) {
     if (_leaving || _navigating) return;
-    controller.keepPaused();
     open(context).ignore();
   }
 

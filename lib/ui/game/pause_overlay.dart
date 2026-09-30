@@ -28,9 +28,6 @@ String pauseMeta(Game game) {
 String drawLabel(GameMode mode) =>
     mode is VsComputer ? 'Claim a draw' : 'Agree a draw';
 
-/// The card's line after the computer declines: "Club declines — play on".
-String declineText(Strength step) => '${step.label} declines — play on';
-
 /// The caption under the draw button while it cannot be pressed; null when
 /// it can, or while the computer is answering (the button's spinner says
 /// that).
@@ -51,8 +48,10 @@ const double disabledPauseButtonOpacity = 0.4;
 /// visible behind it. Resume — or a tap on the scrim — restarts the
 /// clocks; the draw button offers a draw; Resign resigns; Rules, Settings
 /// and Main menu call [onRules], [onSettings] and [onMainMenu]. While the
-/// computer considers a draw, every way off the card is shut. Android's
-/// back is the play screen's to handle.
+/// computer considers a draw, every way off the card is shut. Once it
+/// declines, the declined-draw card takes the pause card's place: it says
+/// only that, and play resumes on its Resume button alone — the scrim is
+/// inert under it (#160). Android's back is the play screen's to handle.
 ///
 /// A layer of the play screen, like the promotion sheet: with the game
 /// unpaused it draws nothing and takes no touches. The card is at most
@@ -152,6 +151,10 @@ class _PauseOverlayState extends State<PauseOverlay>
   Widget build(BuildContext context) {
     final open = _open;
     final asking = _controller.state.drawAsking;
+    final declined = switch (_controller.game.mode) {
+      VsComputer(:final step) when _controller.state.drawDeclined => step,
+      _ => null,
+    };
     if (!open && _show.isDismissed) return const SizedBox.shrink();
     return IgnorePointer(
       ignoring: !open,
@@ -161,17 +164,25 @@ class _PauseOverlayState extends State<PauseOverlay>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Semantics(
-              label: 'Resume',
-              button: true,
-              enabled: !asking,
-              child: GestureDetector(
+            if (declined != null)
+              GestureDetector(
                 key: const Key('pause-scrim'),
                 behavior: HitTestBehavior.opaque,
-                onTap: asking ? null : _controller.resume,
+                excludeFromSemantics: true,
                 child: const ColoredBox(color: Palette.scrim),
+              )
+            else
+              Semantics(
+                label: 'Resume',
+                button: true,
+                enabled: !asking,
+                child: GestureDetector(
+                  key: const Key('pause-scrim'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: asking ? null : _controller.resume,
+                  child: const ColoredBox(color: Palette.scrim),
+                ),
               ),
-            ),
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(26),
@@ -179,7 +190,9 @@ class _PauseOverlayState extends State<PauseOverlay>
                   constraints: const BoxConstraints(maxWidth: resultMaxWidth),
                   child: SingleChildScrollView(
                     key: const Key('pause-scroll'),
-                    child: _card(asking),
+                    child: declined == null
+                        ? _card(asking)
+                        : _declinedCard(declined),
                   ),
                 ),
               ),
@@ -190,32 +203,81 @@ class _PauseOverlayState extends State<PauseOverlay>
     );
   }
 
+  static const _cardLook = BoxDecoration(
+    color: Palette.cardSurface,
+    borderRadius: BorderRadius.all(Radius.circular(20)),
+    border: Border.fromBorderSide(BorderSide(color: Palette.cardEdge)),
+    boxShadow: [
+      BoxShadow(
+        color: Palette.cardShadow,
+        offset: Offset(0, 24),
+        blurRadius: 60,
+      ),
+    ],
+  );
+
+  /// The card that says the computer declined the draw, with one way off
+  /// it: Resume, focused as the card comes up.
+  Widget _declinedCard(Strength step) {
+    return Semantics(
+      key: const Key('declined-card'),
+      container: true,
+      explicitChildNodes: true,
+      child: DecoratedBox(
+        decoration: _cardLook,
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Semantics(
+                container: true,
+                header: true,
+                headingLevel: 2,
+                child: Text(
+                  declineText(step),
+                  key: const Key('pause-declined'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontFamily: Fonts.outfit,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 19,
+                    height: 1.25,
+                    color: Color(0xFFFFFFFF),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              CardButton(
+                buttonKey: const Key('declined-resume'),
+                label: 'Resume',
+                fill: Palette.teal,
+                edge: null,
+                ink: Palette.onTeal,
+                weight: FontWeight.w600,
+                fontSize: 15,
+                padding: 15,
+                autofocus: true,
+                onTap: _controller.resume,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _card(bool asking) {
     final game = _controller.game;
     final offer = _controller.drawOffer;
     final hint = drawHint(offer);
-    final declined = switch (game.mode) {
-      VsComputer(:final step) when _controller.state.drawDeclined =>
-        declineText(step),
-      _ => null,
-    };
     return Semantics(
       key: const Key('pause-card'),
       container: true,
       explicitChildNodes: true,
       child: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: Palette.cardSurface,
-          borderRadius: BorderRadius.all(Radius.circular(20)),
-          border: Border.fromBorderSide(BorderSide(color: Palette.cardEdge)),
-          boxShadow: [
-            BoxShadow(
-              color: Palette.cardShadow,
-              offset: Offset(0, 24),
-              blurRadius: 60,
-            ),
-          ],
-        ),
+        decoration: _cardLook,
         child: Padding(
           padding: EdgeInsets.fromLTRB(22, 22, 22, 22 - _menuReachBelow),
           child: Column(
@@ -250,28 +312,6 @@ class _PauseOverlayState extends State<PauseOverlay>
                   letterSpacing: 1.4,
                   color: Palette.textDim,
                 ),
-              ),
-              // Always in the tree, so a screen reader hears the decline
-              // as the live region's text changes.
-              Semantics(
-                liveRegion: true,
-                child: declined == null
-                    ? const SizedBox(height: 0)
-                    : Padding(
-                        padding: const EdgeInsets.only(top: 14),
-                        child: Text(
-                          declined,
-                          key: const Key('pause-declined'),
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontFamily: Fonts.outfit,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 13,
-                            height: 1.2,
-                            color: Palette.textBody,
-                          ),
-                        ),
-                      ),
               ),
               const SizedBox(height: 18),
               CardButton(

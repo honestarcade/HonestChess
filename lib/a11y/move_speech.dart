@@ -88,6 +88,13 @@ String takebackSpeech(Game after, Game? before) {
   return 'Took back ${moveWords(undone, after.position)}';
 }
 
+/// What TalkBack says as the declined-draw card comes up; a draw between
+/// two players is agreed, never declined.
+String? declinedSpeech(GameMode mode) => switch (mode) {
+  VsComputer(:final step) => declineText(step),
+  TwoPlayer() => null,
+};
+
 const pausedText = 'Paused';
 const resumedText = 'Resumed';
 const gameOverText = 'Game over';

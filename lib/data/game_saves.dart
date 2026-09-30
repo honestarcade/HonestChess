@@ -117,7 +117,7 @@ class GameSaves extends ChangeNotifier {
         save(event.game, event.recorded).ignore();
       case GameEnded():
         _ended(PlayMode.of(event.game.mode), event.game, event.recorded);
-      case GameRestored() || GameAbandoned():
+      case GameRestored() || GameAbandoned() || GameDrawDeclined():
         break;
     }
   }

@@ -294,6 +294,35 @@ final _cases = <_Case>[
     },
   ),
   (
+    name: 'the board, its declined-draw card',
+    pump: (tester) async {
+      final fakes = FakeComputers();
+      final c = await _board(
+        tester,
+        GameController(
+          mode: const VsComputer(
+            playerColour: Colour.white,
+            step: _worstStep,
+            seed: 1,
+          ),
+          timeControl: _worstClock,
+          computer: fakes.call,
+        ),
+      );
+      c.move(Square.parse('e2'), Square.parse('e4'));
+      await tester.pump();
+      fakes.current.last.move('e7e5');
+      await _settle(tester);
+      expect(c.pause(), isTrue);
+      final offer = c.offerDraw();
+      await tester.pump();
+      fakes.current.draws.single.decline();
+      await offer;
+      await _settle(tester);
+      expect(_key('declined-card'), findsOneWidget);
+    },
+  ),
+  (
     name: 'the board in check',
     pump: (tester) async {
       final c = await _board(

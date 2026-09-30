@@ -439,7 +439,7 @@ final a11yCases = <A11yCase>[
     await settleCase(tester);
     expect(_key('pause-card'), findsOneWidget);
   }, controls: 8),
-  A11yCase('the board, its pause card after a declined draw', (tester) async {
+  A11yCase('the board, its declined-draw card', (tester) async {
     final fakes = FakeComputers();
     final c = await _board(tester, _vsComputer(computers: fakes));
     c.move(Square.parse('e2'), Square.parse('e4'));
@@ -454,11 +454,9 @@ final a11yCases = <A11yCase>[
     await tester.pump();
     fakes.current.draws.single.decline();
     await offer;
-    // Held, as leaving the app holds it, so the message outlasts the test.
-    c.autoPause();
     await settleCase(tester);
-    expect(_key('pause-declined'), findsOneWidget);
-  }, controls: 9),
+    expect(_key('declined-card'), findsOneWidget);
+  }, controls: 6),
   A11yCase('the board, the computer could not move', (tester) async {
     final fakes = FakeComputers();
     final c = GameController(

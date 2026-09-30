@@ -41,6 +41,12 @@ final class GameResumed extends GameEvent {
   const GameResumed(super.game, super.recorded);
 }
 
+/// The computer declined your draw offer; the game stays paused, the
+/// declined-draw card up, until play resumes.
+final class GameDrawDeclined extends GameEvent {
+  const GameDrawDeclined(super.game, super.recorded);
+}
+
 /// A saved game was put back on the board, paused.
 final class GameRestored extends GameEvent {
   const GameRestored(super.game, super.recorded);

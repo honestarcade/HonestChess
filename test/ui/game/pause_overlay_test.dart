@@ -1,13 +1,14 @@
 // The pause card, auto-pause and the draw offer (#77), driven by a fake
 // time source and the fake computer. The complements: no time passes while
 // paused, a finished game is never paused, a declined or failed offer never
-// ends the game, an offer is refused before each side has moved and again
+// ends the game nor resumes play before the declined card's Resume (#160), an offer is refused before each side has moved and again
 // until the next move after a decline, and a promotion open at the pause
 // is not played. Where Rules, Settings and Main menu lead is tested in
 // test/ui/game_cards_navigation_test.dart (#92).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:honest_chess/data/game_event.dart';
 import 'package:honest_chess/engine/engine.dart' hide play;
 import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
@@ -359,7 +360,7 @@ void main() {
       expect(_overlay, findsNothing);
     });
 
-    testWidgets('declined: "Club declines — play on" for 2 s, then play', (
+    testWidgets('declined: a card saying so, and play waits for its Resume', (
       tester,
     ) async {
       final (h, fakes) = await bothMoved(tester);
@@ -374,16 +375,59 @@ void main() {
         cancels + 1,
         reason: 'pause: search not cancelled',
       );
+      final events = <GameEvent>[];
+      final heard = h.controller.events.listen(events.add);
+      addTearDown(heard.cancel);
       await pressCard(tester, 'pause-draw');
       computer.draws.single.decline();
       await tester.pump();
       expect(h.controller.game.isOver, isFalse, reason: 'draw: a no ended it');
-      expect(text(tester, 'pause-declined'), 'Club declines — play on');
-      expect(h.controller.state.paused, isTrue);
-      await h.clock.advance(drawDeclineShown - const Duration(milliseconds: 1));
-      expect(h.controller.state.paused, isTrue);
-      await h.clock.advance(const Duration(milliseconds: 1));
+      expect(text(tester, 'pause-declined'), 'Club declined the draw');
+      expect(
+        events.whereType<GameDrawDeclined>(),
+        hasLength(1),
+        reason: 'decline: no GameDrawDeclined raised for TalkBack',
+      );
+      expect(
+        find.byKey(const Key('pause-card')),
+        findsNothing,
+        reason: 'decline: the pause card is still up beside the declined card',
+      );
+      final card = find.byKey(const Key('declined-card'));
+      expect(card, findsOneWidget);
+      expect(
+        find.descendant(of: card, matching: find.byType(InkWell)),
+        findsOneWidget,
+        reason: 'decline: the card offers more than Resume',
+      );
+      expect(
+        Focus.of(tester.element(find.text('Resume'))).hasPrimaryFocus,
+        isTrue,
+        reason: 'decline: Resume is not focused',
+      );
+      final white = h.controller.remaining(Colour.white);
+      final black = h.controller.remaining(Colour.black);
+      await h.clock.advance(const Duration(minutes: 10));
+      // Neither the scrim (the pill's spot) nor Android back resumes.
+      await tester.tapAt(const Offset(20, 20));
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      expect(
+        h.controller.state.paused,
+        isTrue,
+        reason: 'decline: play resumed before Resume was tapped',
+      );
+      expect(h.controller.remaining(Colour.white), white);
+      expect(h.controller.remaining(Colour.black), black);
+      expect(
+        computer.requests.length,
+        asked,
+        reason: 'decline: the computer was asked for a move before Resume',
+      );
+      expect(find.byKey(const Key('declined-card')), findsOneWidget);
+      await pressCard(tester, 'declined-resume');
       expect(h.controller.state.paused, isFalse, reason: 'decline: no resume');
+      expect(h.controller.state.drawDeclined, isFalse);
       await tester.pump();
       expect(
         computer.requests.length,
@@ -397,6 +441,20 @@ void main() {
       await h.clock.advance(minThinkTime);
     });
 
+    testWidgets('an accepted draw raises no GameDrawDeclined', (tester) async {
+      final (h, fakes) = await bothMoved(tester);
+      final events = <GameEvent>[];
+      final heard = h.controller.events.listen(events.add);
+      addTearDown(heard.cancel);
+      await pausePill(tester, h.clock);
+      await pressCard(tester, 'pause-draw');
+      fakes.current.draws.single.accept();
+      await tester.pump();
+      expect(h.controller.game.status, const Draw(GameEndReason.agreement));
+      expect(events.whereType<GameDrawDeclined>(), isEmpty);
+      expect(find.byKey(const Key('declined-card')), findsNothing);
+    });
+
     testWidgets('one offer per move: refused again until you move', (
       tester,
     ) async {
@@ -405,7 +463,7 @@ void main() {
       await pressCard(tester, 'pause-draw');
       fakes.current.draws.single.decline();
       await tester.pump();
-      await pressCard(tester, 'pause-resume');
+      await pressCard(tester, 'declined-resume');
       await h.clock.advance(pauseFadeDuration);
       expect(h.controller.state.paused, isFalse);
       await pausePill(tester, h.clock);
@@ -430,7 +488,7 @@ void main() {
       await pressCard(tester, 'pause-draw');
       fakes.current.draws.single.decline();
       await tester.pump();
-      await pressCard(tester, 'pause-resume');
+      await pressCard(tester, 'declined-resume');
       expect(h.controller.drawOffer, DrawOffer.afterNextMove);
       expect(h.controller.takeBack(), isTrue);
       await tester.pump();
@@ -449,25 +507,13 @@ void main() {
         isFalse,
         reason: 'draw: an error ended it',
       );
-      expect(text(tester, 'pause-declined'), 'Club declines — play on');
-      await h.clock.advance(drawDeclineShown);
-      expect(h.controller.state.paused, isFalse);
-    });
-
-    testWidgets('Resume during the decline message closes it early', (
-      tester,
-    ) async {
-      final (h, fakes) = await bothMoved(tester);
-      await pausePill(tester, h.clock);
-      await pressCard(tester, 'pause-draw');
-      fakes.current.draws.single.decline();
-      await tester.pump();
-      expect(live(tester, 'pause-resume'), isTrue);
-      await pressCard(tester, 'pause-resume');
-      expect(h.controller.state.paused, isFalse);
-      expect(h.controller.state.drawDeclined, isFalse);
-      await h.clock.advance(drawDeclineShown);
-      expect(h.controller.state.paused, isFalse);
+      expect(text(tester, 'pause-declined'), 'Club declined the draw');
+      await h.clock.advance(const Duration(minutes: 1));
+      expect(
+        h.controller.state.paused,
+        isTrue,
+        reason: 'decline: an error resumed play by itself',
+      );
     });
   });
 
@@ -513,7 +559,7 @@ void main() {
       await comeBack(tester);
     });
 
-    testWidgets('during the decline message: the card stays up', (
+    testWidgets('on the declined-draw card: it is there on return', (
       tester,
     ) async {
       final (h, fakes) = await bothMoved(tester);
@@ -522,15 +568,14 @@ void main() {
       fakes.current.draws.single.decline();
       await tester.pump();
       await leave(tester, AppLifecycleState.hidden);
-      await h.clock.advance(drawDeclineShown * 2);
+      await h.clock.advance(const Duration(minutes: 2));
       expect(
         h.controller.state.paused,
         isTrue,
-        reason:
-            'auto-pause: the decline message resumed play in the background',
+        reason: 'auto-pause: the declined card resumed play in the background',
       );
       await comeBack(tester);
-      expect(_overlay, findsOneWidget);
+      expect(find.byKey(const Key('declined-card')), findsOneWidget);
     });
 
     testWidgets('while the computer answers: accept lands, decline waits', (
@@ -542,11 +587,11 @@ void main() {
       await leave(tester, AppLifecycleState.hidden);
       fakes.current.draws.single.decline();
       await tester.pump();
-      await h.clock.advance(drawDeclineShown * 2);
+      await h.clock.advance(const Duration(minutes: 2));
       expect(h.controller.state.paused, isTrue);
       await comeBack(tester);
-      expect(text(tester, 'pause-declined'), 'Club declines — play on');
-      await pressCard(tester, 'pause-resume');
+      expect(text(tester, 'pause-declined'), 'Club declined the draw');
+      await pressCard(tester, 'declined-resume');
       await play(tester, h.controller, 'g1f3');
       await reply(h, fakes, 'b8c6');
       await pausePill(tester, h.clock);

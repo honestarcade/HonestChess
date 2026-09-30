@@ -5,6 +5,10 @@ extension StrengthLabel on Strength {
   String get label => '${name[0].toUpperCase()}${name.substring(1)}';
 }
 
+/// The declined-draw card's words, which TalkBack also speaks as the card
+/// comes up: "Club declined the draw".
+String declineText(Strength step) => '${step.label} declined the draw';
+
 /// "White" or "Black".
 extension ColourLabel on Colour {
   String get label => this == Colour.white ? 'White' : 'Black';

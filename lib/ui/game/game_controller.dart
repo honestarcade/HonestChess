@@ -23,9 +23,6 @@ enum SquareMark { none, dot, ring }
 /// A promotion waiting for its piece: the pawn's move from [from] to [to].
 typedef PendingPromotion = ({Square from, Square to});
 
-/// How long the pause card shows a declined draw before play resumes.
-const Duration drawDeclineShown = Duration(seconds: 2);
-
 /// Whether a draw can be offered from the pause card now, or why not.
 enum DrawOffer {
   /// The offer can be made.
@@ -115,8 +112,9 @@ final class GameViewState {
   /// The computer is considering your draw offer.
   final bool drawAsking;
 
-  /// The computer declined your draw offer, and the pause card says so
-  /// until play resumes.
+  /// The computer declined your draw offer: the declined-draw card is up
+  /// in place of the pause card, and play resumes only on
+  /// [GameController.resume].
   final bool drawDeclined;
 
   /// The game has ended.
@@ -211,13 +209,8 @@ class GameController extends ChangeNotifier {
   ComputerTurns? _turns;
   bool _disposed = false;
   bool _paused = false;
-
-  /// The pause was made by leaving the app: a declined draw then leaves
-  /// the card up rather than resuming by itself.
-  bool _held = false;
   bool _drawAsking = false;
   bool _drawDeclined = false;
-  Timer? _declineTimer;
 
   /// The ply at which the computer last declined a draw; no offer is made
   /// again until the game has moved past it.
@@ -492,33 +485,13 @@ class GameController extends ChangeNotifier {
     return true;
   }
 
-  /// The app was left mid-game: pauses it, or, already paused, keeps the
-  /// pause card up — a declined draw's message no longer resumes play by
-  /// itself. A finished game is left alone. Returns whether this paused
-  /// the game.
+  /// The app was left mid-game: pauses it, or, already paused, leaves the
+  /// card that is up — the pause card or the declined-draw card — as it
+  /// is. A finished game is left alone. Returns whether this paused the
+  /// game.
   bool autoPause() {
     if (isIdle || _replacing || _game.isOver) return false;
-    final paused = !_paused && pause();
-    _held = true;
-    _declineTimer?.cancel();
-    _declineTimer = null;
-    return paused;
-  }
-
-  /// Keeps the pause card up past a declined draw: the "declines — play
-  /// on" message and the timer that would resume play both go, so play
-  /// resumes only on [resume]. Refused unless paused, and while the
-  /// computer considers a draw offer.
-  bool keepPaused() {
-    if (!_paused || _drawAsking) return false;
-    _declineTimer?.cancel();
-    _declineTimer = null;
-    if (_drawDeclined) {
-      _drawDeclined = false;
-      _state = _viewState();
-      notifyListeners();
-    }
-    return true;
+    return !_paused && pause();
   }
 
   /// The board is left for the menu: the computer is stopped for good
@@ -549,9 +522,10 @@ class GameController extends ChangeNotifier {
   /// the device, so the game ends drawn by agreement at once. Against the
   /// computer — whose search the pause has already cancelled — it asks
   /// the computer, which answers honestly (#67): yes ends the game drawn;
-  /// no, or an error, is a decline, shown on the card for
-  /// [drawDeclineShown] before play resumes, and no offer is made again
-  /// until you have moved. Completes with whether the game ended drawn.
+  /// no, or an error, is a decline: the game stays paused under the
+  /// declined-draw card until [resume] (#160), [GameDrawDeclined] is
+  /// raised, and no offer is made again until you have moved. Completes
+  /// with whether the game ended drawn.
   Future<bool> offerDraw() async {
     if (!_paused || _replacing || drawOffer != DrawOffer.open) return false;
     final turns = _turns;
@@ -560,7 +534,6 @@ class GameController extends ChangeNotifier {
     final asked = _game;
     _drawAsking = true;
     _drawDeclined = false;
-    _held = false;
     _state = _viewState();
     notifyListeners();
     bool accepted;
@@ -576,9 +549,9 @@ class GameController extends ChangeNotifier {
     if (accepted) return _agreeDraw();
     _declinedAtPly = _ply;
     _drawDeclined = true;
-    if (!_held) _declineTimer = Timer(drawDeclineShown, resume);
     _state = _viewState();
     notifyListeners();
+    _emit(GameDrawDeclined(_game, _recorded));
     return false;
   }
 
@@ -617,11 +590,8 @@ class GameController extends ChangeNotifier {
   /// Leaves the pause and everything a draw offer left on its card.
   void _endPause() {
     _paused = false;
-    _held = false;
     _drawAsking = false;
     _drawDeclined = false;
-    _declineTimer?.cancel();
-    _declineTimer = null;
   }
 
   /// Takes back the last move — against the computer, back to your turn,
@@ -711,8 +681,6 @@ class GameController extends ChangeNotifier {
     if (current == null) return null;
     _turns?.dispose();
     _turns = null;
-    _declineTimer?.cancel();
-    _declineTimer = null;
     _drawAsking = false;
     if (!current.isOver) _game = current.pause();
     _refresh();
@@ -804,7 +772,6 @@ class GameController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    _declineTimer?.cancel();
     _turns?.dispose();
     _events.close();
     _refusals.close();
