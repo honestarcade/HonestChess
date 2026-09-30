@@ -170,13 +170,18 @@ class ResultOverlayState extends State<ResultOverlay>
     return Stack(
       fit: StackFit.expand,
       children: [
+        // The scrim stops a finger reaching the board, the tool row and the
+        // top bar behind the card; this stops a screen reader (#169).
         if (!_show.isDismissed)
-          IgnorePointer(
-            ignoring: view != ResultView.card,
-            child: FadeTransition(
-              key: const Key('result-overlay'),
-              opacity: _eased,
-              child: _layer(),
+          BlockSemantics(
+            blocking: view == ResultView.card,
+            child: IgnorePointer(
+              ignoring: view != ResultView.card,
+              child: FadeTransition(
+                key: const Key('result-overlay'),
+                opacity: _eased,
+                child: _layer(),
+              ),
             ),
           ),
       ],
@@ -284,21 +289,22 @@ class ResultOverlayState extends State<ResultOverlay>
                 label: '${spokenCaps(text.tag)}, ${text.title}',
                 excludeSemantics: true,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
                       text.tag,
                       key: const Key('result-tag'),
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         fontFamily: Fonts.plexMono,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 10,
-                        height: 1,
-                        letterSpacing: 10 * .2,
+                        fontWeight: FontWeight.w700,
+                        fontSize: resultTagSize,
+                        height: 1.1,
+                        letterSpacing: resultTagSize * .12,
                         color: _kickerOf(text),
                       ),
                     ),
-                    const SizedBox(height: 11),
+                    const SizedBox(height: 16),
                     Text(
                       text.title,
                       key: const Key('result-title'),
@@ -400,6 +406,11 @@ class ResultOverlayState extends State<ResultOverlay>
     above: cardHalfGap,
   );
 }
+
+/// The result card's tag — YOU LOSE, WHITE WINS, DRAWN — is set at this
+/// size, centred across the top of the card, so the ending is the first
+/// thing read (#161).
+const double resultTagSize = 24;
 
 Color _kickerOf(ResultText text) =>
     text.lost ? Palette.dangerText : Palette.teal;

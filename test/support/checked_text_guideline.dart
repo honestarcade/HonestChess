@@ -46,9 +46,10 @@ typedef _Drawn = ({
 /// Every text colour the screen draws reaches its WCAG ratio against the
 /// background it is actually drawn on: the fills painted under it (a
 /// `DecoratedBox`'s colour or gradient, a `ColoredBox`, a `Material`, a
-/// `ScreenBackground`'s gradient, and a held `InkWell`'s highlight and
-/// splash), composited from the nearest opaque one up, with every stop of
-/// a gradient tried. And every text colour is a [Palette.textPairs]
+/// `ScreenBackground`'s gradient, the board's stripes (a `SurfacePainter`),
+/// and a held `InkWell`'s highlight and splash), composited from the
+/// nearest opaque one up, with every stop of a gradient and every band of
+/// the stripes tried. And every text colour is a [Palette.textPairs]
 /// foreground of its size class (a colour proven only as large text must
 /// be drawn large). An ancestor [Opacity] is folded into the colour's
 /// alpha, as the eye sees it. Exempt: piece glyphs (the piece font, or a
@@ -104,13 +105,6 @@ class CheckedTextGuideline extends AccessibilityGuideline {
         for (final fill in drawn.under)
           if (fill.rect.contains(box.center)) fill,
       ];
-      // A board coordinate over a square's tint (selected, last move,
-      // check) is left to #149: no label alpha reaches 4.5:1 there on
-      // every theme, so it needs a design call. On a plain square the
-      // label is still checked here and by its textPairs row.
-      final tintedLabel =
-          _isCoordinate(element) &&
-          covering.any((f) => f.key?.startsWith('tint-') ?? false);
       final backgrounds = _backgrounds(covering);
 
       void check(InlineSpan span, TextStyle inherited) {
@@ -145,7 +139,7 @@ class CheckedTextGuideline extends AccessibilityGuideline {
                 '"$text" is drawn over no opaque fill this check can see\n',
               );
             }
-          } else if (shown.a > 0 && !tintedLabel) {
+          } else if (shown.a > 0) {
             final eye = colour.withValues(alpha: colour.a * drawn.opacity);
             for (final bg in backgrounds) {
               final ratio = contrastRatio(composite(eye, bg), bg);
@@ -271,20 +265,6 @@ class CheckedTextGuideline extends AccessibilityGuideline {
   }
 }
 
-/// Whether [element] draws one of the board's rank or file labels.
-bool _isCoordinate(Element element) {
-  var coordinate = false;
-  element.visitAncestorElements((a) {
-    final key = a.widget.key;
-    if (key is ValueKey<String> &&
-        (key.value.startsWith('rank-') || key.value.startsWith('file-'))) {
-      coordinate = true;
-    }
-    return !coordinate && a.widget is! BoardView;
-  });
-  return coordinate;
-}
-
 String _hex(Color c) =>
     '#${c.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase()}';
 
@@ -317,6 +297,14 @@ List<Color>? _fillOf(Element element) {
           _ => null,
         };
     return colour == null ? null : [colour];
+  }
+  // The board's stripes are drawn over the squares and under the
+  // coordinates; every band is one of the colours a label may sit on.
+  if (widget is CustomPaint) {
+    final painter = widget.painter;
+    if (painter is SurfacePainter) {
+      return [for (final band in painter.pattern.bands) band.colour];
+    }
   }
   if (widget is ScreenBackground) {
     return [for (final (c, _) in widget.gradient.stops) c];

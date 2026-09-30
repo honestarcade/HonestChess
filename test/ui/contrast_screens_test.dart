@@ -198,6 +198,28 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('the declined-draw card', (tester) async {
+    _phone(tester);
+    final fakes = FakeComputers();
+    final h = await pumpBoard(tester, computerFactory: fakes.call);
+    final c = h.controller;
+    c.move(Square.parse('e2'), Square.parse('e4'));
+    await tester.pump();
+    fakes.current.last.move('e7e5');
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump();
+    expect(c.pause(), isTrue);
+    final offer = c.offerDraw();
+    await tester.pump();
+    fakes.current.draws.single.decline();
+    await offer;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(_key('declined-card'), findsOneWidget);
+    await _check(tester);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('the board in check, and its promotion card', (tester) async {
     await pumpScreen(tester, fen: '3r3k/4P3/8/8/8/8/8/K2r4 w - - 0 1');
     await tester.pump(const Duration(milliseconds: 300));

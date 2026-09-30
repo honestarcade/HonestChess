@@ -19,6 +19,13 @@ const strengthIntro =
     'and misses things on purpose — no fake blunders dressed up as '
     'personality.';
 
+/// A strength step's name size, larger than the design's 13.5 (#167).
+const strengthNameSize = 16.0;
+
+/// A strength step's description size, larger than the design's 10.5
+/// (#167).
+const strengthDescriptionSize = 13.0;
+
 /// Shown under Start game while it would abandon a game you have moved in.
 const lossWarningText = 'Your current game will count as a loss.';
 
@@ -264,21 +271,22 @@ class _StrengthButton extends StatelessWidget {
                   children: [
                     Text(
                       step.label,
+                      key: Key('csetup-strength-${step.name}-name'),
                       style: const TextStyle(
                         fontFamily: Fonts.outfit,
                         fontWeight: FontWeight.w600,
-                        fontSize: 13.5,
+                        fontSize: strengthNameSize,
                         height: 1,
                       ),
                     ),
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 6),
                     Text(
                       step.description,
                       key: Key('csetup-strength-${step.name}-description'),
                       style: const TextStyle(
                         fontFamily: Fonts.outfit,
                         fontWeight: FontWeight.w400,
-                        fontSize: 10.5,
+                        fontSize: strengthDescriptionSize,
                         height: 1.3,
                         color: Palette.textMuted,
                       ),

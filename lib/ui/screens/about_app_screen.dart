@@ -553,7 +553,9 @@ class _MadeBy extends StatelessWidget {
       semanticsLabel: spokenCaps(text),
       builder: (context, pressed) => SizedBox(
         height: height,
+        // As wide as its text, so the links share a line (#166).
         child: Center(
+          widthFactor: 1,
           child: DecoratedBox(
             decoration: const BoxDecoration(
               border: Border(bottom: BorderSide(color: Palette.linkUnderline)),

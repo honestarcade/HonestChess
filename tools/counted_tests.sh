@@ -41,13 +41,22 @@ summarise() {
   [ -n "${GITHUB_STEP_SUMMARY:-}" ] && printf '%s\n\n' "$@" >> "$GITHUB_STEP_SUMMARY"
   return 0
 }
+# A red run names each failed test and its reason, in the log and the summary;
+# the event stream that holds them is deleted on exit (#127). If the listing
+# itself fails, the verdict below still stands.
+explain() {
+  python3 tools/failed_tests.py "$events" "${GITHUB_STEP_SUMMARY:-}" \
+    || echo "$label: could not list the failed tests" >&2
+}
 if [ "$passed" -eq 0 ] && [ "$failed" -eq 0 ]; then
   echo "$label: no test ran — refusing to pass empty" >&2
   summarise "**$counts**" "$label: no test ran — refusing to pass empty"
+  explain
   exit 3
 fi
 summarise "**$counts**"
 if [ "$failed" -ne 0 ] || [ "$status" -ne 0 ]; then
+  explain
   exit 1
 fi
 exit 0

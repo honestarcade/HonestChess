@@ -14,7 +14,12 @@ Two rules:
     analyzable. One that breaks the syntax makes the suite fail for the wrong
     reason, so it is reported as BROKEN rather than caught.
 
-Usage:  tools/mutation_check.py [--list] [--only SUBSTRING] [--self-test]
+Mutations run several at once, each in its own git worktree of HEAD, so the
+checkout the battery was started in is never mutated. Each worktree belongs to
+one worker at a time, and each mutation is applied, judged and restored in it
+exactly as it would be alone.
+
+Usage:  tools/mutation_check.py [--list] [--only SUBSTRING] [--jobs N] [--self-test]
 Exit:   0 every mutation was caught
         1 at least one survived (the suite stayed green)
         2 the battery could not run (dirty tree, bad pattern, unparseable)
@@ -22,12 +27,18 @@ Exit:   0 every mutation was caught
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import json
 import dataclasses
+import os
 import pathlib
+import queue
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
+import threading
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 # The guard suite, minus any `slow`-tagged test.
@@ -401,6 +412,36 @@ MUTATIONS: list[Mutation] = [
              sub(r'  summarise "\*\*\$counts\*\*" "\$label: no test ran — refusing to pass empty"\n', ''),
              "a red scheduled run would not say why in its summary",
              'scheduled-summary: the job summary does not say what ran'),
+    Mutation("ci", "a red scheduled run stops naming its failed tests (#127)",
+             "tools/counted_tests.sh",
+             sub(r'(^if \[ "\$failed" -ne 0 \] \|\| \[ "\$status" -ne 0 \]; then\n)  explain\n', r'\1', flags=re.M),
+             "a failed device or weekly run would show counts and no test name",
+             'scheduled-failures: the log does not name the failed test and why'),
+    Mutation("ci", "the failed-test listing drops the error text (#127)",
+             "tools/failed_tests.py",
+             sub(r'            log \+= \["  " \+ l for l in clip\(str\(e\.get\("error", ""\)\), LOG_ERROR_LINES\)\]\n', ''),
+             "the log would name the failed test but not why it failed",
+             'scheduled-failures: the log does not name the failed test and why'),
+    Mutation("ci", "the failed-test listing stops writing the summary (#127)",
+             "tools/failed_tests.py",
+             sub(r'    if len\(argv\) == 3 and argv\[2\] and summary:', '    if False:'),
+             "a scheduled run's summary would show counts and no test name",
+             'scheduled-failures: the job summary does not name the failed test and why'),
+    Mutation("ci", "the failed-test log drops what the test printed (#127)",
+             "tools/failed_tests.py",
+             sub(r'            log \+= \["  " \+ l for l in clip\(printed, LOG_ERROR_LINES\)\]\n', '            pass\n'),
+             "a failed widget test's log would say only 'See exception logs above'",
+             "scheduled-printed: the log hides what a failed widget test printed"),
+    Mutation("ci", "the failed-test summary drops what the test printed (#127)",
+             "tools/failed_tests.py",
+             sub(r'                summary \+= fence\(clip\(printed, SUMMARY_ERROR_LINES\)\)\n', '                pass\n'),
+             "a failed widget test's summary would say only 'See exception logs above'",
+             "scheduled-printed: the job summary hides what a failed widget test printed"),
+    Mutation("ci", "an empty scheduled run hides the runner's output (#127)",
+             "tools/counted_tests.sh",
+             sub(r'(refusing to pass empty"\n)  explain\n', r'\1'),
+             "a device run that never started a test would not say why",
+             'scheduled-runner-output: an empty run hides what the runner said'),
     Mutation("ci", "the weekly schedule is on with no weekly test (#47)",
              "test/engine/strength_ladder_test.dart",
              sub(r"^@Tags\(\['weekly'\]\)\n", "", flags=re.M),
@@ -501,6 +542,16 @@ MUTATIONS: list[Mutation] = [
              sub(r'          HS_RELEASE: "1"\n', ""),
              "a missing signing secret would ship a debug-signed bundle",
              'release-order: 1 offender'),
+    Mutation("release", "the Play upload adds the production track",
+             ".github/workflows/release.yml",
+             sub(r"^          tracks: internal$", "          tracks: internal,production", flags=re.M),
+             "a tag would publish straight to production",
+             'release-order every Play upload targets internal'),
+    Mutation("release", "the Play upload goes back to the deprecated track input",
+             ".github/workflows/release.yml",
+             sub(r"^          tracks: internal$", "          tracks: internal\n          track: internal", flags=re.M),
+             "the upload would fail once the action removes the input",
+             'release-order no Play upload uses the deprecated track input'),
     Mutation("release", "the decoded keystore outlives a failed job",
              ".github/workflows/release.yml",
              sub(r"(      - id: shred\n        name: [^\n]*\n)        if: always\(\)\n",
@@ -765,8 +816,8 @@ MUTATIONS: list[Mutation] = [
              'strength-honest:'),
     Mutation("strength", "Strong's depth changed without its text",
              "lib/engine/strength.dart",
-             sub(r"depthCap: 5,", "depthCap: 4,"),
-             "Strong would look four moves ahead while its description says five (invariant 4)",
+             sub(r"depthCap: 4,", "depthCap: 5,"),
+             "Strong would look five moves ahead while its description says four (invariant 4)",
              'strength-honest:'),
     Mutation("strength", "Beginner's mate-in-one handicap flipped",
              "lib/engine/strength.dart",
@@ -792,6 +843,38 @@ MUTATIONS: list[Mutation] = [
                  "splitMixFinalise(splitMixIncrement)"),
              "every game at a step would play alike, whatever its seed",
              'strength-seed: the seed never changed'),
+
+    # strength dial's blunders -- test/guards/strength_honesty_test.dart (#159)
+    Mutation("strength", "Casual's blunder rate changed without its text",
+             "lib/engine/strength.dart",
+             sub(r"(noiseCp: 100,\n      blunderPercent: )20,", r"\g<1>17,"),
+             "Casual would blunder on 17% of moves while its description says 20% (invariant 4)",
+             'strength-honest:'),
+    Mutation("strength", "Master blunders", "lib/engine/strength.dart",
+             sub(r"blunderPercent: 0,", "blunderPercent: 2,"),
+             "Master would give away material while its description says nothing is held back (invariant 4)",
+             'strength-honest:'),
+    Mutation("strength", "a blunder's size changed without the text",
+             "lib/engine/strength.dart",
+             sub(r"^const int blunderCp = 200;", "const int blunderCp = 100;", flags=re.M),
+             "a blunder could give away one pawn while every description says two (invariant 4)",
+             'strength-honest:'),
+    Mutation("strength", "the blunder roll fires twice as often as stated",
+             "lib/engine/strength.dart",
+             sub(r"nextBelow\(100\) < blunderPercent", "nextBelow(50) < blunderPercent"),
+             "every step would blunder on twice the share of moves its description states (invariant 4)",
+             'strength-honest: over 20000 positions'),
+    Mutation("strength", "the blunder roll ignores the game's seed",
+             "lib/engine/strength.dart",
+             sub(r"splitMixFinalise\(seed \+ 2 \* splitMixIncrement\)",
+                 "splitMixFinalise(2 * splitMixIncrement)"),
+             "a position would be a blunder in every game or in none, whatever the seed",
+             'strength-seed: over 20000 seeds'),
+    Mutation("strength", "a rolled blunder plays the best move anyway",
+             "lib/engine/strength.dart",
+             sub(r"if \(worse\.isNotEmpty\) roots = worse;", ""),
+             "the stated blunders would never happen (invariant 4)",
+             'strength-honest: a blunder gave away less'),
 
     # computer player -- test/engine/computer_player_test.dart (#68)
     Mutation("computer", "the search runs inline in the caller's isolate",
@@ -1076,11 +1159,121 @@ MUTATIONS: list[Mutation] = [
                  "static const inkHighlight = Color(0x40404040);"),
              "the ink buttons' pressed grey would drift further from the design than contrast needs",
              'contrast-shift: not the nearest pass'),
+    # ---- #149: coordinates over a tint ---------------------------------------
+    Mutation("contrast", "a tinted square's coordinate keeps the plain square's ink",
+             "lib/ui/board/board_options.dart",
+             sub(r"    if \(tint\.a == 0\) return own;", "    if (tint.a <= 1) return own;"),
+             "a selected, last-move or checked square's coordinate would fall under 4.5:1",
+             'contrast-text: below WCAG AA'),
+    # ---- #170: coordinates over the stripes ----------------------------------
+    Mutation("contrast", "a label's alpha is derived on the bare square alone",
+             "test/guards/contrast_test.dart",
+             sub(r" \|\| row\.name\.startsWith\('\$\{shift\.name\}, under '\)", ""),
+             "the guard would re-derive each label ink without the stripes, so an ink "
+             "that reads only on the bare square would pass as the nearest shade",
+             'contrast-shift: not the nearest pass'),
+    # ---- #106: the test plan keeps up with the code ---------------------------
+    # Every edit is to the plan or its template alone, so no other test fires.
+    Mutation("test-plan", "a Settings switch loses its only on in the sampling table",
+             "qa/test-plan.md",
+             sub(r"(\| R2 \| vs computer \| casual \| black \| blitz \| teal \| outline \| plain "
+                 r"\| off \| off \| off \| )on", r"\g<1>off"),
+             "Auto-promote to queen on would go unexercised on the phone",
+             'test-plan: sampling table lacks auto-queen=on'),
+    Mutation("test-plan", "the blitz clock leaves the sampling table",
+             "qa/test-plan.md",
+             sub(r"\| blitz \|", "| rapid |", count=0),
+             "a time-control preset in the code would have no phone run",
+             'test-plan: sampling table lacks clock=blitz'),
+    Mutation("test-plan", "a strength step leaves the sampling table",
+             "qa/test-plan.md",
+             sub(r"\| strong \|", "| club |", count=0),
+             "a strength step in the code would have no phone run",
+             'test-plan: sampling table lacks step=strong'),
+    Mutation("test-plan", "Play as Random leaves the sampling table",
+             "qa/test-plan.md",
+             sub(r"\| random \|", "| white |", count=0),
+             "a colour choice in the code would have no phone run",
+             'test-plan: sampling table lacks play as=random'),
+    Mutation("test-plan", "a board theme leaves the sampling table",
+             "qa/test-plan.md",
+             sub(r"\| bone \|", "| navy |", count=0),
+             "a board colour in the code would have no phone run",
+             'test-plan: sampling table lacks board colour=bone'),
+    Mutation("test-plan", "the Settings section stops naming a Settings row",
+             "qa/test-plan.md",
+             sub(r"Flag check on the board", "Flag check on board", count=0),
+             "a Settings row in the code would have no check",
+             'test-plan: Settings row "Flag check on the board" (check-flag) is not in the Settings section'),
+    Mutation("test-plan", "a strength description in the plan drifts from the code",
+             "qa/test-plan.md",
+             sub(r"Looks two moves ahead, a little loosely\.", "Looks two moves ahead, loosely."),
+             "the tester would check a step against words the app does not show",
+             "test-plan: Strength.casual's description is not quoted in the plan"),
+    Mutation("test-plan", "the Statistics section loses its route line",
+             "qa/test-plan.md",
+             sub(r"\nroute: stats\n", "\n"),
+             "a screen route in the code would have no section",
+             'test-plan: route stats (statsRouteName) has no "route: stats" line'),
+    Mutation("test-plan", "a route line names a route the code does not have",
+             "qa/test-plan.md",
+             sub(r"\nroute: stats\n", "\nroute: stats\nroute: nowhere\n"),
+             "the plan would send the tester to a screen that does not exist",
+             '"route: nowhere" names no route'),
+    Mutation("test-plan", "the View board section is dropped",
+             "qa/test-plan.md",
+             sub(r"\n## View board\n", "\n"),
+             "the View board state would have no checks of its own",
+             'test-plan: no "## View board" heading'),
+    Mutation("test-plan", "a sampling row names a clock the code does not have",
+             "qa/test-plan.md",
+             sub(r"(\| R7 \|[^\n]*\n)",
+                 r"\g<1>| R8 | two players | n/a | n/a | hourglass | teal | classic | felt "
+                 r"| on | on | on | off | off | on | on | on | off | on | |\n"),
+             "a phone run would be set up with an option the app does not offer",
+             'test-plan: R8\'s Clock "hourglass" is not a TimeChoice'),
+    Mutation("test-plan", "a sampling column names an option the code does not have",
+             "qa/test-plan.md",
+             sub(r"(\| Run \| Mode \|[^\n]*)\| Notes \|", r"\g<1>| Notes | Board size |"),
+             "a phone run would record an option the app does not offer",
+             'test-plan: sampling column "Board size" is no option in the code'),
+    Mutation("test-plan", "two checks share an ID",
+             "qa/test-plan.md",
+             sub(r"### T602 — ", "### T601 — "),
+             "a run record's T601 would not say which check passed",
+             'test-plan: T601 is used twice'),
+    Mutation("test-plan", "a check loses its Expected line",
+             "qa/test-plan.md",
+             sub(r"(### T001 — [^\n]*\n(?:(?!Expected:)[^\n]*\n)*?)Expected: [^\n]*\n", r"\g<1>"),
+             "the tester would have nothing to judge the check against",
+             'test-plan: T001 has no Expected:'),
+    Mutation("test-plan", "a check says where it runs with a word outside the three",
+             "qa/test-plan.md",
+             sub(r"(### T101 — [^\n]*\n(?:[^\n]*\n)*?)Where: both", r"\g<1>Where: bench"),
+             "a check could not be assigned to the phone or an emulator",
+             'test-plan: T101 has no Where: phone|emulator|both'),
+    Mutation("test-plan", "a check cites a test file that does not exist",
+             "qa/test-plan.md",
+             sub(r"Automated: test/ui/splash_test\.dart — the label",
+                 "Automated: test/ui/" "splash_screen_test" ".dart — the label"),
+             "the check would claim automated cover that is not there",
+             # Split, so the battery file itself names no missing path.
+             'test-plan: T101 cites test/ui/' 'splash_screen_test' '.dart, which does not exist'),
+    Mutation("test-plan", "the run-record template loses its Runs field",
+             "qa/runs/TEMPLATE.md",
+             sub(r"\n- Runs: [^\n]*", ""),
+             "a run record would not say which sampling rows it covered",
+             'test-plan: TEMPLATE.md lacks the header field "Runs:"'),
+    Mutation("test-plan", "a run record is named outside the agreed pattern",
+             "", None,
+             "a run's device or tester could not be read from its name",
+             'test-plan: misnamed run record qa/runs/2026-09-30-s26-owner.md',
+             adds=(("qa/runs/2026-09-30-s26-owner.md", "# Run record\n"),)),
 ]
 
 
-def run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, **kw)
+def run(cmd: list[str], cwd: pathlib.Path = ROOT, **kw) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, **kw)
 
 
 def parses_as_yaml(path: pathlib.Path) -> bool:
@@ -1110,7 +1303,7 @@ def parses_as_shell(path: pathlib.Path) -> bool:
     return run(["bash", "-n", str(path)]).returncode == 0
 
 
-def compiles_as_dart(paths: list[pathlib.Path]) -> bool:
+def compiles_as_dart(paths: list[pathlib.Path], root: pathlib.Path = ROOT) -> bool:
     """The Dart half of the rule `parses_as_yaml` states for YAML.
 
     A mutation that does not compile fails every test in the file at once,
@@ -1119,7 +1312,8 @@ def compiles_as_dart(paths: list[pathlib.Path]) -> bool:
     dart = [p for p in paths if p.suffix == ".dart"]
     if not dart:
         return True
-    probe = run(["dart", "analyze", "--no-fatal-warnings", *[str(p) for p in dart]])
+    probe = run(["dart", "analyze", "--no-fatal-warnings", *[str(p) for p in dart]],
+                cwd=root)
     return probe.returncode == 0
 
 
@@ -1185,12 +1379,145 @@ def self_test() -> int:
     return 0 if ok else 1
 
 
+# At most this many mutations run at once, whatever the CPU count: every
+# worker holds its own worktree on disk, its own Dart compiler and its own
+# test processes in memory, so the cap bounds both on a large machine.
+JOBS_CAP = 8
+
+
+def default_jobs() -> int:
+    """One mutation per CPU, up to JOBS_CAP."""
+    return max(1, min(os.cpu_count() or 1, JOBS_CAP))
+
+
+def judge(m: Mutation, label: str, root: pathlib.Path,
+          per_suite: int) -> tuple[str, str, str]:
+    """Applies `m` inside the checkout at `root`, runs the suite there and
+    puts every file back, whatever happens.
+
+    Returns `(kind, why, text)`: kind is caught, survived, wrong or broken;
+    why is a BROKEN mutation's reason; text is what to print for it. The
+    worktree is one worker's own, so nothing else touches `root` meanwhile.
+    """
+    out: list[str] = []
+    edits = [*([(m.path, m.apply)] if m.path else []), *m.also]
+    targets = [root / path for path, _ in edits]
+    originals = [target.read_text() for target in targets]
+    binary = [root / m.deletes] if m.deletes else []
+    binary += [root / target for target, _ in m.replaces_with]
+    try:
+        mutated = [apply(text) for (_, apply), text in zip(edits, originals)]
+    except LookupError as exc:
+        return "broken", str(exc), f"  BROKEN  {label}\n          {exc}"
+    new_files = [(root / path, text) for path, text in m.adds]
+    present = [p for p, _ in new_files if p.exists()]
+    if present:
+        shown = present[0].relative_to(root)
+        return ("broken", f"file to add already exists: {shown}",
+                f"  BROKEN  {label}\n          {shown} already exists")
+    missing = [p for p in binary if not p.exists()]
+    if missing:
+        shown = missing[0].relative_to(root)
+        return ("broken", f"binary target missing: {shown}",
+                f"  BROKEN  {label}\n          {shown} does not exist")
+    fixtures = {root / target: (root / fixture).read_bytes()
+                for target, fixture in m.replaces_with}
+    same = [p for p, data in fixtures.items() if p.read_bytes() == data]
+    if (mutated == originals and not binary and not new_files) or same:
+        return ("broken", "changed nothing",
+                f"  BROKEN  {label}\n          changed nothing")
+
+    # The third source of a vacuous marker, and the one no baseline run
+    # can show: the mutation's OWN inserted text. A guard that prints the
+    # offending line puts that text into the output, so a marker matching
+    # it is present because the mutation ran, not because the guard fired.
+    if m.expect:
+        added = "\n".join(
+            line
+            for new, old in zip(mutated, originals)
+            for line in new.splitlines()
+            if line not in old.splitlines()
+        ) + "\n" + "\n".join(text for _, text in new_files)
+        if m.expect in added:
+            return ("broken", "the marker is in the text this mutation "
+                              "inserts, so a guard that echoes the "
+                              "offending line satisfies it",
+                    f"  BROKEN  {label}\n          marker {m.expect!r} is in "
+                    f"this mutation's own inserted text")
+
+    # The per-mutation marker, inside the worktree: if the run is killed, it
+    # names what was left mutated there.
+    in_flight = root / IN_FLIGHT.name
+    in_flight.write_text(
+        f"{m.issue} {m.name}\n"
+        + "".join(f"  {path}\n" for path, _ in edits)
+        + "".join(f"  {p.relative_to(root)}\n" for p in binary)
+        + "".join(f"  {p.relative_to(root)} (added)\n" for p, _ in new_files)
+    )
+    snapshot = snapshot_bytes(binary)
+    for target, text in zip(targets, mutated):
+        target.write_text(text)
+    if m.deletes:
+        (root / m.deletes).unlink()
+    for target, data in fixtures.items():
+        target.write_bytes(data)
+    made = write_added(new_files)
+    try:
+        unparseable = [t for t in targets
+                       if not (parses_as_yaml(t) and parses_as_shell(t))]
+        if unparseable:
+            return ("broken", "left the file unparseable — it would fail for "
+                              "the wrong reason",
+                    f"  BROKEN  {label}\n          unparseable after mutation")
+        if not compiles_as_dart(targets, root):
+            return ("broken", "left the Dart unanalyzable — it would fail for "
+                              "the wrong reason",
+                    f"  BROKEN  {label}\n          does not compile after mutation")
+        suite = (SUITE_SLOW if m.slow else SUITE) + [
+            "--concurrency", str(per_suite)]
+        result = run(suite, cwd=root)
+        output = result.stdout + result.stderr
+        if result.returncode == 0:
+            # Re-run before reporting a survivor. A SURVIVED verdict says
+            # a guard has a hole, and one flaky green would announce a
+            # hole that is not there. A second green costs one suite run,
+            # on the rare path only.
+            confirm = run(suite, cwd=root)
+            if confirm.returncode != 0:
+                output = confirm.stdout + confirm.stderr
+                out.append(f"  (first run of {label} was green, second was not "
+                           f"— reporting the second)")
+            else:
+                out.append(f"  SURVIVED {label}\n           {m.why}")
+                return "survived", "", "\n".join(out)
+        # Red, on the first run or on the confirming one.
+        if m.expect and m.expect not in output:
+            # Red, but not for this reason. Counting it as caught is how a
+            # guard gets credit for an assertion it does not make.
+            out.append(f"  WRONG-REASON {label}\n               the suite "
+                       f"failed, but not with {m.expect!r}")
+            return "wrong", "", "\n".join(out)
+        out.append(f"  caught  {label}")
+        return "caught", "", "\n".join(out)
+    finally:
+        for target, text in zip(targets, originals):
+            target.write_text(text)
+        restore_bytes(snapshot)
+        remove_added(made)
+        for created in m.creates:
+            (root / created).unlink(missing_ok=True)
+        in_flight.unlink(missing_ok=True)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--audit", action="store_true",
                     help="run the marker preflight alone and exit")
     ap.add_argument("--only", default="")
+    ap.add_argument("--jobs", type=int, default=0,
+                    help=f"mutations run at once (default: one per CPU, "
+                         f"at most {JOBS_CAP})")
     ap.add_argument("--self-test", action="store_true",
                     help="prove the binary snapshot round trip and exit")
     args = ap.parse_args()
@@ -1380,130 +1707,79 @@ def main() -> int:
               f"runner itself emits; none of them matches")
         return 0
 
-    print(f"mutation_check: {len(selected)} mutations\n")
-    survived: list[Mutation] = []
-    wrong: list[Mutation] = []
-    broken: list[tuple[Mutation, str]] = []
+    jobs = max(1, min(args.jobs or default_jobs(), len(selected)))
+    # Split the CPUs between the suites running at once. `flutter test` on its
+    # own starts a test process per spare CPU, so N suites left at the default
+    # would each claim the whole machine.
+    per_suite = max(1, (os.cpu_count() or 1) // jobs)
+    print(f"mutation_check: {len(selected)} mutations, {jobs} at a time "
+          f"(cap {JOBS_CAP}), each in its own worktree\n", flush=True)
 
-    for i, m in enumerate(selected, 1):
-        edits = [*([(m.path, m.apply)] if m.path else []), *m.also]
-        targets = [ROOT / path for path, _ in edits]
-        originals = [target.read_text() for target in targets]
-        binary = [ROOT / m.deletes] if m.deletes else []
-        binary += [ROOT / target for target, _ in m.replaces_with]
-        label = f"[{i}/{len(selected)}] {m.issue} {m.name}"
-        try:
-            mutated = [apply(text) for (_, apply), text in zip(edits, originals)]
-        except LookupError as exc:
-            broken.append((m, str(exc)))
-            print(f"  BROKEN  {label}\n          {exc}")
-            continue
-        new_files = [(ROOT / path, text) for path, text in m.adds]
-        present = [p for p, _ in new_files if p.exists()]
-        if present:
-            broken.append((m, f"file to add already exists: {present[0]}"))
-            print(f"  BROKEN  {label}\n          {present[0]} already exists")
-            continue
-        missing = [p for p in binary if not p.exists()]
-        if missing:
-            broken.append((m, f"binary target missing: {missing[0]}"))
-            print(f"  BROKEN  {label}\n          {missing[0]} does not exist")
-            continue
-        fixtures = {ROOT / target: (ROOT / fixture).read_bytes()
-                    for target, fixture in m.replaces_with}
-        same = [p for p, data in fixtures.items() if p.read_bytes() == data]
-        if (mutated == originals and not binary and not new_files) or same:
-            broken.append((m, "changed nothing"))
-            print(f"  BROKEN  {label}\n          changed nothing")
-            continue
+    # The run-level marker: the main checkout is never mutated now, but a
+    # killed run leaves its worktrees registered with git and on disk, and
+    # the next run should say so rather than pile up more.
+    IN_FLIGHT.write_text("worktrees of an interrupted mutation_check run "
+                         "(remove each with `git worktree remove --force`):\n")
+    workers: "queue.Queue[pathlib.Path]" = queue.Queue()
+    made_trees: list[pathlib.Path] = []
+    parent = pathlib.Path(tempfile.mkdtemp(prefix="mutation_check."))
+    verdicts: dict[int, tuple[str, str]] = {}  # index -> (kind, why)
+    lock = threading.Lock()
+    pool = None
+    try:
+        for n in range(jobs):
+            tree = parent / f"w{n}"
+            add = run(["git", "worktree", "add", "--detach", str(tree), "HEAD"])
+            if add.returncode != 0:
+                print(f"mutation_check: could not create a worktree:\n"
+                      f"{add.stderr}", file=sys.stderr)
+                return 2
+            made_trees.append(tree)
+            with IN_FLIGHT.open("a") as marker:
+                marker.write(f"  {tree}\n")
+        with concurrent.futures.ThreadPoolExecutor(jobs) as setup:
+            fetched = list(setup.map(
+                lambda tree: run(["flutter", "pub", "get", "--offline",
+                                  "--enforce-lockfile"], cwd=tree),
+                made_trees))
+        for tree, got in zip(made_trees, fetched):
+            if got.returncode != 0:
+                print(f"mutation_check: `flutter pub get` failed in {tree}:\n"
+                      f"{got.stdout}{got.stderr}", file=sys.stderr)
+                return 2
+            workers.put(tree)
 
-        # The third source of a vacuous marker, and the one no baseline run
-        # can show: the mutation's OWN inserted text. A guard that prints the
-        # offending line puts that text into the output, so a marker matching
-        # it is present because the mutation ran, not because the guard fired.
-        if m.expect:
-            added = "\n".join(
-                line
-                for new, old in zip(mutated, originals)
-                for line in new.splitlines()
-                if line not in old.splitlines()
-            ) + "\n" + "\n".join(text for _, text in new_files)
-            if m.expect in added:
-                broken.append((m, "the marker is in the text this mutation "
-                                  "inserts, so a guard that echoes the "
-                                  "offending line satisfies it"))
-                print(f"  BROKEN  {label}\n          marker {m.expect!r} is in "
-                      f"this mutation's own inserted text")
-                continue
+        def one(i: int, m: Mutation) -> None:
+            tree = workers.get()
+            try:
+                label = f"[{i}/{len(selected)}] {m.issue} {m.name}"
+                kind, why, text = judge(m, label, tree, per_suite)
+            finally:
+                workers.put(tree)
+            with lock:
+                verdicts[i] = (kind, why)
+                print(text, flush=True)
 
-        IN_FLIGHT.write_text(
-            f"{m.issue} {m.name}\n"
-            + "".join(f"  {path}\n" for path, _ in edits)
-            + "".join(f"  {p.relative_to(ROOT)}\n" for p in binary)
-            + "".join(f"  {p.relative_to(ROOT)} (added)\n" for p, _ in new_files)
-        )
-        snapshot = snapshot_bytes(binary)
-        for target, text in zip(targets, mutated):
-            target.write_text(text)
-        if m.deletes:
-            (ROOT / m.deletes).unlink()
-        for target, data in fixtures.items():
-            target.write_bytes(data)
-        made = write_added(new_files)
-        try:
-            unparseable = [t for t in targets
-                           if not (parses_as_yaml(t) and parses_as_shell(t))]
-            if unparseable:
-                broken.append((m, "left the file unparseable — it would fail for the wrong reason"))
-                print(f"  BROKEN  {label}\n          unparseable after mutation")
-                continue
-            if not compiles_as_dart(targets):
-                broken.append((m, "left the Dart unanalyzable — it would fail for the wrong reason"))
-                print(f"  BROKEN  {label}\n          does not compile after mutation")
-                continue
-            suite = SUITE_SLOW if m.slow else SUITE
-            result = run(suite)
-            output = result.stdout + result.stderr
-            if result.returncode == 0:
-                # Re-run before reporting a survivor. A SURVIVED verdict says
-                # a guard has a hole, and one flaky green would announce a
-                # hole that is not there. A second green costs one suite run,
-                # on the rare path only.
-                confirm = run(suite)
-                if confirm.returncode != 0:
-                    output = confirm.stdout + confirm.stderr
-                    print(f"  (first run of {label} was green, second was not "
-                          f"— reporting the second)")
-                else:
-                    survived.append(m)
-                    print(f"  SURVIVED {label}\n           {m.why}")
-            if result.returncode == 0 and m not in survived:
-                # Fell through from the flaky branch above; judged on the
-                # confirming run's output.
-                if m.expect and m.expect not in output:
-                    wrong.append(m)
-                    print(f"  WRONG-REASON {label}\n               the suite "
-                          f"failed, but not with {m.expect!r}")
-                else:
-                    print(f"  caught  {label}")
-            elif result.returncode == 0:
-                pass
-            elif m.expect and m.expect not in output:
-                # Red, but not for this reason. Counting it as caught is how a
-                # guard gets credit for an assertion it does not make.
-                wrong.append(m)
-                print(f"  WRONG-REASON {label}\n               the suite failed, "
-                      f"but not with {m.expect!r}")
-            else:
-                print(f"  caught  {label}")
-        finally:
-            for target, text in zip(targets, originals):
-                target.write_text(text)
-            restore_bytes(snapshot)
-            remove_added(made)
-            for created in m.creates:
-                (ROOT / created).unlink(missing_ok=True)
-            IN_FLIGHT.unlink(missing_ok=True)
+        pool = concurrent.futures.ThreadPoolExecutor(jobs)
+        futures = [pool.submit(one, i, m) for i, m in enumerate(selected, 1)]
+        for f in futures:
+            f.result()
+    finally:
+        if pool is not None:
+            # Mutations already running finish, so each one's own restore
+            # runs; the rest are dropped.
+            pool.shutdown(wait=True, cancel_futures=True)
+        for tree in made_trees:
+            run(["git", "worktree", "remove", "--force", str(tree)])
+        run(["git", "worktree", "prune"])
+        shutil.rmtree(parent, ignore_errors=True)
+        IN_FLIGHT.unlink(missing_ok=True)
+
+    survived = [m for i, m in enumerate(selected, 1)
+                if verdicts[i][0] == "survived"]
+    wrong = [m for i, m in enumerate(selected, 1) if verdicts[i][0] == "wrong"]
+    broken = [(m, verdicts[i][1]) for i, m in enumerate(selected, 1)
+              if verdicts[i][0] == "broken"]
 
     print()
     if broken:

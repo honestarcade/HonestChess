@@ -47,18 +47,20 @@ const _blunders = ['a1a7', 'a8a2'];
 
 final _seeds = [0, 1, 2, 3, 42, -1, 0x7fffffffffffffff, 0x0123456789abcdef];
 
+/// The descriptions as retuned for #159, each stating its blunder rate.
 final _owner = {
   Strength.beginner:
-      'Looks one move ahead and chooses loosely. It will miss threats — even '
-      'mate in one — and hand you pieces.',
+      'Looks one move ahead and chooses loosely. On 20% of moves it blunders, '
+      "giving away two pawns' worth or more, and it can miss mate in one.",
   Strength.casual:
-      'Looks two moves ahead, a little loosely. Sees direct threats, misses '
-      'short combinations.',
+      'Looks two moves ahead, a little loosely. On 20% of moves it blunders, '
+      "giving away two pawns' worth or more.",
   Strength.club:
-      'Looks three moves ahead and chooses carefully. Punishes loose pieces '
-      'and short tactics.',
+      'Looks two moves ahead and chooses carefully. On 10% of moves it '
+      "blunders, giving away two pawns' worth or more.",
   Strength.strong:
-      'Looks five moves ahead with no looseness. You will need a plan.',
+      'Looks four moves ahead with no looseness. On 3% of moves it blunders, '
+      "giving away two pawns' worth or more.",
   Strength.master:
       'Thinks deeply — up to about five seconds — with nothing held back.',
 };
@@ -78,7 +80,7 @@ Game _vsComputer(String fen, List<String> uci, {Colour player = Colour.white}) {
 }
 
 void main() {
-  test('the five descriptions are exactly the owner-approved text', () {
+  test('the five descriptions are exactly the approved text', () {
     expect(Strength.values, hasLength(5));
     for (final step in Strength.values) {
       expect(
@@ -125,6 +127,44 @@ void main() {
           }
         }
       }, tags: step == Strength.master ? ['slow'] : null);
+
+      if (step.settings.blunderPercent > 0) {
+        test('${step.name} keeps to both mate rules on a move it blunders', () {
+          List<int> blunderSeeds(String fen) => [
+            for (var seed = 0; seed < 400; seed++)
+              if (blundersNow(
+                seed,
+                _fen(fen).key,
+                step.settings.blunderPercent,
+              ))
+                seed,
+          ].take(4).toList();
+          for (final fen in _mateInOne) {
+            final seeds = blunderSeeds(fen);
+            expect(seeds, isNotEmpty);
+            for (final seed in seeds) {
+              final move = _choose(_fen(fen), step, seed).move;
+              expect(
+                _mates(_fen(fen), move),
+                isTrue,
+                reason: '${step.name} blunder seed $seed played $move in $fen',
+              );
+            }
+          }
+          for (final (i, fen) in _walkInto.indexed) {
+            final seeds = blunderSeeds(fen);
+            expect(seeds, isNotEmpty);
+            for (final seed in seeds) {
+              final move = _choose(_fen(fen), step, seed).move;
+              expect(
+                move.toUci(),
+                isNot(_blunders[i]),
+                reason: '${step.name} blunder seed $seed walked into mate',
+              );
+            }
+          }
+        });
+      }
     }
 
     test('beginner can miss a mate in one, and can play into one', () {
@@ -186,7 +226,10 @@ void main() {
           sharp,
           limits: SearchLimits(
             depth: 1,
-            exactRootScores: settings.noiseCp > 0 || !settings.seesMateInOne,
+            exactRootScores:
+                settings.noiseCp > 0 ||
+                !settings.seesMateInOne ||
+                settings.blunderPercent > 0,
           ),
           shouldStop: () {
             firstChecks++;
@@ -360,6 +403,45 @@ void main() {
       expect(acceptsDrawAt(0), isTrue);
       expect(acceptsDrawAt(-mateScore), isTrue, reason: 'being mated accepts');
       expect(acceptsDrawAt(mateScore), isFalse, reason: 'mating declines');
+    });
+
+    test('a game scored exactly at the margin is accepted, one past it '
+        'declined', () {
+      // White, the player, is without its a-pawn; Black is the computer.
+      const aPawnDown =
+          'rnbqkbnr/pppppppp/8/8/8/8/1PPPPPPP/RNBQKBNR w KQkq - 0 1';
+      for (final (line, forComputer, accepts) in [
+        (['b2b3', 'c7c5'], drawMargin, true),
+        (['b2b3', 'b7b5'], drawMargin + 1, false),
+      ]) {
+        final game = _vsComputer(aPawnDown, line);
+        final history = game.history;
+        final found = search(
+          game.position,
+          limits: const SearchLimits(
+            nodes: drawSearchNodes,
+            exactRootScores: false,
+          ),
+          history: [
+            for (var i = 0; i < history.length - 1; i++)
+              history[i].position.key,
+          ],
+        ) as Found;
+        expect(
+          -found.score,
+          forComputer,
+          reason:
+              'the fixture moved: after $line the draw search no longer '
+              'scores +$forComputer for the computer; pick a line that does',
+        );
+        expect(
+          acceptsDraw(game),
+          accepts,
+          reason:
+              'acceptsDraw at +$forComputer for the computer does not decide '
+              'as acceptsDrawAt does',
+        );
+      }
     });
 
     test('a level or losing computer accepts', () {

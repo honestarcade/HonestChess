@@ -1,6 +1,8 @@
 // The board as the design draws it: squares, surfaces, pieces, coordinates
 // and orientation (#71). No golden images — CI and local renders differ —
 // so colours, glyphs, fonts and positions are asserted directly.
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -8,7 +10,10 @@ import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/board/board_view.dart';
 import 'package:honest_chess/ui/board/orientation.dart';
+import 'package:honest_chess/ui/theme/contrast.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
+
+import 'board/board_interaction_test.dart' show pumpPlayable, tap;
 
 const _phone = Size(390, 844);
 
@@ -218,7 +223,7 @@ void main() {
       });
     }
 
-    testWidgets('white pieces are outlined dark; black ones haloed light', (
+    testWidgets('white pieces are outlined dark; black ones edged light', (
       tester,
     ) async {
       await pumpBoard(tester);
@@ -230,9 +235,13 @@ void main() {
         hasLength(4),
         reason: 'pieces: the four 1 px outline offsets',
       );
-      expect(b, hasLength(2));
       expect(
-        b.every((s) => s.color.b == 1 && s.color.r == 1),
+        b.where((s) => s.color == Palette.pieceEdgeLight && s.blurRadius == 0),
+        hasLength(4),
+        reason: 'pieces: black pieces get a light outline all round too',
+      );
+      expect(
+        b.every((s) => s.color.b > .9 && s.color.r > .9),
         isTrue,
         reason: 'pieces: black pieces never get the dark outline',
       );
@@ -252,11 +261,19 @@ void main() {
       }
     });
 
-    testWidgets('pieces sit centred on their square', (tester) async {
+    testWidgets('a glyph\'s box sits on its square\'s centre, moved by its '
+        'ink shift', (tester) async {
       await pumpBoard(tester);
+      final knight = piece(tester, 'g1');
       expect(
         tester.getCenter(find.byKey(const Key('piece-g1'))),
-        squareRect(tester, 'g1').center,
+        squareRect(tester, 'g1').center +
+            pieceInkShift(
+                  Piece.of(Colour.white, PieceKind.knight),
+                  PieceStyle.classic,
+                ) *
+                knight.style!.fontSize!,
+        reason: 'pieces: the box moves by the ink shift, so the ink is centred',
       );
     });
   });
@@ -314,6 +331,205 @@ void main() {
       expect(
         tester.getBottomRight(find.byKey(const Key('file-a1'))),
         a1.bottomRight - const Offset(2, 1),
+      );
+    });
+  });
+
+  // A highlighted square's coordinate switches to whichever ink reads
+  // there (#149).
+  group('coordinates over a tint', () {
+    Color labelColour(WidgetTester tester, String key) =>
+        tester.widget<Text>(find.byKey(Key(key))).style!.color!;
+
+    test('each tinted label is the better ink, just opaque enough', () {
+      bool sameRgb(Color a, Color b) =>
+          (a.toARGB32() & 0xFFFFFF) == (b.toARGB32() & 0xFFFFFF);
+      for (final theme in BoardTheme.values) {
+        for (final onLight in [true, false]) {
+          final square = onLight ? theme.light : theme.dark;
+          final own = onLight ? theme.labelOnLight : theme.labelOnDark;
+          expect(
+            theme.labelInk(onLight: onLight),
+            own,
+            reason: 'coords: a plain square keeps the theme\'s own ink',
+          );
+          for (final (name, tint) in Palette.squareTints) {
+            final at =
+                '${theme.name}, ${onLight ? 'light' : 'dark'} square, '
+                '$name tint';
+            final ink = theme.labelInk(onLight: onLight, tint: tint);
+            final ground = composite(tint, square);
+            double ratio(Color c) =>
+                contrastRatio(composite(c, ground), ground);
+            // Every ground the label is drawn on: a backed label covers
+            // the stripes with its bare square.
+            final grounds = theme.labelBacked(onLight: onLight, tint: tint)
+                ? [ground]
+                : theme.labelGrounds(onLight: onLight, tint: tint);
+            double worst(Color c) => grounds
+                .map((g) => contrastRatio(composite(c, g), g))
+                .reduce(math.min);
+            expect(
+              sameRgb(ink, theme.labelOnLight) ||
+                  sameRgb(ink, theme.labelOnDark),
+              isTrue,
+              reason:
+                  'coords: a tinted label is one of the theme\'s two '
+                  'inks ($at)',
+            );
+            final base = sameRgb(ink, theme.labelOnLight)
+                ? theme.labelOnLight
+                : theme.labelOnDark;
+            final other = identical(base, theme.labelOnLight)
+                ? theme.labelOnDark
+                : theme.labelOnLight;
+            expect(
+              ratio(ink.withValues(alpha: 1)),
+              greaterThanOrEqualTo(ratio(other.withValues(alpha: 1))),
+              reason:
+                  'coords: a tinted label takes the ink that reads '
+                  'better ($at)',
+            );
+            expect(
+              worst(ink),
+              greaterThanOrEqualTo(normalTextRatio),
+              reason:
+                  'coords: a tinted label reaches 4.5:1 bare and under '
+                  'every stripe it is drawn over ($at)',
+            );
+            final alpha = (ink.a * 255).round();
+            if (alpha > (base.a * 255).round()) {
+              expect(
+                worst(ink.withAlpha(alpha - 1)),
+                lessThan(normalTextRatio + shiftMargin),
+                reason:
+                    'coords: a tinted label is made only just opaque '
+                    'enough ($at)',
+              );
+            }
+          }
+        }
+      }
+    });
+
+    test('a label is backed only where no alpha of its ink reads under '
+        'the stripes', () {
+      for (final theme in BoardTheme.values) {
+        for (final onLight in [true, false]) {
+          for (final (name, tint) in [
+            ('no', const Color(0x00000000)),
+            ...Palette.squareTints,
+          ]) {
+            if (!theme.labelBacked(onLight: onLight, tint: tint)) continue;
+            final opaque = theme
+                .labelInk(onLight: onLight, tint: tint)
+                .withAlpha(255);
+            final worst = theme
+                .labelGrounds(onLight: onLight, tint: tint)
+                .map((g) => contrastRatio(composite(opaque, g), g))
+                .reduce(math.min);
+            expect(
+              worst,
+              lessThan(normalTextRatio + shiftMargin),
+              reason:
+                  'coords: ${theme.name}\'s ${onLight ? 'light' : 'dark'} '
+                  'square with $name tint is backed, but its ink opaque '
+                  'reads under every stripe',
+            );
+          }
+        }
+      }
+    });
+
+    testWidgets('a backed label covers the stripes with its bare square', (
+      tester,
+    ) async {
+      const theme = BoardTheme.bone;
+      expect(theme.labelBacked(onLight: false), isTrue);
+      expect(theme.labelBacked(onLight: true), isFalse);
+      for (final surface in BoardSurface.values) {
+        await pumpBoard(
+          tester,
+          options: BoardOptions(theme: theme, surface: surface),
+        );
+        final backing = find.byKey(const Key('rank-a1-backing'));
+        if (surface.pattern == null) {
+          expect(
+            backing,
+            findsNothing,
+            reason: 'coords: a plain surface has no stripes to cover',
+          );
+        } else {
+          expect(
+            tester.widget<ColoredBox>(backing).color,
+            theme.dark,
+            reason:
+                'coords: bone\'s dark a1 label is backed on ${surface.name}',
+          );
+        }
+        expect(
+          find.byKey(const Key('rank-a2-backing')),
+          findsNothing,
+          reason: 'coords: a light square\'s label reads under the stripes',
+        );
+      }
+    });
+
+    test('the tints switch some labels to the other ink', () {
+      // teal's selected tint lifts its dark square; bone's is mid-grey.
+      for (final theme in [BoardTheme.teal, BoardTheme.bone]) {
+        final ink = theme.labelInk(onLight: false, tint: Palette.selectedTint);
+        expect(
+          ink.r + ink.g + ink.b,
+          0,
+          reason:
+              'coords: a ${theme.name} selected dark square takes the '
+              'dark ink',
+        );
+      }
+      final navy = BoardTheme.navy.labelInk(
+        onLight: false,
+        tint: Palette.lastMoveTint,
+      );
+      expect(
+        navy.r + navy.g + navy.b,
+        3,
+        reason: 'coords: a navy last-move dark square keeps the light ink',
+      );
+    });
+
+    testWidgets('the board draws them where the tints are', (tester) async {
+      await pumpPlayable(
+        tester,
+        fen: '4k3/8/8/8/8/8/8/R3K2R w - - 0 1',
+        options: const BoardOptions(theme: BoardTheme.teal),
+      );
+      await tap(tester, 'a1');
+      const theme = BoardTheme.teal;
+      expect(
+        labelColour(tester, 'rank-a1'),
+        theme.labelInk(onLight: false, tint: Palette.selectedTint),
+        reason: 'coords: the selected a1 label takes the tinted ink',
+      );
+      expect(
+        labelColour(tester, 'file-a1'),
+        theme.labelInk(onLight: false, tint: Palette.selectedTint),
+      );
+      expect(
+        labelColour(tester, 'rank-a2'),
+        theme.labelOnLight,
+        reason: 'coords: an untinted square keeps its own ink',
+      );
+      await tap(tester, 'a2');
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        labelColour(tester, 'rank-a2'),
+        theme.labelInk(onLight: true, tint: Palette.lastMoveTint),
+        reason: 'coords: the last move\'s a2 label takes the tinted ink',
+      );
+      expect(
+        labelColour(tester, 'rank-a1'),
+        theme.labelInk(onLight: false, tint: Palette.lastMoveTint),
       );
     });
   });

@@ -4,6 +4,7 @@
 // never shows the sheet; and nothing under the card, on the board or in the
 // tool row, responds while it is open.
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:honest_chess/engine/engine.dart' hide play;
@@ -196,8 +197,13 @@ void main() {
     ) async {
       final c = await pumpScreen(tester);
       await tapMove(tester, 'e7', 'e8');
-      // a1 lies under the scrim, clear of the card.
-      await tester.tapAt(centre(tester, 'a1'));
+      // A square under the scrim, clear of the card.
+      final clear = tester.getRect(card);
+      final square = [
+        for (final rank in '18'.split(''))
+          for (final file in 'ah'.split('')) '$file$rank',
+      ].firstWhere((sq) => !clear.contains(centre(tester, sq)));
+      await tester.tapAt(centre(tester, square));
       await expectUntouched(tester, c);
     });
 
@@ -291,6 +297,80 @@ void main() {
     expect(card, findsNothing);
     expect(c.game.moves.single.toUci(), 'e7e8q');
     expect(kindOn(c, 'e8'), PieceKind.queen);
+  });
+
+  testWidgets('the choices: large, two by two, read queen to knight', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await pumpScreen(tester);
+    await tapMove(tester, 'e7', 'e8');
+    Rect at(String letter) => tester.getRect(find.byKey(Key('promo-$letter')));
+    final (q, r, b, n) = (at('q'), at('r'), at('b'), at('n'));
+    expect(q.top, r.top, reason: 'promo: queen and rook are not one row');
+    expect(b.top, n.top, reason: 'promo: bishop and knight are not one row');
+    expect(
+      b.top,
+      greaterThanOrEqualTo(q.bottom),
+      reason: 'promo: the four choices are not two rows',
+    );
+    expect(q.left, b.left, reason: 'promo: queen is not above bishop');
+    expect(r.left, n.left, reason: 'promo: rook is not above knight');
+    expect(r.left, greaterThanOrEqualTo(q.right), reason: 'promo: rook side');
+    for (final choice in [q, r, b, n]) {
+      expect(choice.size, q.size, reason: 'promo: the choices differ');
+      expect(choice.shortestSide, greaterThanOrEqualTo(48));
+    }
+    for (final letter in ['q', 'r', 'b', 'n']) {
+      final glyph = tester.widget<Text>(find.byKey(Key('promo-piece-$letter')));
+      expect(
+        glyph.style!.fontSize,
+        promotionGlyphSize,
+        reason: 'promo: the $letter glyph is not promotionGlyphSize',
+      );
+      final label = tester.widget<Text>(find.byKey(Key('promo-label-$letter')));
+      expect(
+        label.style!.fontSize,
+        promotionLabelSize,
+        reason: 'promo: the $letter label is not promotionLabelSize',
+      );
+    }
+    expect(
+      promotionGlyphSize,
+      greaterThanOrEqualTo(40),
+      reason: 'promo: glyphs smaller than 40 dp',
+    );
+    expect(
+      promotionLabelSize,
+      greaterThanOrEqualTo(12),
+      reason: 'promo: labels smaller than 12 dp',
+    );
+    final order = <String>[];
+    void walk(SemanticsNode node) {
+      if (node.label.startsWith('Promote to ')) order.add(node.label);
+      for (final child in node.debugListChildrenInOrder(
+        DebugSemanticsDumpOrder.traversalOrder,
+      )) {
+        walk(child);
+      }
+    }
+
+    walk(
+      tester
+          .binding
+          .renderViews
+          .first
+          .owner!
+          .semanticsOwner!
+          .rootSemanticsNode!,
+    );
+    expect(order, [
+      'Promote to queen',
+      'Promote to rook',
+      'Promote to bishop',
+      'Promote to knight',
+    ], reason: 'promo: read out of row order');
+    semantics.dispose();
   });
 
   testWidgets('screen readers hear the card, the choices and the scrim', (

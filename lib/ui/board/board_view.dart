@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 
 import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
+import 'package:honest_chess/ui/theme/contrast.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
 /// The width of the design's phone frame; sizes inside the board scale by
@@ -40,6 +41,59 @@ String pieceGlyph(Piece piece, PieceStyle style) => switch (style) {
 // Indexed by PieceKind: pawn, knight, bishop, rook, queen, king.
 const _filled = ['♟', '♞', '♝', '♜', '♛', '♚'];
 const _hollow = ['♙', '♘', '♗', '♖', '♕', '♔'];
+
+/// A face's line metrics, in thousandths of an em.
+final class _Face {
+  const _Face({required this.ascent, required this.descent});
+
+  final int ascent;
+  final int descent;
+
+  /// Where the baseline falls in a `height: 1` line, from its top, in ems:
+  /// the line is one em and the face's ascent and descent share it.
+  double get baseline => ascent / (ascent + descent);
+}
+
+/// One glyph's advance and ink box, in thousandths of an em, y up from
+/// the baseline.
+typedef _Ink = ({int advance, int left, int bottom, int right, int top});
+
+// hhea ascent/descent and each glyph's outline bounds, read from
+// assets/fonts/pieces/HonestPieces.ttf and IBMPlexMono-SemiBold.ttf (the
+// flat style's w600) with fontTools' BoundsPen on 2026-09-30. The filled
+// and hollow symbols share their boxes. Indexed by PieceKind.
+const _pieceFace = _Face(ascent: 1069, descent: 630);
+const _symbolInk = <_Ink>[
+  (advance: 1000, left: 186, bottom: 0, right: 814, top: 755),
+  (advance: 1000, left: 160, bottom: 0, right: 840, top: 767),
+  (advance: 1000, left: 153, bottom: -49, right: 847, top: 741),
+  (advance: 1000, left: 176, bottom: 0, right: 825, top: 719),
+  (advance: 1000, left: 125, bottom: -34, right: 875, top: 767),
+  (advance: 1000, left: 203, bottom: -34, right: 797, top: 753),
+];
+const _letterFace = _Face(ascent: 1025, descent: 275);
+const _letterInk = <_Ink>[
+  (advance: 600, left: 80, bottom: 0, right: 555, top: 698),
+  (advance: 600, left: 67, bottom: 0, right: 533, top: 698),
+  (advance: 600, left: 80, bottom: 0, right: 552, top: 698),
+  (advance: 600, left: 80, bottom: 0, right: 567, top: 698),
+  (advance: 600, left: 36, bottom: -183, right: 564, top: 710),
+  (advance: 600, left: 73, bottom: 0, right: 596, top: 698),
+];
+
+/// How far [piece]'s glyph in [style] must move, in ems, for the centre of
+/// its ink to land on the centre of its one-line, `height: 1` text box —
+/// the box the board centres in the square. Each face's ascent is most of
+/// its line, so without it the baseline sits low in the box and the ink
+/// rides high (#163).
+Offset pieceInkShift(Piece piece, PieceStyle style) {
+  final flat = style == PieceStyle.flat;
+  final face = flat ? _letterFace : _pieceFace;
+  final ink = (flat ? _letterInk : _symbolInk)[piece.kind.index];
+  final inkCentreX = (ink.left + ink.right) / 2000;
+  final inkCentreY = face.baseline - (ink.bottom + ink.top) / 2000;
+  return Offset(ink.advance / 2000 - inkCentreX, 0.5 - inkCentreY);
+}
 
 /// Layers drawn on [square] under its coordinates and piece; [side] is the
 /// square's size and [scale] the board's scale from the design. Each layer
@@ -132,6 +186,7 @@ class BoardView extends StatelessWidget {
     this.wrapSquare,
     this.above,
     this.describe,
+    this.tintOf,
   });
 
   final Position position;
@@ -143,6 +198,11 @@ class BoardView extends StatelessWidget {
   final SquareWrapper? wrapSquare;
   final BoardLayer? above;
   final SquareDescriber? describe;
+
+  /// The translucent fill [decorate] lays over a square under its
+  /// coordinates, so a coordinate there takes an ink that reads over it
+  /// (#149); none for every square when null.
+  final Color Function(Square square)? tintOf;
 
   @override
   Widget build(BuildContext context) {
@@ -187,6 +247,7 @@ class BoardView extends StatelessWidget {
       final (column, row) = _viewCell(square);
       final isLight = square.isLight;
       final piece = position.pieceAt(square);
+      final tint = tintOf?.call(square) ?? const Color(0x00000000);
       final rect = Rect.fromLTWH(column * side, row * side, side, side);
       squares.add(
         Positioned.fromRect(
@@ -218,6 +279,7 @@ class BoardView extends StatelessWidget {
                 'rank-${square.name}',
                 '${square.rank + 1}',
                 isLight,
+                tint,
                 scale,
               ),
             ),
@@ -230,6 +292,7 @@ class BoardView extends StatelessWidget {
                 'file-${square.name}',
                 square.name[0],
                 isLight,
+                tint,
                 scale,
               ),
             ),
@@ -315,24 +378,36 @@ class BoardView extends StatelessWidget {
       ? (square.file, 7 - square.rank)
       : (7 - square.file, square.rank);
 
-  Widget _coordinate(String key, String text, bool onLight, double scale) {
-    // The square's own label already names it.
-    return ExcludeSemantics(
-      child: Text(
-        text,
-        key: Key(key),
-        textScaler: TextScaler.noScaling,
-        style: TextStyle(
-          fontFamily: Fonts.plexMono,
-          fontWeight: FontWeight.w600,
-          fontSize: 8 * scale,
-          height: 1,
-          color: onLight
-              ? options.theme.labelOnLight
-              : options.theme.labelOnDark,
-        ),
+  Widget _coordinate(
+    String key,
+    String text,
+    bool onLight,
+    Color tint,
+    double scale,
+  ) {
+    final theme = options.theme;
+    Widget label = Text(
+      text,
+      key: Key(key),
+      textScaler: TextScaler.noScaling,
+      style: TextStyle(
+        fontFamily: Fonts.plexMono,
+        fontWeight: FontWeight.w600,
+        fontSize: 8 * scale,
+        height: 1,
+        color: theme.labelInk(onLight: onLight, tint: tint),
       ),
     );
+    if (options.surface.pattern != null &&
+        theme.labelBacked(onLight: onLight, tint: tint)) {
+      label = ColoredBox(
+        key: Key('$key-backing'),
+        color: composite(tint, onLight ? theme.light : theme.dark),
+        child: label,
+      );
+    }
+    // The square's own label already names it.
+    return ExcludeSemantics(child: label);
   }
 
   Widget _piece(Square square, Piece piece, double side, double scale) =>
@@ -364,7 +439,7 @@ PieceGlyph boardPiece(
 }
 
 /// One piece as the board draws it: [piece]'s glyph in [style] at
-/// [fontSize], in its side's colour with the design's outline or halo,
+/// [fontSize], in its side's colour with its side's outline,
 /// whose widths scale by [scale]. [textKey] keys the glyph's [Text].
 /// [colour] and [shadows] replace the side's ink and outline, for a sample
 /// drawn off the board (Settings' piece styles).
@@ -393,19 +468,23 @@ class PieceGlyph extends StatelessWidget {
     final flat = style == PieceStyle.flat;
     final white = piece.colour == Colour.white;
     return ExcludeSemantics(
-      child: Text(
-        pieceGlyph(piece, style),
-        key: textKey,
-        textScaler: TextScaler.noScaling,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontFamily: flat ? Fonts.plexMono : Fonts.pieces,
-          fontWeight: flat ? FontWeight.w600 : FontWeight.w400,
-          fontSize: fontSize,
-          height: 1,
-          color: colour ?? (white ? Palette.pieceWhite : Palette.pieceBlack),
-          shadows:
-              shadows ?? (white ? _whiteShadows(scale) : _blackShadows(scale)),
+      child: Transform.translate(
+        offset: pieceInkShift(piece, style) * fontSize,
+        child: Text(
+          pieceGlyph(piece, style),
+          key: textKey,
+          textScaler: TextScaler.noScaling,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: flat ? Fonts.plexMono : Fonts.pieces,
+            fontWeight: flat ? FontWeight.w600 : FontWeight.w400,
+            fontSize: fontSize,
+            height: 1,
+            color: colour ?? (white ? Palette.pieceWhite : Palette.pieceBlack),
+            shadows:
+                shadows ??
+                (white ? _whiteShadows(scale) : _blackShadows(scale)),
+          ),
         ),
       ),
     );
@@ -426,14 +505,14 @@ List<Shadow> _whiteShadows(double s) => [
   ),
 ];
 
-/// The design's faint light halo for black pieces.
+/// Black pieces' light edge: a near-opaque hairline all round and a soft
+/// light glow, so the dark ink stands off every theme's dark square. It
+/// replaces the design's faint halo, which the owner found too weak (#164).
 List<Shadow> _blackShadows(double s) => [
-  Shadow(color: const Color(0x80FFFFFF), blurRadius: 1 * s),
-  Shadow(
-    color: const Color(0x47FFFFFF),
-    offset: Offset(0, 1 * s),
-    blurRadius: 1 * s,
-  ),
+  Shadow(color: Palette.pieceEdgeLight, blurRadius: 1 * s),
+  for (final (dx, dy) in const [(1, 1), (-1, 1), (1, -1), (-1, -1)])
+    Shadow(color: Palette.pieceEdgeLight, offset: Offset(dx * s, dy * s)),
+  Shadow(color: const Color(0x73FFFFFF), blurRadius: 4 * s),
 ];
 
 /// Draws a surface's stripes once across the whole board, their widths

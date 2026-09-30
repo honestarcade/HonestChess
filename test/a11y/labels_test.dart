@@ -236,8 +236,10 @@ void main() {
         );
         expect(
           audit.squares,
-          c.name.startsWith('the board') ? 64 : 0,
-          reason: 'labels: only the board\'s 64 squares are left out',
+          c.name.startsWith('the board') && !c.covered ? 64 : 0,
+          reason:
+              'labels: only the board\'s 64 squares are left out, and '
+              'none while a card covers them',
         );
         handle.dispose();
       });

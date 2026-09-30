@@ -53,6 +53,47 @@ void main() {
     });
   });
 
+  group('chainElo', () {
+    test('adds the difference to the anchor and widens the interval', () {
+      const anchor = Estimate(1000, 900, 1100);
+      const difference = Estimate(-300, -400, -200);
+      final chained = chainElo(anchor, difference);
+      expect(chained.elo, closeTo(700, 0.01));
+      // Two equal margins of 100 combine to 100 * sqrt(2).
+      expect(chained.high - chained.elo, closeTo(141.42, 0.01));
+      expect(chained.elo - chained.low, closeTo(141.42, 0.01));
+    });
+
+    test("an exact anchor leaves the difference's interval alone", () {
+      final chained = chainElo(
+        const Estimate(1320, 1320, 1320),
+        const Estimate(-100, -180, -20),
+      );
+      expect((chained.low, chained.high), (1140, 1300));
+    });
+  });
+
+  group('targetVerdict', () {
+    test('met only when the target is inside the interval', () {
+      expect(
+        targetVerdict(const Estimate(650, 500, 800), 600),
+        startsWith('met'),
+      );
+      expect(
+        targetVerdict(const Estimate(900, 850, 950), 600),
+        'missed: the estimate is 300 above 600, outside its interval.',
+      );
+      expect(
+        targetVerdict(const Estimate(400, 350, 450), 600),
+        'missed: the estimate is 200 below 600, outside its interval.',
+      );
+      expect(
+        targetVerdict(const EloBound(above: false, level: 1320), 600),
+        startsWith('not measured'),
+      );
+    });
+  });
+
   group('san', () {
     String sanOf(String fen, String uci) {
       final position = Position.fromFen(fen);

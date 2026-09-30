@@ -8,6 +8,18 @@ import '../theme/palette.dart';
 /// test reads Outfit's cmap).
 const backGlyph = '‹';
 
+/// The ‹'s font size. Outfit's ‹ is small for its size (see
+/// [backGlyphLift]'s bounds), so it is set larger than the 34 dp box and
+/// its line box spills past the box (#165).
+const backGlyphSize = 40.0;
+
+/// How far ‹ is lifted, as a share of [backGlyphSize], so that its ink,
+/// not its line box, is centred in the box: at height 1 the baseline
+/// sits 1000/1260 of the way down and the ink spans 81–403 of 1000 units
+/// above it (Outfit-Medium.ttf's hhea and glyph bounds, read with
+/// fontTools' BoundsPen on 2026-09-30).
+const backGlyphLift = 1000 / 1260 - (81 + 403) / 2000 - .5;
+
 /// The design's screen header: the ‹ back button and the title, with an
 /// optional upper-case [kicker] line under the title in [kickerColor].
 /// Back is [goBack], the phone's back button's own path, returning to
@@ -151,14 +163,25 @@ class _BackButtonState extends State<_BackButton> {
                   color: _pressed ? widget.accent.main : Palette.borderStrong,
                 ),
               ),
-              child: const Text(
-                backGlyph,
-                style: TextStyle(
-                  fontFamily: Fonts.outfit,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 16,
-                  height: 1,
-                  color: Color(0xFFFFFFFF),
+              // The glyph is a drawing in a fixed box, so it does not grow
+              // with the text size; its line box is let spill past the box
+              // rather than clip the ink.
+              child: OverflowBox(
+                maxWidth: double.infinity,
+                maxHeight: double.infinity,
+                child: Transform.translate(
+                  offset: const Offset(0, -backGlyphLift * backGlyphSize),
+                  child: const Text(
+                    backGlyph,
+                    textScaler: TextScaler.noScaling,
+                    style: TextStyle(
+                      fontFamily: Fonts.outfit,
+                      fontWeight: FontWeight.w500,
+                      fontSize: backGlyphSize,
+                      height: 1,
+                      color: Color(0xFFFFFFFF),
+                    ),
+                  ),
                 ),
               ),
             ),

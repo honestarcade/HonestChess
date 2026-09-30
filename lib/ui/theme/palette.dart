@@ -34,9 +34,12 @@ abstract final class Palette {
   static const textLabel = Color(0xFF88AADD);
 
   /// Piece ink: white pieces are [pieceWhite] outlined in [pieceBlack];
-  /// black pieces are [pieceBlack] with a faint light halo.
+  /// black pieces are [pieceBlack] edged in [pieceEdgeLight].
   static const pieceWhite = Color(0xFFFCFBF7);
   static const pieceBlack = Color(0xFF12181F);
+
+  /// Black pieces' light edge: [pieceWhite] at 90%.
+  static const pieceEdgeLight = Color(0xE6FCFBF7);
 
   /// The board frame: its drop shadow and its 1 px ring.
   static const boardShadow = Color(0x73000000); // rgba(0,0,0,.45)
@@ -48,7 +51,9 @@ abstract final class Palette {
   /// Square highlights (`renderVals`' `hl`, `ring` and `dot`): the selected
   /// square's tint and ring, a king in check, the last move's two squares,
   /// a capture target's ring and a quiet target's dot. The rings and the
-  /// dot are these on a dark square and [markInkOnLight] on a light one.
+  /// dot are the design's here; a light square draws them in
+  /// [markInkOnLight] and a dark one in its theme's `marksOnDark`, moved
+  /// from these for contrast.
   static const selectedTint = Color(0x6B00D6B4); // rgba(0,214,180,.42)
   static const selectedRing = teal;
   static const checkTint = Color(0x80E05A4E); // rgba(224,90,78,.5)
@@ -57,17 +62,18 @@ abstract final class Palette {
   static const moveDot = Color(0x9E00D6B4); // rgba(0,214,180,.62)
 
   /// The shapes that carry each highlight without colour (#100): the last
-  /// move's corner mark on a light and on a dark square; a king in check's
-  /// badge is a white "!" on [danger].
+  /// move's corner mark on a light square, and the design's for a dark one
+  /// (drawn in its theme's `marksOnDark`); a king in check's badge is a
+  /// white "!" on [danger].
   static const lastMoveMarkOnLight = markInkOnLight;
-  static const lastMoveMarkOnDark = Color(0xB3FFFFFF); // white at .7
+  static const lastMoveMark = Color(0xB3FFFFFF); // white at .7
 
   /// Every ring, dot and corner mark on a light square (#144): [teal]
   /// darkened at its own hue to WCAG 1.4.11's 3:1 on each theme's light
-  /// square under the tints those shapes sit on, so they show in
-  /// greyscale. test/ui/board_shapes_test.dart re-derives it. Dark squares
-  /// keep the design's inks above.
-  static const markInkOnLight = Color(0xFF007E69);
+  /// square under the tints those shapes sit on, bare or under a band of
+  /// either surface's stripes (#157), so they show in greyscale.
+  /// test/ui/board_shapes_test.dart re-derives it.
+  static const markInkOnLight = Color(0xFF007562);
   static const checkBadgeInk = _white;
 
   /// The overlays' scrim and card (the promotion sheet's, the pause
@@ -341,7 +347,8 @@ abstract final class Palette {
   /// translucent fills are composited over the one below; on the gradient
   /// screens (the menu, About Honest Arcade, the splash, the play screen)
   /// the bottom is the gradient's brightest stop, [gradientInner], the
-  /// worst case for light text. The coordinate labels follow, per theme.
+  /// worst case for light text. The coordinate labels follow, per theme,
+  /// on each square colour plain and under each of [squareTints].
   static final List<TextPair> textPairs = [
     const TextPair(
       'wordmark Chess',
@@ -658,7 +665,46 @@ abstract final class Palette {
       TextPair('${theme.name} label, dark square', theme.labelOnDark, [
         theme.dark,
       ]),
+      for (final (tintName, tint) in squareTints)
+        for (final (squareName, onLight, square) in [
+          ('light', true, theme.light),
+          ('dark', false, theme.dark),
+        ])
+          TextPair(
+            '${theme.name} label, $squareName square, $tintName tint',
+            theme.labelInk(onLight: onLight, tint: tint),
+            [square, tint],
+          ),
+      // Each label under each band of the stripes, which are painted over
+      // the square and under its tint; a backed label covers them with its
+      // bare square, so its rows above are the ones it is drawn on.
+      for (final (tintName, tint) in [
+        ('', const Color(0x00000000)),
+        ...squareTints,
+      ])
+        for (final (squareName, onLight, square) in [
+          ('light', true, theme.light),
+          ('dark', false, theme.dark),
+        ])
+          if (!theme.labelBacked(onLight: onLight, tint: tint))
+            for (final surface in BoardSurface.values)
+              for (final (i, band)
+                  in (surface.pattern?.bands ?? const <StripeBand>[]).indexed)
+                TextPair(
+                  '${theme.name} label, $squareName square, '
+                  '${tintName.isEmpty ? '' : '$tintName tint, '}'
+                  'under ${surface.name} band ${i + 1}',
+                  theme.labelInk(onLight: onLight, tint: tint),
+                  [square, band.colour, if (tint.a > 0) tint],
+                ),
     ],
+  ];
+
+  /// The tints a highlighted square lays under its coordinates, by name.
+  static const List<(String, Color)> squareTints = [
+    ('selected', selectedTint),
+    ('last move', lastMoveTint),
+    ('check', checkTint),
   ];
 }
 

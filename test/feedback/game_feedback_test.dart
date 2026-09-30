@@ -308,6 +308,21 @@ void main() {
       ]);
     });
 
+    test('a declined draw says who declined; it plays and ticks nothing', () {
+      final vs = Game.start(
+        const VsComputer(
+          playerColour: Colour.white,
+          step: Strength.club,
+          seed: 1,
+        ),
+        const Untimed(),
+      );
+      final event = GameDrawDeclined(vs, const {});
+      expect(announcementFor(event), 'Club declined the draw');
+      expect(clipForEvent(event), isNull, reason: 'decline: played a clip');
+      expect(ticksFor(event), isFalse, reason: 'decline: ticked');
+    });
+
     test('an abandoned game has no words of its own', () {
       final game = Game.start(const TwoPlayer(), const Untimed());
       expect(announcementFor(GameAbandoned(game, const {})), isNull);

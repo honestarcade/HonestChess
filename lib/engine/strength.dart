@@ -41,6 +41,7 @@ final class StrengthSettings {
     required this.nodeBudget,
     required this.noiseCp,
     required this.seesMateInOne,
+    required this.blunderPercent,
   });
 
   /// The deepest the search goes, in plies; null for no cap.
@@ -61,7 +62,18 @@ final class StrengthSettings {
   /// A step that does not may treat a mate as worth only
   /// [missedMateScore].
   final bool seesMateInOne;
+
+  /// The share of moves, in percent, on which the step blunders: a seeded
+  /// roll ([blundersNow]) picks them, and on each it chooses only among the
+  /// moves its own search scores at least [blunderCp] below its best
+  /// ([chooseMove] says which moves are spared).
+  final int blunderPercent;
 }
+
+/// How much worse than its best, in centipawns, a move must score for the
+/// step to play it as a blunder: two pawns, so a blunder gives up a piece
+/// or passes over one left free — never a small positional slip.
+const int blunderCp = 200;
 
 /// What a mate, either way, is worth to a step that may miss a mate in one:
 /// three pawns, so the noise can outweigh it.
@@ -76,42 +88,47 @@ enum Strength {
       thinkSeconds: 0.3,
       nodeBudget: 92000,
       noiseCp: 200,
+      blunderPercent: 20,
       seesMateInOne: false,
     ),
-    'Looks one move ahead and chooses loosely. It will miss threats — even '
-    'mate in one — and hand you pieces.',
+    'Looks one move ahead and chooses loosely. On 20% of moves it blunders, '
+    "giving away two pawns' worth or more, and it can miss mate in one.",
   ),
   casual(
     StrengthSettings(
       depthCap: 2,
       thinkSeconds: 0.6,
       nodeBudget: 180000,
-      noiseCp: 80,
+      noiseCp: 100,
+      blunderPercent: 20,
       seesMateInOne: true,
     ),
-    'Looks two moves ahead, a little loosely. Sees direct threats, misses '
-    'short combinations.',
+    'Looks two moves ahead, a little loosely. On 20% of moves it blunders, '
+    "giving away two pawns' worth or more.",
   ),
   club(
     StrengthSettings(
-      depthCap: 3,
+      depthCap: 2,
       thinkSeconds: 1,
       nodeBudget: 310000,
-      noiseCp: 25,
+      noiseCp: 40,
+      blunderPercent: 10,
       seesMateInOne: true,
     ),
-    'Looks three moves ahead and chooses carefully. Punishes loose pieces '
-    'and short tactics.',
+    'Looks two moves ahead and chooses carefully. On 10% of moves it '
+    "blunders, giving away two pawns' worth or more.",
   ),
   strong(
     StrengthSettings(
-      depthCap: 5,
+      depthCap: 4,
       thinkSeconds: 2,
       nodeBudget: 610000,
       noiseCp: 0,
+      blunderPercent: 3,
       seesMateInOne: true,
     ),
-    'Looks five moves ahead with no looseness. You will need a plan.',
+    'Looks four moves ahead with no looseness. On 3% of moves it blunders, '
+    "giving away two pawns' worth or more.",
   ),
   master(
     StrengthSettings(
@@ -119,6 +136,7 @@ enum Strength {
       thinkSeconds: 5,
       nodeBudget: 1500000,
       noiseCp: 0,
+      blunderPercent: 0,
       seesMateInOne: true,
     ),
     'Thinks deeply — up to about five seconds — with nothing held back.',
@@ -152,6 +170,19 @@ int rootNoise(int seed, int positionKey, Move move, int noiseCp) {
   return SplitMix64(hash).nextBelow(2 * noiseCp + 1) - noiseCp;
 }
 
+/// Whether the step blunders on this move: true on [blunderPercent] of the
+/// 100 equally likely outcomes of a draw seeded by the game's [seed] and the
+/// position's Zobrist key [positionKey] alone — so neither the moves' order
+/// nor the device can change it.
+bool blundersNow(int seed, int positionKey, int blunderPercent) {
+  if (blunderPercent <= 0) return false;
+  // A second stream, apart from [rootNoise]'s, so a blunder is not tied to
+  // how the noise falls.
+  var hash = splitMixFinalise(seed + 2 * splitMixIncrement);
+  hash = splitMixFinalise(hash ^ positionKey);
+  return SplitMix64(hash).nextBelow(100) < blunderPercent;
+}
+
 /// The computer's choice: [move], and the [search] it was chosen from.
 final class ComputerMove {
   const ComputerMove(this.move, this.search);
@@ -171,7 +202,11 @@ final class ComputerMove {
 /// deadline. The step's noise then moves each root score (mates exempt,
 /// except that a step which may miss a mate in one first counts it as only
 /// [missedMateScore]) and the highest wins, the first in generation order
-/// on a tie. Returns null when [shouldStop] cancels.
+/// on a tie. On a move [blundersNow] picks, only the moves scored at least
+/// [blunderCp] below the best take part, when there are any; a step that
+/// sees mate in one never blunders when it can mate, and never blunders
+/// into a move its search sees get it mated. Returns null when
+/// [shouldStop] cancels.
 ///
 /// [StopReason.outOfTime] overrides all of that, the floor included: the
 /// move is the search's best so far, with no noise when no iteration
@@ -189,7 +224,10 @@ ComputerMove? chooseMove(
   int? nodeBudget,
 }) {
   final settings = step.settings;
-  final handicapped = settings.noiseCp > 0 || !settings.seesMateInOne;
+  final handicapped =
+      settings.noiseCp > 0 ||
+      !settings.seesMateInOne ||
+      settings.blunderPercent > 0;
   // A table left over from another search would change what this one
   // finds, so the same position, step and seed would not always give the
   // same move.
@@ -232,17 +270,27 @@ ComputerMove? chooseMove(
       return ComputerMove(result.move, result);
     case Found():
       final key = position.key;
+      final mates = settings.seesMateInOne;
+      int seen(RootScore root) => isMateScore(root.score) && !mates
+          ? root.score.sign * missedMateScore
+          : root.score;
+      var roots = result.rootScores;
+      final top = roots.map(seen).reduce(max);
+      if (blundersNow(seed, key, settings.blunderPercent) &&
+          !(mates && isMateScore(top))) {
+        final worse = [
+          for (final root in roots)
+            if (seen(root) <= top - blunderCp &&
+                !(mates && isMateScore(root.score)))
+              root,
+        ];
+        if (worse.isNotEmpty) roots = worse;
+      }
       Move? best;
       var bestScore = 0;
-      for (final root in result.rootScores) {
-        var score = root.score;
-        if (isMateScore(score)) {
-          if (!settings.seesMateInOne) {
-            score =
-                score.sign * missedMateScore +
-                rootNoise(seed, key, root.move, settings.noiseCp);
-          }
-        } else {
+      for (final root in roots) {
+        var score = seen(root);
+        if (!(mates && isMateScore(score))) {
           score += rootNoise(seed, key, root.move, settings.noiseCp);
         }
         if (best == null || score > bestScore) {

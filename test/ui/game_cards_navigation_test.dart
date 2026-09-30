@@ -157,7 +157,7 @@ void main() {
       expect(_clocks(c), clocks, reason: 'settings: the clocks moved');
     });
 
-    testWidgets('during a decline message the buttons are live and clear it', (
+    testWidgets('the declined-draw card leads nowhere but back to play', (
       tester,
     ) async {
       final r = await _board(tester);
@@ -168,13 +168,15 @@ void main() {
       await tester.pump();
       r.fakes.current.draws.single.decline();
       await tester.pump();
-      expect(_key('pause-declined'), findsOneWidget, reason: 'test: declined');
-      await _tapKey(tester, 'pause-rules');
-      await tester.pump(drawDeclineShown * 2);
+      expect(_key('declined-card'), findsOneWidget, reason: 'test: declined');
+      for (final key in ['pause-rules', 'pause-settings', 'pause-main-menu']) {
+        expect(_key(key), findsNothing, reason: 'declined: $key is offered');
+      }
       await _back(tester);
-      expect(c.state.paused, isTrue, reason: 'decline: its timer resumed');
-      expect(_key('pause-card'), findsOneWidget);
-      expect(_key('pause-declined'), findsNothing, reason: 'decline: kept');
+      expect(c.state.paused, isTrue, reason: 'declined: back resumed play');
+      expect(_key('declined-card'), findsOneWidget, reason: 'declined: back');
+      await _tapKey(tester, 'declined-resume');
+      expect(c.state.paused, isFalse);
       expect(c.drawOffer, DrawOffer.afterNextMove);
     });
 
@@ -197,7 +199,7 @@ void main() {
       await tester.pump();
       expect(r.h.controller.state.drawAsking, isTrue, reason: 'asking: back');
       r.fakes.current.draws.single.decline();
-      await tester.pump(drawDeclineShown);
+      await tester.pump();
     });
 
     testWidgets('Main menu keeps the game saved, paused and resumable, and '

@@ -290,9 +290,8 @@ void main() {
       handle.dispose();
     });
 
-    testWidgets('a locked board says why and keeps the tap action', (
-      tester,
-    ) async {
+    testWidgets('a locked board says why and keeps the tap action; a paused '
+        'one is out of reach', (tester) async {
       final handle = tester.ensureSemantics();
       final rig = await _pump(tester, mode: _vsWhite);
       await _doubleTap(tester, 'e2');
@@ -311,10 +310,11 @@ void main() {
       await tester.pump();
       rig.controller.pause();
       await tester.pump();
-      rig.spoken.clear();
-      await _doubleTap(tester, 'd2');
-      expect(rig.spoken, ['Paused']);
-      expect(rig.controller.state.selection, isNull);
+      expect(
+        find.semantics.byLabel(RegExp('^d2, ')),
+        findsNothing,
+        reason: 'board semantics: paused, the card hides the squares (#169)',
+      );
       handle.dispose();
     });
 

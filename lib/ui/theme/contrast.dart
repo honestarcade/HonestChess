@@ -249,3 +249,22 @@ Color raiseAlpha(Color design, Iterable<ContrastTarget> targets) {
   }
   return colour;
 }
+
+/// A board mark's [design] ink moved to the nearest shade that clears
+/// every one of [targets] (#151, #144's method on dark squares): lighter in
+/// CIELAB lightness at its own hue, chroma and alpha; a translucent ink
+/// that no lighter shade clears at its alpha is made more opaque one 8-bit
+/// step at a time until one does; and only an ink that no lighter shade
+/// clears even opaque moves darker, at its own alpha. [design] itself when
+/// it already clears.
+Color lightenMark(Color design, Iterable<ContrastTarget> targets) {
+  bool clears(Color c) => clearsAll(c, targets);
+  for (var alpha = (design.a * 255).round(); alpha <= 255; alpha++) {
+    try {
+      return shiftFillLightness(design.withAlpha(alpha), clears, lighter: true);
+    } on StateError {
+      continue;
+    }
+  }
+  return shiftFillLightness(design, clears, lighter: false);
+}

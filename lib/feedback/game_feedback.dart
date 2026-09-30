@@ -28,7 +28,7 @@ import 'sound_priority.dart';
 /// with no move of its own (resignation, a flag, an agreed draw) plays
 /// [Clip.end]; the end that follows a game-ending move has already been
 /// heard with it. Everything else — takeback, a new game, restart, a pause,
-/// a restore, an abandoned game — plays nothing.
+/// a restore, a declined draw, an abandoned game — plays nothing.
 Clip? clipForEvent(GameEvent event) => switch (event) {
   GameMoved(:final game) => clipFor(game.history.last.move!, game),
   GameEnded(:final game) => endedByMove(game) ? null : Clip.end,
@@ -37,6 +37,7 @@ Clip? clipForEvent(GameEvent event) => switch (event) {
   GamePaused() ||
   GameResumed() ||
   GameRestored() ||
+  GameDrawDeclined() ||
   GameAbandoned() => null,
 };
 
@@ -51,6 +52,7 @@ bool ticksFor(GameEvent event) => switch (event) {
   GameResumed() ||
   GameRestored() ||
   GameEnded() ||
+  GameDrawDeclined() ||
   GameAbandoned() => false,
 };
 
@@ -74,6 +76,7 @@ String? announcementFor(GameEvent event, {Game? previous}) => switch (event) {
   GamePaused() => pausedText,
   GameResumed() => resumedText,
   GameRestored(:final game) => restoreSpeech(game),
+  GameDrawDeclined(:final game) => declinedSpeech(game.mode),
   GameAbandoned() => null,
 };
 

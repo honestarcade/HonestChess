@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:honest_chess/data/settings_store.dart';
 import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
+import 'package:honest_chess/ui/board/board_view.dart';
 import 'package:honest_chess/ui/board/move_animation.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
@@ -212,9 +213,17 @@ void main() {
       await _slideOut(tester);
       expect(_key('slide-e4'), findsNothing);
       expect(_hidden(tester, 'e4'), isFalse);
+      // The glyph's box sits off the square's centre by its ink shift, so
+      // that its ink is centred (#163).
+      final pawn = tester.widget<Text>(_key('piece-e4'));
       expect(
         tester.getCenter(_key('piece-e4')),
-        _centre(tester, 'e4'),
+        _centre(tester, 'e4') +
+            pieceInkShift(
+                  Piece.of(Colour.white, PieceKind.pawn),
+                  PieceStyle.classic,
+                ) *
+                pawn.style!.fontSize!,
         reason: 'move-animation: the piece ends on its target',
       );
     });

@@ -4,6 +4,8 @@
 // on the last move and a "!" on a king in check. The complement: with
 // "Last-move highlight" or "Flag check on the board" off, its shape goes
 // with its tint.
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -108,7 +110,7 @@ void main() {
         final white = await glyph(Colour.white);
         final black = await glyph(Colour.black);
         // The edge each side is drawn with: white's dark outline, black's
-        // light halo, each at its own alpha.
+        // light edge, each at its own alpha.
         final whiteEdge = white.shadows!.first.color;
         final blackEdge = black.shadows!.first.color;
         for (final theme in BoardTheme.values) {
@@ -138,7 +140,26 @@ void main() {
                     'board shapes: a $side piece shows 3:1 on its square '
                     'by its ink or its edge ($at)',
               );
+              expect(
+                contrastRatio(composite(edge, square), ink),
+                greaterThanOrEqualTo(3),
+                reason:
+                    'board shapes: a $side piece\'s edge stands 3:1 off its '
+                    'own ink ($at)',
+              );
             }
+            // The edge alone carries each side where its ink is weakest:
+            // black on the dark squares, white on the light ones (#164).
+            final (weakSide, weakEdge) = name == 'dark'
+                ? ('black', blackEdge)
+                : ('white', whiteEdge);
+            expect(
+              contrastRatio(composite(weakEdge, square), square),
+              greaterThanOrEqualTo(3),
+              reason:
+                  'board shapes: a $weakSide piece\'s edge alone shows 3:1 '
+                  'on its square ($at)',
+            );
           }
         }
       });
@@ -176,7 +197,11 @@ void main() {
             .border!
             .top
             .color,
-        shapeInk(BoardShape.selectedRing, onLight: true),
+        shapeInk(
+          BoardShape.selectedRing,
+          onLight: true,
+          theme: BoardTheme.navy,
+        ),
         reason: 'board shapes: e4 is light, so its ring is the light ink',
       );
       expect(
@@ -227,7 +252,11 @@ void main() {
         expect(
           (tester.widget<CustomPaint>(mark).painter! as CornerMarkPainter)
               .colour,
-          shapeInk(BoardShape.lastMoveMark, onLight: light),
+          shapeInk(
+            BoardShape.lastMoveMark,
+            onLight: light,
+            theme: BoardTheme.navy,
+          ),
         );
         expect(
           shapeLayer(tester, 'mark-last-$name'),
@@ -300,6 +329,100 @@ void main() {
       await gesture.up();
       await tester.pump(const Duration(milliseconds: 400));
     });
+  });
+
+  // Nothing but shapeInk and tintColour colours the board's highlights, so
+  // the contrast proven below is the contrast drawn (#157).
+  group('every drawn shape takes its ink from shapeInk', () {
+    /// The colour [shape]'s widget on [square] is painted in.
+    Color painted(WidgetTester tester, BoardShape shape, String square) {
+      final key = Key('${shapeKeys[shape]}$square');
+      switch (shape) {
+        case BoardShape.lastMoveMark:
+          return (tester.widget<CustomPaint>(find.byKey(key)).painter!
+                  as CornerMarkPainter)
+              .colour;
+        case BoardShape.selectedRing || BoardShape.captureRing:
+          return (tester.widget<DecoratedBox>(find.byKey(key)).decoration
+                  as BoxDecoration)
+              .border!
+              .top
+              .color;
+        case BoardShape.moveDot || BoardShape.checkBadge:
+          final box = find.descendant(
+            of: find.byKey(key),
+            matching: find.byType(DecoratedBox),
+          );
+          return (tester.widget<DecoratedBox>(box.first).decoration
+                  as BoxDecoration)
+              .color!;
+      }
+    }
+
+    /// Checks every shape and tint on the board, and records each shape
+    /// seen with its square's colour in [seen].
+    void expectInks(
+      WidgetTester tester,
+      GameController c,
+      BoardTheme theme,
+      Set<(BoardShape, bool)> seen,
+    ) {
+      for (final shape in BoardShape.values) {
+        for (final name in keyed(tester, shapeKeys[shape]!)) {
+          final light = Square.parse(name).isLight;
+          seen.add((shape, light));
+          expect(
+            painted(tester, shape, name),
+            shapeInk(shape, onLight: light, theme: theme),
+            reason:
+                'board shapes: the ${shape.name} on $name is drawn in '
+                'shapeInk\'s ${theme.name} ${light ? 'light' : 'dark'} ink',
+          );
+        }
+      }
+      for (final name in keyed(tester, 'tint-')) {
+        expect(
+          tester.widget<ColoredBox>(find.byKey(Key('tint-$name'))).color,
+          tintColour(c.state.tintAt(Square.parse(name))),
+          reason: 'board shapes: the tint on $name is tintColour\'s',
+        );
+      }
+    }
+
+    for (final theme in BoardTheme.values) {
+      testWidgets('on ${theme.name}, each shape on both square colours', (
+        tester,
+      ) async {
+        final options = BoardOptions(theme: theme);
+        final seen = <(BoardShape, bool)>{};
+        // A queen with captures and quiet moves onto both colours, a king
+        // on a light square, and a check it gives on e8 (light).
+        var c = await pumpPlayable(
+          tester,
+          fen: '4k3/8/8/2ppp3/3Q4/8/8/5K2 w - - 0 1',
+          options: options,
+        );
+        await tap(tester, 'f1');
+        expectInks(tester, c, theme, seen);
+        await tap(tester, 'd4');
+        expectInks(tester, c, theme, seen);
+        await tap(tester, 'e5');
+        await tester.pump(const Duration(milliseconds: 400));
+        expectInks(tester, c, theme, seen);
+        await tap(tester, 'e8');
+        expectInks(tester, c, theme, seen);
+        await tap(tester, 'd7');
+        await tester.pump(const Duration(milliseconds: 400));
+        expectInks(tester, c, theme, seen);
+        // A check on e1 (dark).
+        c = await pumpPlayable(tester, fen: _check, options: options);
+        expectInks(tester, c, theme, seen);
+        expect(seen, {
+          for (final shape in BoardShape.values)
+            for (final light in [true, false]) (shape, light),
+        }, reason: 'board shapes: every shape was drawn on both colours');
+      });
+    }
   });
 
   group('the complement: an option off takes its shape too', () {
@@ -383,9 +506,10 @@ void main() {
       BoardShape.checkBadge: [SquareTint.check, SquareTint.selected],
     };
 
-    // Dark squares keep the design's inks; these stay below 3:1 until
-    // #151 is decided. Each is "<theme> <shape> on <tint>".
-    const darkGaps = {
+    // The combinations #151 found below 3:1 with the design's inks on dark
+    // squares, before each theme's dark-square inks were moved. Each is
+    // "<theme> <shape> on <tint>".
+    const formerDarkGaps = {
       'navy selectedRing on selected',
       'navy moveDot on lastMove',
       'navy captureRing on none',
@@ -405,14 +529,58 @@ void main() {
       'bone captureRing on lastMove',
     };
 
-    /// [shape]'s ink over [square] under [tint], as a WCAG ratio.
-    double shown(BoardShape shape, Color square, SquareTint tint, bool light) {
-      final background = composite(tintColour(tint), square);
+    /// What a shape can be drawn over on [square] (#157): the square bare,
+    /// and the square under each band of each surface's stripes, which are
+    /// painted over the squares and under every shape. Keyed by name.
+    Map<String, Color> grounds(Color square) => {
+      'plain': square,
+      for (final surface in BoardSurface.values)
+        for (final (i, band) in (surface.pattern?.bands ?? []).indexed)
+          '${surface.name} band $i': composite(band.colour, square),
+    };
+
+    /// [shape]'s ink over [ground] under [tint], as a WCAG ratio; [theme]
+    /// and [light] pick the ink.
+    double shownOn(
+      BoardShape shape,
+      BoardTheme theme,
+      SquareTint tint,
+      bool light,
+      Color ground,
+    ) {
+      final background = composite(tintColour(tint), ground);
       return contrastRatio(
-        composite(shapeInk(shape, onLight: light), background),
+        composite(shapeInk(shape, onLight: light, theme: theme), background),
         background,
       );
     }
+
+    /// [shape]'s lowest ratio on [theme]'s light square when [light], else
+    /// its dark one, under [tint], on any surface.
+    double shown(
+      BoardShape shape,
+      BoardTheme theme,
+      SquareTint tint,
+      bool light,
+    ) =>
+        grounds(light ? theme.light : theme.dark).values
+            .map((g) => shownOn(shape, theme, tint, light, g))
+            .reduce(math.min);
+
+    /// Every background [shape] must show 3:1 on, over [squares].
+    List<ContrastTarget> targetsFor(
+      BoardShape shape,
+      Iterable<Color> squares,
+    ) => [
+      for (final square in squares)
+        for (final ground in grounds(square).values)
+          for (final tint in under[shape]!)
+            (
+              background: composite(tintColour(tint), ground),
+              minRatio: nonTextRatio,
+              opacity: 1,
+            ),
+    ];
 
     test('every shape shows 3:1 against what it is drawn on', () {
       expect(under.keys.toSet(), BoardShape.values.toSet());
@@ -432,25 +600,27 @@ void main() {
         Palette.danger,
       );
       final low = <String>[];
-      final gapsRead = <String>[];
       for (final theme in BoardTheme.values) {
         for (final light in [true, false]) {
           final square = light ? theme.light : theme.dark;
-          for (final MapEntry(key: shape, value: tints) in under.entries) {
-            for (final tint in tints) {
-              final ratio = shown(shape, square, tint, light);
-              final reads =
-                  ratio >= nonTextRatio ||
-                  (shape == BoardShape.checkBadge && glyph >= normalTextRatio);
-              final name = '${theme.name} ${shape.name} on ${tint.name}';
-              final gap = !light && darkGaps.contains(name);
-              if (!reads && !gap) {
-                low.add(
-                  '$name, ${light ? 'light' : 'dark'} square: '
-                  '${ratio.toStringAsFixed(2)}:1',
-                );
+          for (final MapEntry(key: surface, value: ground) in grounds(
+            square,
+          ).entries) {
+            for (final MapEntry(key: shape, value: tints) in under.entries) {
+              for (final tint in tints) {
+                final ratio = shownOn(shape, theme, tint, light, ground);
+                final reads =
+                    ratio >= nonTextRatio ||
+                    (shape == BoardShape.checkBadge &&
+                        glyph >= normalTextRatio);
+                if (!reads) {
+                  low.add(
+                    '${theme.name} ${shape.name} on ${tint.name}, '
+                    '${light ? 'light' : 'dark'} square, $surface: '
+                    '${ratio.toStringAsFixed(2)}:1',
+                  );
+                }
               }
-              if (reads && gap) gapsRead.add(name);
             }
           }
         }
@@ -462,31 +632,61 @@ void main() {
             'board shapes: a shape below 3:1 in greyscale\n  '
             '${low.join('\n  ')}',
       );
-      expect(
-        gapsRead,
-        isEmpty,
-        reason: 'board shapes: a listed dark-square gap now reads; unlist it',
-      );
+    });
+
+    test('#151\'s dark-square gaps each read 3:1 now', () {
+      for (final gap in formerDarkGaps) {
+        final [themeName, shapeName, _, tintName] = gap.split(' ');
+        final ratio = shown(
+          BoardShape.values.byName(shapeName),
+          BoardTheme.values.byName(themeName),
+          SquareTint.values.byName(tintName),
+          false,
+        );
+        expect(
+          ratio,
+          greaterThanOrEqualTo(nonTextRatio),
+          reason: 'board shapes: $gap on a dark square reads 3:1',
+        );
+      }
+    });
+
+    test('each theme\'s dark-square inks are the nearest passing shades of '
+        'the design\'s', () {
+      const design = {
+        BoardShape.selectedRing: Palette.selectedRing,
+        BoardShape.lastMoveMark: Palette.lastMoveMark,
+        BoardShape.moveDot: Palette.moveDot,
+        BoardShape.captureRing: Palette.captureRing,
+      };
+      for (final theme in BoardTheme.values) {
+        for (final MapEntry(key: shape, value: ink) in design.entries) {
+          final targets = targetsFor(shape, [theme.dark]);
+          expect(
+            shapeInk(shape, onLight: false, theme: theme),
+            lightenMark(ink, targets),
+            reason:
+                'board shapes: ${theme.name}\'s dark-square ${shape.name} is '
+                'the design\'s moved just to 3:1',
+          );
+        }
+      }
     });
 
     test('the light-square ink is the nearest passing shade of teal', () {
-      final targets = <ContrastTarget>[
-        for (final theme in BoardTheme.values)
-          for (final MapEntry(key: shape, value: tints) in under.entries)
-            if (shape != BoardShape.checkBadge)
-              for (final tint in tints)
-                (
-                  background: composite(tintColour(tint), theme.light),
-                  minRatio: nonTextRatio,
-                  opacity: 1,
-                ),
+      final targets = [
+        for (final shape in under.keys)
+          if (shape != BoardShape.checkBadge)
+            ...targetsFor(shape, [
+              for (final theme in BoardTheme.values) theme.light,
+            ]),
       ];
       expect(
         Palette.markInkOnLight,
         shiftLightness(Palette.teal, targets, lighter: false),
         reason:
             'board shapes: markInkOnLight is teal darkened just to 3:1 on '
-            'every light square',
+            'every light square, bare or striped',
       );
     });
 

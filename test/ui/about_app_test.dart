@@ -294,6 +294,51 @@ void main() {
     handle.dispose();
   });
 
+  // #166: each link used to fill the row's width, so the two links sat on
+  // lines of their own at any width.
+  for (final width in [320.0, 360.0, 390.0]) {
+    testWidgets('MADE BY and both links share one line at ${width.toInt()} dp '
+        'and 1.0× text', (tester) async {
+      await _pump(tester, size: Size(width, 844));
+      await tester.ensureVisible(_key('aboutapp-link-source'));
+      await tester.pumpAndSettle();
+      final parts = [
+        tester.getRect(find.text('MADE BY')),
+        tester.getRect(_key('aboutapp-link-arcade-text')),
+        tester.getRect(find.text('·')),
+        tester.getRect(_key('aboutapp-link-source-text')),
+      ];
+      for (final part in parts.skip(1)) {
+        expect(
+          (part.center.dy - parts.first.center.dy).abs(),
+          lessThan(1),
+          reason: 'made-by: $part is on MADE BY\'s line at $width dp',
+        );
+      }
+      for (var i = 1; i < parts.length; i++) {
+        expect(
+          parts[i].left,
+          greaterThan(parts[i - 1].right),
+          reason: 'made-by: part $i sits right of part ${i - 1} at $width dp',
+        );
+      }
+      final arcade = tester.getRect(_key('aboutapp-link-arcade'));
+      final source = tester.getRect(_key('aboutapp-link-source'));
+      expect(
+        arcade.right,
+        lessThanOrEqualTo(source.left),
+        reason: 'made-by: the links\' touch areas do not overlap',
+      );
+      final scroll = tester.getRect(_key('aboutapp-scroll'));
+      final inset = 20 * width / 390;
+      expect(
+        source.right,
+        lessThanOrEqualTo(scroll.right - inset + .01),
+        reason: 'made-by: the row fits inside the column at $width dp',
+      );
+    });
+  }
+
   testWidgets('back returns to where the screen was opened from', (
     tester,
   ) async {

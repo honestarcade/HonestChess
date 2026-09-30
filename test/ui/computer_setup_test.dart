@@ -9,6 +9,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:honest_chess/data/app_store.dart';
@@ -303,6 +304,47 @@ void main() {
       expect(_visible('csetup-keep-playing'), isFalse);
     });
 
+    // #167: the names were 13.5 dp and the descriptions 10.5 dp.
+    for (final scale in [1.0, 1.3]) {
+      testWidgets('step names and descriptions are drawn larger at '
+          '$scale× text', (tester) async {
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        addTearDown(tester.platformDispatcher.clearAllTestValues);
+        await _pumpSetup(tester);
+        double drawn(String key) {
+          final render = tester.renderObject<RenderParagraph>(
+            find.byKey(Key(key)),
+          );
+          return render.textScaler.scale(render.text.style!.fontSize!);
+        }
+
+        for (final step in Strength.values) {
+          final name = drawn('csetup-strength-${step.name}-name');
+          final description = drawn('csetup-strength-${step.name}-description');
+          expect(
+            name,
+            moreOrLessEquals(strengthNameSize * scale),
+            reason: 'csetup: ${step.name}\'s name is 16 dp, scaled',
+          );
+          expect(
+            description,
+            moreOrLessEquals(strengthDescriptionSize * scale),
+            reason: 'csetup: ${step.name}\'s description is 13 dp, scaled',
+          );
+          expect(
+            name > 13.5 * scale && description > 10.5 * scale,
+            isTrue,
+            reason: 'csetup: never back at the design\'s 13.5 and 10.5 dp',
+          );
+          expect(
+            name,
+            greaterThan(description),
+            reason: 'csetup: the name stays larger than its description',
+          );
+        }
+      });
+    }
+
     testWidgets('the Play as symbols: the piece font\'s kings, and ⁇', (
       tester,
     ) async {
@@ -485,6 +527,13 @@ void main() {
     ) async {
       await _pumpSetup(tester, size: const Size(390, 844));
       final custom = find.byKey(const Key('csetup-time-custom'));
+      // The list is lazily built: at 844 dp the time control starts out
+      // past it, so scroll until it is built.
+      await tester.scrollUntilVisible(
+        custom,
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
       await tester.ensureVisible(custom);
       await tester.pump();
       await tester.tap(custom);
