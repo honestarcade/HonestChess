@@ -23,6 +23,17 @@ String _flutter(List<String> events, {int exit = 0}) =>
 String _done(int id, String result, {bool hidden = false}) =>
     '{"testID":$id,"result":"$result","skipped":false,"hidden":$hidden,"type":"testDone","time":1}';
 
+String _suite(int id, String path) =>
+    '{"suite":{"id":$id,"platform":"vm","path":"$path"},"type":"suite","time":0}';
+
+String _start(int id, String name, {int suite = 0, int line = 7}) =>
+    '{"test":{"id":$id,"name":"$name","suiteID":$suite,"groupIDs":[],'
+    '"line":$line,"column":5,"url":null},"type":"testStart","time":1}';
+
+String _error(int id, String message) =>
+    '{"testID":$id,"error":"$message","stackTrace":"test/x_test.dart 7:5  main",'
+    '"isFailure":true,"type":"error","time":1}';
+
 ScriptRun _run(
   String script,
   String flutterStub, {
@@ -96,6 +107,79 @@ void main() {
               ok = File('${dir.path}/summary.md').readAsStringSync(),
         );
         expect(ok, contains('1 passed, 0 failed'));
+      });
+
+      test('$script: a failed test is named, with its file and reason', () {
+        var summary = '';
+        final r = _run(
+          script,
+          _flutter([
+            _suite(0, 'test/x_test.dart'),
+            _start(1, 'board passes'),
+            _done(1, 'success'),
+            _start(2, 'board draws the move'),
+            _error(
+              2,
+              r'Expected: <2>\n  Actual: <1>\nwhy: the move was not drawn',
+            ),
+            _done(2, 'failure'),
+          ], exit: 1),
+          inspect: (dir) =>
+              summary = File('${dir.path}/summary.md').readAsStringSync(),
+        );
+        expect(r.exitCode, 1, reason: r.output);
+        // The summary puts the name in a code span, so it is matched alone.
+        Matcher named(String name) => allOf(
+          contains(name),
+          contains('test/x_test.dart:7'),
+          contains('why: the move was not drawn'),
+        );
+        expect(
+          r.output,
+          named('FAILED: board draws the move'),
+          reason: 'scheduled-failures: the log does not name the failed test and why',
+        );
+        expect(
+          summary,
+          named('`board draws the move`'),
+          reason: 'scheduled-failures: the job summary does not name the failed test and why',
+        );
+        expect(r.output, isNot(contains('board passes')));
+      });
+
+      test('$script: a run with no test shows what the runner said', () {
+        var summary = '';
+        final r = _run(
+          script,
+          _flutter([
+            'No supported devices connected.',
+            _done(1, 'success', hidden: true),
+          ], exit: 1),
+          inspect: (dir) =>
+              summary = File('${dir.path}/summary.md').readAsStringSync(),
+        );
+        expect(r.exitCode, 3, reason: r.output);
+        expect(
+          [r.output, summary],
+          everyElement(contains('No supported devices connected.')),
+          reason: 'scheduled-runner-output: an empty run hides what the runner said',
+        );
+      });
+
+      test('$script: a passing run names no failure', () {
+        var summary = '';
+        final r = _run(
+          script,
+          _flutter([
+            _suite(0, 'test/x_test.dart'),
+            _start(1, 'ok'),
+            _done(1, 'success'),
+          ]),
+          inspect: (dir) =>
+              summary = File('${dir.path}/summary.md').readAsStringSync(),
+        );
+        expect(r.exitCode, 0, reason: r.output);
+        expect('${r.output}$summary', isNot(contains('FAILED')));
       });
 
       test('$script: a failing test fails', () {
