@@ -294,6 +294,42 @@ void main() {
     handle.dispose();
   });
 
+  // #177: at 1.3× the dot was left at the end of MADE BY's line with the
+  // source link below it.
+  for (final width in [320.0, 360.0, 390.0]) {
+    testWidgets('at ${width.toInt()} dp and 1.3× text the dot sits between '
+        'the two links', (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await _pump(tester, size: Size(width, 568));
+      await tester.ensureVisible(_key('aboutapp-link-source'));
+      await tester.pumpAndSettle();
+      final arcade = tester.getRect(_key('aboutapp-link-arcade-text'));
+      final dot = tester.getRect(find.text('·'));
+      final source = tester.getRect(_key('aboutapp-link-source-text'));
+      for (final part in [dot, source]) {
+        expect(
+          (part.center.dy - arcade.center.dy).abs(),
+          lessThan(1),
+          reason: 'made-by: the dot has both links beside it at $width dp',
+        );
+      }
+      expect(
+        arcade.right < dot.left && dot.right < source.left,
+        isTrue,
+        reason: 'made-by: the dot has both links beside it at $width dp',
+      );
+      final inset = 20 * width / 390;
+      expect(
+        source.right,
+        lessThanOrEqualTo(
+          tester.getRect(_key('aboutapp-scroll')).right - inset + .01,
+        ),
+        reason: 'made-by: the links fit inside the column at $width dp',
+      );
+    });
+  }
+
   // #166: each link used to fill the row's width, so the two links sat on
   // lines of their own at any width.
   for (final width in [320.0, 360.0, 390.0]) {

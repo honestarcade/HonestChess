@@ -2,8 +2,9 @@
 // root, reaches every screen. On a 360 × 640 dp phone and on the smallest
 // the app supports, 320 × 568 dp, at 1.3× — and at 2.0×, which must render
 // exactly as 1.3× — no screen overflows or cuts text short (the panel names
-// alone may ellipsize) or breaks a word across lines (#176); below 1.0×
-// nothing shrinks; the board's coordinates, its pieces and the clocks'
+// alone may ellipsize), breaks a word across lines (#176), or leaves a "·"
+// drawn between two widgets at the end or start of a line (#177); below
+// 1.0× nothing shrinks; the board's coordinates, its pieces and the clocks'
 // digits keep their size at every scale; and the game screen fits without
 // scrolling, its board giving up the room the grown panels take.
 import 'package:flutter/material.dart';
@@ -431,6 +432,10 @@ typedef _Paragraph = ({
 /// A word: letters and digits, with any apostrophes inside it.
 final _word = RegExp(r"[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*", unicode: true);
 
+/// A separator drawn as a widget of its own between two others, which
+/// must sit between them on its line.
+const _separator = '·';
+
 /// How far apart two boxes' tops may be and still be on one line.
 const _lineTolerance = 1.0;
 
@@ -489,13 +494,56 @@ List<_Paragraph> _paragraphs(WidgetTester tester) {
   return out;
 }
 
+/// How far from a separator the text beside it may be: the widest gap
+/// between the pieces of a separated row.
+const _separatorReach = 32.0;
+
+/// Each separator drawn as a paragraph of its own with no other paragraph
+/// just before or just after it on its line.
+Set<String> _danglingSeparators(WidgetTester tester) {
+  final rects = <(String, Rect)>[];
+  for (final element in find.byType(RichText).evaluate()) {
+    final render = element.renderObject;
+    if (render is! RenderParagraph || !render.attached) continue;
+    rects.add((
+      render.text.toPlainText().trim(),
+      render.localToGlobal(Offset.zero) & render.size,
+    ));
+  }
+  final dangling = <String>{};
+  for (final (text, dot) in rects) {
+    if (text != _separator) continue;
+    bool beside(bool Function(Rect other) side) => rects.any(
+      (r) =>
+          r.$1.isNotEmpty &&
+          r.$1 != _separator &&
+          r.$2.top < dot.center.dy &&
+          r.$2.bottom > dot.center.dy &&
+          side(r.$2),
+    );
+    final before = beside(
+      (r) =>
+          r.right <= dot.left + _lineTolerance &&
+          dot.left - r.right <= _separatorReach,
+    );
+    final after = beside(
+      (r) =>
+          r.left >= dot.right - _lineTolerance &&
+          r.left - dot.right <= _separatorReach,
+    );
+    if (!before) dangling.add('a "$_separator" starting a line');
+    if (!after) dangling.add('a "$_separator" ending a line');
+  }
+  return dangling;
+}
+
 /// Every error the frames reported, drained.
 List<Object> _errors(WidgetTester tester) => [
   for (var e = tester.takeException(); e != null; e = tester.takeException()) e,
 ];
 
 /// What one pump of a case showed: the paragraphs of its first frame, and
-/// every overflow, cut-short text and word broken across lines found while
+/// every overflow, cut-short text and word or separated row split found while
 /// scrolling each vertical scrollable to its end.
 typedef _Seen = ({
   List<_Paragraph> first,
@@ -504,10 +552,12 @@ typedef _Seen = ({
   Set<String> split,
 });
 
-/// Every word broken across lines in [paragraphs].
+/// Every word broken across lines in [paragraphs], and every separator
+/// left dangling on screen.
 Set<String> _splits(WidgetTester tester, List<_Paragraph> paragraphs) => {
   for (final p in paragraphs)
     if (!p.mayEllipsize && !p.exceeded) ...p.split,
+  ..._danglingSeparators(tester),
 };
 
 void _setPhone(WidgetTester tester, double scale, [Size phone = _phone]) {
@@ -598,7 +648,7 @@ void _sweep(Size phone) {
         at13.split,
         isEmpty,
         reason:
-            'large text: ${c.name} breaks a word across lines at '
+            'large text: ${c.name} splits a word or a separated row at '
             '1.3× on $at',
       );
       final at20 = await _pumpAt(tester, c, 2, phone);
@@ -631,7 +681,7 @@ void _sweep(Size phone) {
         at10.split,
         isEmpty,
         reason:
-            'large text: ${c.name} breaks a word across lines at '
+            'large text: ${c.name} splits a word or a separated row at '
             '1.0× on $at',
       );
       final at085 = await _pumpAt(tester, c, .85, phone);
@@ -773,7 +823,9 @@ void fixedAndFitted() {
   });
 
   testWidgets('the sweep catches an overflow, text cut short, text '
-      'clipped by its box and a broken word', (tester) async {
+      'clipped by its box, a broken word and a dangling separator', (
+    tester,
+  ) async {
     addTearDown(tester.view.reset);
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
     final overflowing = (
@@ -827,6 +879,21 @@ void fixedAndFitted() {
         const Scaffold(body: SizedBox(width: 40, child: Text('Random'))),
       ),
     );
+    final dangling = (
+      name: 'a separated row too wide for its line',
+      pump: (WidgetTester tester) => _screen(
+        tester,
+        const Scaffold(
+          body: SizedBox(
+            width: 150,
+            child: Wrap(
+              spacing: 8,
+              children: [Text('One link'), Text('·'), Text('Another link')],
+            ),
+          ),
+        ),
+      ),
+    );
     final seenOverflow = await _pumpAt(tester, overflowing, 1.3);
     expect(
       seenOverflow.errors,
@@ -846,6 +913,10 @@ void fixedAndFitted() {
     expect(seenBroken.split, {
       'the word "Random" broken across lines in "Random"',
     }, reason: 'large text: the sweep reports a word broken across lines');
+    final seenDangling = await _pumpAt(tester, dangling, 1.3);
+    expect(seenDangling.split, {
+      'a "·" ending a line',
+    }, reason: 'large text: the sweep reports a separator ending a line');
     await tester.pumpWidget(const SizedBox());
   });
 }
