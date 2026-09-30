@@ -1381,3 +1381,9 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** `tools/failed_tests.py` now also shows each failed test's `print` events, matched by `testID`, before its error: in the log clipped to the same 80 lines as the error, and in the job summary as its own fenced block clipped to the same 30 lines. It shows them for any failed test, not only `testWidgets` ones, and never for a passing test. The line number stays the `testWidgets` call's `root_line`; the printed report already names the assertion's line.
   **Why:** A failed `testWidgets` case's error event says only "Test failed. See exception logs above."; the `expect` reason is in the framework's printed report (seen on 2026-09-30 with a scratch widget test run through `tools/counted_tests.sh`, then deleted). Telling widget tests apart would need a guess from the error text, and a plain test's prints before a failure are useful too.
   **Issue:** #127
+
+## /n8-exec M6 part 2 — 2026-09-30
+
+- **Decision:** `pubspec.yaml`'s version is `1.0.0-rc.1+1`. It is not `1.0.0+1`, which the issue's pass-1 line named. The `+1` stays a local build's number, because release.yml sets the code from the run.
+  **Why:** The replan (2026-09-29) supersedes pass 1: the source carries the exact version the `v1.0.0-rc.1` tag builds, so a local build and the Play build report the same name.
+  **Issue:** #108

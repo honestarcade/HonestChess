@@ -4,7 +4,7 @@ publish_to: 'none' # never published to pub.dev
 
 # The version name is the release tag's; CI sets the version code
 # (tools/ci_version.sh), so the +1 here is only a local build's.
-version: 0.1.0+1
+version: 1.0.0-rc.1+1
 
 environment:
   sdk: ^3.13.4
