@@ -361,13 +361,18 @@ class _ColourButton extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 7),
-          Text(
-            _colourLabel(choice),
-            style: const TextStyle(
-              fontFamily: Fonts.outfit,
-              fontWeight: FontWeight.w600,
-              fontSize: 12.5,
-              height: 1,
+          // One word on one line: on the narrowest tiles at the largest
+          // text the label shrinks rather than break mid-word (#176).
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              _colourLabel(choice),
+              style: const TextStyle(
+                fontFamily: Fonts.outfit,
+                fontWeight: FontWeight.w600,
+                fontSize: 12.5,
+                height: 1,
+              ),
             ),
           ),
         ],

@@ -1,10 +1,11 @@
 // Large text (#101): the phone's text size, clamped to 1.0–1.3× at the app
-// root, reaches every screen. On a 360 × 640 dp phone at 1.3× — and at
-// 2.0×, which must render exactly as 1.3× — no screen overflows or cuts
-// text short (the panel names alone may ellipsize); below 1.0× nothing
-// shrinks; the board's coordinates, its pieces and the clocks' digits keep
-// their size at every scale; and the game screen fits without scrolling,
-// its board giving up the room the grown panels take.
+// root, reaches every screen. On a 360 × 640 dp phone and on the smallest
+// the app supports, 320 × 568 dp, at 1.3× — and at 2.0×, which must render
+// exactly as 1.3× — no screen overflows or cuts text short (the panel names
+// alone may ellipsize) or breaks a word across lines (#176); below 1.0×
+// nothing shrinks; the board's coordinates, its pieces and the clocks'
+// digits keep their size at every scale; and the game screen fits without
+// scrolling, its board giving up the room the grown panels take.
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -38,6 +39,14 @@ import 'game/fake_computer.dart';
 
 /// A small phone: 360 × 640 dp, a 24 dp status bar and a 48 dp gesture bar.
 const _phone = Size(360, 640);
+
+/// The smallest phone the app supports, with the same bars.
+const _smallest = Size(320, 568);
+
+/// The phones every case is swept on.
+const _phones = [_phone, _smallest];
+
+String _named(Size size) => '${size.width.round()} × ${size.height.round()}';
 const _insets = FakeViewPadding(top: 24, bottom: 48);
 
 Finder _key(String key) => find.byKey(Key(key));
@@ -396,6 +405,9 @@ final _cases = <_Case>[
         await tester.pump(const Duration(milliseconds: 1500));
         expect(_key('result-card'), findsOneWidget);
         if (bar) {
+          // On the shortest screen at the largest text the card scrolls.
+          await tester.ensureVisible(_key('result-view-board'));
+          await tester.pump();
           await tester.tap(_key('result-view-board'));
           await _settle(tester);
           expect(_key('result-bar'), findsOneWidget);
@@ -413,7 +425,34 @@ typedef _Paragraph = ({
   bool exceeded,
   bool mayEllipsize,
   bool clipped,
+  Set<String> split,
 });
+
+/// A word: letters and digits, with any apostrophes inside it.
+final _word = RegExp(r"[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*", unicode: true);
+
+/// How far apart two boxes' tops may be and still be on one line.
+const _lineTolerance = 1.0;
+
+/// The top of the line [render] draws the character at [index] on, or null
+/// when it draws none (a character past an ellipsis).
+double? _lineTop(RenderParagraph render, int index) {
+  final boxes = render.getBoxesForSelection(
+    TextSelection(baseOffset: index, extentOffset: index + 1),
+  );
+  return boxes.isEmpty ? null : boxes.first.top;
+}
+
+bool _sameLine(double? a, double? b) =>
+    a != null && b != null && (a - b).abs() <= _lineTolerance;
+
+/// Each word [render] breaks across lines.
+Set<String> _splitIn(RenderParagraph render, String text) => {
+  for (final m in _word.allMatches(text))
+    if (m.end - m.start > 1 &&
+        !_sameLine(_lineTop(render, m.start), _lineTop(render, m.end - 1)))
+      'the word "${m[0]}" broken across lines in "$text"',
+};
 
 /// Whether [p] is cut short: past its line limit when it may not ellipsize,
 /// or clipped by its box, which no text may be.
@@ -437,12 +476,14 @@ List<_Paragraph> _paragraphs(WidgetTester tester) {
       }
       return true;
     });
+    final text = render.text.toPlainText();
     out.add((
-      text: render.text.toPlainText(),
+      text: text,
       height: render.size.height,
       exceeded: render.didExceedMaxLines,
       mayEllipsize: mayEllipsize,
       clipped: render.textSize.height - render.size.height > _clipTolerance,
+      split: _splitIn(render, text),
     ));
   }
   return out;
@@ -454,25 +495,37 @@ List<Object> _errors(WidgetTester tester) => [
 ];
 
 /// What one pump of a case showed: the paragraphs of its first frame, and
-/// every overflow and cut-short text found while scrolling each vertical
-/// scrollable to its end.
+/// every overflow, cut-short text and word broken across lines found while
+/// scrolling each vertical scrollable to its end.
 typedef _Seen = ({
   List<_Paragraph> first,
   List<Object> errors,
   Set<String> cut,
+  Set<String> split,
 });
 
-void _setPhone(WidgetTester tester, double scale) {
-  tester.view.physicalSize = _phone;
+/// Every word broken across lines in [paragraphs].
+Set<String> _splits(WidgetTester tester, List<_Paragraph> paragraphs) => {
+  for (final p in paragraphs)
+    if (!p.mayEllipsize && !p.exceeded) ...p.split,
+};
+
+void _setPhone(WidgetTester tester, double scale, [Size phone = _phone]) {
+  tester.view.physicalSize = phone;
   tester.view.devicePixelRatio = 1;
   tester.view.padding = _insets;
   tester.view.viewPadding = _insets;
   tester.platformDispatcher.textScaleFactorTestValue = scale;
 }
 
-Future<_Seen> _pumpAt(WidgetTester tester, _Case c, double scale) async {
+Future<_Seen> _pumpAt(
+  WidgetTester tester,
+  _Case c,
+  double scale, [
+  Size phone = _phone,
+]) async {
   await tester.pumpWidget(const SizedBox());
-  _setPhone(tester, scale);
+  _setPhone(tester, scale, phone);
   await c.pump(tester);
   final errors = _errors(tester);
   final first = _paragraphs(tester);
@@ -480,6 +533,7 @@ Future<_Seen> _pumpAt(WidgetTester tester, _Case c, double scale) async {
     for (final p in first)
       if (_isCut(p)) p.text,
   };
+  final split = _splits(tester, first);
   final scrollables = find.byType(Scrollable);
   for (var i = 0; i < scrollables.evaluate().length; i++) {
     final state = tester.state<ScrollableState>(scrollables.at(i));
@@ -490,13 +544,15 @@ Future<_Seen> _pumpAt(WidgetTester tester, _Case c, double scale) async {
       );
       await tester.pump();
       errors.addAll(_errors(tester));
+      final paragraphs = _paragraphs(tester);
       cut.addAll([
-        for (final p in _paragraphs(tester))
+        for (final p in paragraphs)
           if (_isCut(p)) p.text,
       ]);
+      split.addAll(_splits(tester, paragraphs));
     }
   }
-  return (first: first, errors: errors, cut: cut);
+  return (first: first, errors: errors, cut: cut, split: split);
 }
 
 /// The sizes a pump drew, text by text, for comparing two scales.
@@ -505,13 +561,23 @@ List<(String, double)> _sizes(_Seen seen) => [
 ];
 
 void main() {
+  for (final phone in _phones) {
+    group('at ${_named(phone)}', () => _sweep(phone));
+  }
+
+  fixedAndFitted();
+}
+
+/// Every case on [phone].
+void _sweep(Size phone) {
+  final at = _named(phone);
   for (final c in _cases) {
     testWidgets('${c.name}: fits at 1.3×, and 2.0× draws as 1.3×', (
       tester,
     ) async {
       addTearDown(tester.view.reset);
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-      final at13 = await _pumpAt(tester, c, 1.3);
+      final at13 = await _pumpAt(tester, c, 1.3, phone);
       expect(
         MediaQuery.textScalerOf(tester.element(find.byType(Navigator)))
             .scale(10),
@@ -528,7 +594,14 @@ void main() {
         isEmpty,
         reason: 'large text: ${c.name} cuts text short at 1.3×',
       );
-      final at20 = await _pumpAt(tester, c, 2);
+      expect(
+        at13.split,
+        isEmpty,
+        reason:
+            'large text: ${c.name} breaks a word across lines at '
+            '1.3× on $at',
+      );
+      final at20 = await _pumpAt(tester, c, 2, phone);
       expect(
         at20.errors,
         isEmpty,
@@ -547,14 +620,21 @@ void main() {
     ) async {
       addTearDown(tester.view.reset);
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-      final at10 = await _pumpAt(tester, c, 1);
+      final at10 = await _pumpAt(tester, c, 1, phone);
       expect(at10.errors, isEmpty, reason: 'large text: ${c.name} at 1.0×');
       expect(
         at10.cut,
         isEmpty,
         reason: 'large text: ${c.name} cuts text short at 1.0×',
       );
-      final at085 = await _pumpAt(tester, c, .85);
+      expect(
+        at10.split,
+        isEmpty,
+        reason:
+            'large text: ${c.name} breaks a word across lines at '
+            '1.0× on $at',
+      );
+      final at085 = await _pumpAt(tester, c, .85, phone);
       expect(
         _sizes(at085),
         _sizes(at10),
@@ -563,8 +643,6 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     });
   }
-
-  fixedAndFitted();
 }
 
 /// The rendered height of the paragraph under the first widget whose key
@@ -694,8 +772,8 @@ void fixedAndFitted() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('the sweep catches an overflow, text cut short and text '
-      'clipped by its box', (tester) async {
+  testWidgets('the sweep catches an overflow, text cut short, text '
+      'clipped by its box and a broken word', (tester) async {
     addTearDown(tester.view.reset);
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
     final overflowing = (
@@ -742,6 +820,13 @@ void fixedAndFitted() {
         ),
       ),
     );
+    final broken = (
+      name: 'a word wider than its box',
+      pump: (WidgetTester tester) => _screen(
+        tester,
+        const Scaffold(body: SizedBox(width: 40, child: Text('Random'))),
+      ),
+    );
     final seenOverflow = await _pumpAt(tester, overflowing, 1.3);
     expect(
       seenOverflow.errors,
@@ -757,6 +842,10 @@ void fixedAndFitted() {
     expect(seenClipped.cut, {
       'Clipped',
     }, reason: 'large text: the sweep reports text its box clips');
+    final seenBroken = await _pumpAt(tester, broken, 1.3);
+    expect(seenBroken.split, {
+      'the word "Random" broken across lines in "Random"',
+    }, reason: 'large text: the sweep reports a word broken across lines');
     await tester.pumpWidget(const SizedBox());
   });
 }
