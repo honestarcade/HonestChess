@@ -244,8 +244,10 @@ void main() {
             );
             expect(
               seen.exempt.length,
-              board ? greaterThanOrEqualTo(64) : 0,
-              reason: 'guidelines: only the board\'s squares are exempt',
+              board && !c.covered ? greaterThanOrEqualTo(64) : 0,
+              reason:
+                  'guidelines: only the board\'s squares are exempt, and '
+                  'none are reachable under a card',
             );
             if (board) {
               boardsChecked++;

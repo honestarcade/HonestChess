@@ -156,48 +156,53 @@ class _PauseOverlayState extends State<PauseOverlay>
       _ => null,
     };
     if (!open && _show.isDismissed) return const SizedBox.shrink();
-    return IgnorePointer(
-      ignoring: !open,
-      child: FadeTransition(
-        key: const Key('pause-overlay'),
-        opacity: _eased,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (declined != null)
-              GestureDetector(
-                key: const Key('pause-scrim'),
-                behavior: HitTestBehavior.opaque,
-                excludeFromSemantics: true,
-                child: const ColoredBox(color: Palette.scrim),
-              )
-            else
-              Semantics(
-                label: 'Resume',
-                button: true,
-                enabled: !asking,
-                child: GestureDetector(
+    // The scrim stops a finger reaching the board, the tool row and the
+    // top bar behind the card; this stops a screen reader (#169).
+    return BlockSemantics(
+      blocking: open,
+      child: IgnorePointer(
+        ignoring: !open,
+        child: FadeTransition(
+          key: const Key('pause-overlay'),
+          opacity: _eased,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (declined != null)
+                GestureDetector(
                   key: const Key('pause-scrim'),
                   behavior: HitTestBehavior.opaque,
-                  onTap: asking ? null : _controller.resume,
+                  excludeFromSemantics: true,
                   child: const ColoredBox(color: Palette.scrim),
+                )
+              else
+                Semantics(
+                  label: 'Resume',
+                  button: true,
+                  enabled: !asking,
+                  child: GestureDetector(
+                    key: const Key('pause-scrim'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: asking ? null : _controller.resume,
+                    child: const ColoredBox(color: Palette.scrim),
+                  ),
                 ),
-              ),
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(26),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: resultMaxWidth),
-                  child: SingleChildScrollView(
-                    key: const Key('pause-scroll'),
-                    child: declined == null
-                        ? _card(asking)
-                        : _declinedCard(declined),
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(26),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: resultMaxWidth),
+                    child: SingleChildScrollView(
+                      key: const Key('pause-scroll'),
+                      child: declined == null
+                          ? _card(asking)
+                          : _declinedCard(declined),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -138,9 +138,15 @@ class _PromotionSheetState extends State<PromotionSheet>
     final pending = _shown ?? _controller.state.pendingPromotion;
     final visible = pawn != null && (open || !_show.isDismissed);
     if (!visible) return const SizedBox.shrink();
-    return IgnorePointer(
-      ignoring: !open,
-      child: FadeTransition(opacity: _eased, child: _layer(pawn, pending)),
+    // The scrim stops a finger reaching the board and the tool row behind
+    // the card; this stops a screen reader (#169). The top bar is drawn
+    // over the card's layer and stays live to both.
+    return BlockSemantics(
+      blocking: open,
+      child: IgnorePointer(
+        ignoring: !open,
+        child: FadeTransition(opacity: _eased, child: _layer(pawn, pending)),
+      ),
     );
   }
 

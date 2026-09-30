@@ -170,13 +170,18 @@ class ResultOverlayState extends State<ResultOverlay>
     return Stack(
       fit: StackFit.expand,
       children: [
+        // The scrim stops a finger reaching the board, the tool row and the
+        // top bar behind the card; this stops a screen reader (#169).
         if (!_show.isDismissed)
-          IgnorePointer(
-            ignoring: view != ResultView.card,
-            child: FadeTransition(
-              key: const Key('result-overlay'),
-              opacity: _eased,
-              child: _layer(),
+          BlockSemantics(
+            blocking: view == ResultView.card,
+            child: IgnorePointer(
+              ignoring: view != ResultView.card,
+              child: FadeTransition(
+                key: const Key('result-overlay'),
+                opacity: _eased,
+                child: _layer(),
+              ),
             ),
           ),
       ],
