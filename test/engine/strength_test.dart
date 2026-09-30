@@ -53,7 +53,7 @@ final _owner = {
       'Looks one move ahead and chooses loosely. On 20% of moves it blunders, '
       "giving away two pawns' worth or more, and it can miss mate in one.",
   Strength.casual:
-      'Looks two moves ahead, a little loosely. On 15% of moves it blunders, '
+      'Looks two moves ahead, a little loosely. On 20% of moves it blunders, '
       "giving away two pawns' worth or more.",
   Strength.club:
       'Looks two moves ahead and chooses carefully. On 10% of moves it '

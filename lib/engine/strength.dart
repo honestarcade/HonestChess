@@ -99,11 +99,11 @@ enum Strength {
       depthCap: 2,
       thinkSeconds: 0.6,
       nodeBudget: 180000,
-      noiseCp: 80,
-      blunderPercent: 15,
+      noiseCp: 100,
+      blunderPercent: 20,
       seesMateInOne: true,
     ),
-    'Looks two moves ahead, a little loosely. On 15% of moves it blunders, '
+    'Looks two moves ahead, a little loosely. On 20% of moves it blunders, '
     "giving away two pawns' worth or more.",
   ),
   club(

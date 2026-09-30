@@ -837,8 +837,8 @@ MUTATIONS: list[Mutation] = [
     # strength dial's blunders -- test/guards/strength_honesty_test.dart (#159)
     Mutation("strength", "Casual's blunder rate changed without its text",
              "lib/engine/strength.dart",
-             sub(r"blunderPercent: 15,", "blunderPercent: 12,"),
-             "Casual would blunder on 12% of moves while its description says 15% (invariant 4)",
+             sub(r"(noiseCp: 100,\n      blunderPercent: )20,", r"\g<1>17,"),
+             "Casual would blunder on 17% of moves while its description says 20% (invariant 4)",
              'strength-honest:'),
     Mutation("strength", "Master blunders", "lib/engine/strength.dart",
              sub(r"blunderPercent: 0,", "blunderPercent: 2,"),
