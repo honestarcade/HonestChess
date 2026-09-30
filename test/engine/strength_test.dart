@@ -405,6 +405,45 @@ void main() {
       expect(acceptsDrawAt(mateScore), isFalse, reason: 'mating declines');
     });
 
+    test('a game scored exactly at the margin is accepted, one past it '
+        'declined', () {
+      // White, the player, is without its a-pawn; Black is the computer.
+      const aPawnDown =
+          'rnbqkbnr/pppppppp/8/8/8/8/1PPPPPPP/RNBQKBNR w KQkq - 0 1';
+      for (final (line, forComputer, accepts) in [
+        (['b2b3', 'c7c5'], drawMargin, true),
+        (['b2b3', 'b7b5'], drawMargin + 1, false),
+      ]) {
+        final game = _vsComputer(aPawnDown, line);
+        final history = game.history;
+        final found = search(
+          game.position,
+          limits: const SearchLimits(
+            nodes: drawSearchNodes,
+            exactRootScores: false,
+          ),
+          history: [
+            for (var i = 0; i < history.length - 1; i++)
+              history[i].position.key,
+          ],
+        ) as Found;
+        expect(
+          -found.score,
+          forComputer,
+          reason:
+              'the fixture moved: after $line the draw search no longer '
+              'scores +$forComputer for the computer; pick a line that does',
+        );
+        expect(
+          acceptsDraw(game),
+          accepts,
+          reason:
+              'acceptsDraw at +$forComputer for the computer does not decide '
+              'as acceptsDrawAt does',
+        );
+      }
+    });
+
     test('a level or losing computer accepts', () {
       expect(
         acceptsDraw(_vsComputer(Position.initialFen, ['e2e4', 'e7e5'])),
