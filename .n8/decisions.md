@@ -1250,3 +1250,6 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** Master's `Strength.master` settings and code path are unchanged. It is unhandicapped and plays its search's move, and the `strength-master:` guard is still green. So #69's recorded 2026-09-29 measurement (≈ 2207) still describes it, and #159 does not re-run it.
   **Why:** Its target of ~2200 is met by that section's own interval (2125–2289).
   **Issue:** #159
+- **Decision:** The strength ladder's pass bar stays at 26 of 40. The retuned table cleared it at every pair: casual–beginner 39½, club–casual 31½, strong–club 40 and master–strong 39½. That was a local run of `flutter test --tags weekly test/engine/strength_ladder_test.dart` on 2026-09-30, on an Apple M3 Max at 376270c plus the guard-only follow-up, and it took 10 min 49 s.
+  **Why:** #159 AC: change the bar only if the new spread needs it. Club–casual is the closest pair, and it still clears the bar by 5½ points.
+  **Issue:** #159
