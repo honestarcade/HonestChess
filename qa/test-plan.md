@@ -207,7 +207,7 @@ Steps:
 Expected: Continue reads "Continue vs <step>" with the meta line "MOVE <n> · WHITE" (or BLACK, the side to move); tapping it opens the same game, paused on the pause card.
 Core: yes
 Where: both
-Automated: test/ui/menu_navigation_test.dart; test/ui/resume_test.dart
+Automated: test/ui/menu_navigation_test.dart; test/ui/resume_test.dart; integration_test/e2e_game_test.dart
 
 ### T113 — Continue prefers the mode played last
 Steps:
@@ -368,7 +368,7 @@ Steps:
 Expected: TAKEBACK undoes the computer's reply and your last move together, and it is your turn. With the setting off, the next game's TAKEBACK stays dimmed and does nothing.
 Core: yes
 Where: both
-Automated: test/ui/game/tool_row_test.dart — disabled with nothing to undo: tapping changes nothing; test/ui/settings_options_test.dart — takeback off applies from the next game, and back on too
+Automated: test/ui/game/tool_row_test.dart — disabled with nothing to undo: tapping changes nothing; test/ui/settings_options_test.dart — takeback off applies from the next game, and back on too; integration_test/e2e_game_test.dart
 
 ### T307 — Restart and New
 Steps:
@@ -382,10 +382,10 @@ Automated: test/ui/game_cards_navigation_test.dart — after your move: counted 
 ### T308 — Resign ends the game at once
 Steps:
 - In a live game, tap RESIGN.
-Expected: There is no confirmation: the result card shows YOU LOSE with "You resigned".
+Expected: There is no confirmation: the result card shows YOU LOSE with "<your colour> resigned" (e.g. "White resigned").
 Core: yes
 Where: both
-Automated: test/ui/game/result_overlay_test.dart — resignation vs the computer: YOU LOSE in red, at once
+Automated: test/ui/game/result_overlay_test.dart — resignation vs the computer: YOU LOSE in red, at once; integration_test/e2e_game_test.dart
 
 ## Gestures
 
@@ -396,7 +396,7 @@ Steps:
 Expected: The selected piece gets a ring and every reachable square a dot (captures a ring); the move slides the knight there and marks both squares with a corner triangle. Tapping the piece again, or a square it cannot reach, puts it down with no move.
 Core: yes
 Where: both
-Automated: test/ui/board/board_interaction_test.dart — dots on quiet targets and rings on captures, and only
+Automated: test/ui/board/board_interaction_test.dart — dots on quiet targets and rings on captures, and only; integration_test/e2e_game_test.dart
 
 ### T311 — Drag a piece
 Steps:
@@ -405,7 +405,7 @@ Steps:
 Expected: The piece lifts above your finger, larger, and lands where dropped. An illegal or off-board drop springs back to its square and nothing moves.
 Core: yes
 Where: both
-Automated: test/ui/board/board_interaction_test.dart — a drop off the board springs back and changes nothing
+Automated: test/ui/board/board_interaction_test.dart — a drop off the board springs back and changes nothing; integration_test/e2e_game_test.dart
 
 ### T312 — An illegal tap is refused with a tick
 Steps:
@@ -491,7 +491,7 @@ Steps:
 Expected: After `d8h4` the result card shows BLACK WINS with "Black delivers checkmate"; the end sound plays and not the check sound.
 Core: yes
 Where: both
-Automated: integration_test/talkback_game_test.dart; test/feedback/sound_priority_test.dart — a mate plays only the end, not the check
+Automated: integration_test/talkback_game_test.dart; test/feedback/sound_priority_test.dart — a mate plays only the end, not the check; integration_test/e2e_game_test.dart
 
 ### T404 — Clocks for two
 Steps:
@@ -524,7 +524,7 @@ Steps:
 Expected: A fresh two-player game starts with the same clock and the same rotate behaviour.
 Core: yes
 Where: both
-Automated: test/ui/game/result_overlay_test.dart
+Automated: test/ui/game/result_overlay_test.dart; integration_test/e2e_game_test.dart
 
 ## Promotion card
 
@@ -647,7 +647,7 @@ Steps:
 Expected: The card shows YOU LOSE in red, large and centred; the body explains the ending.
 Core: yes
 Where: both
-Automated: test/ui/game/result_overlay_test.dart — resignation vs the computer: YOU LOSE in red, at once
+Automated: test/ui/game/result_overlay_test.dart — resignation vs the computer: YOU LOSE in red, at once; integration_test/e2e_game_test.dart
 
 ### T542 — The result card's buttons
 Steps:
@@ -655,7 +655,7 @@ Steps:
 Expected: Rematch starts the same game again; View board shows the final position under the result bar; See statistics opens Statistics on this game's tab; Main menu returns to the menu with no Continue for the finished game.
 Core: yes
 Where: both
-Automated: test/ui/game_cards_navigation_test.dart
+Automated: test/ui/game_cards_navigation_test.dart; integration_test/e2e_game_test.dart
 
 ### T543 — Two players' result tags
 Steps:
@@ -726,7 +726,7 @@ Steps:
 Expected: vs Computer shows GAMES PLAYED 2, WIN RATE 50% "1 won", a CURRENT STREAK and USUAL LEVEL, and BY STRENGTH rows for the two steps; Two players shows GAMES PLAYED 1 with the winner's card at 100% and the game's row BY TIME CONTROL.
 Core: yes
 Where: both
-Automated: test/ui/content/stats_view_test.dart; test/data/stats_test.dart
+Automated: test/ui/content/stats_view_test.dart; test/data/stats_test.dart; integration_test/e2e_game_test.dart
 
 ### T603 — What counts as a game
 Steps:
@@ -946,7 +946,7 @@ Steps:
 Expected: The same position, clocks and step come back, paused on the pause card; the computer moves only after Resume.
 Core: yes
 Where: both
-Automated: test/ui/resume_test.dart — a restored game waits, paused, for Resume; then the computer moves
+Automated: test/ui/resume_test.dart — a restored game waits, paused, for Resume; then the computer moves; integration_test/e2e_game_test.dart
 
 ### T902 — A two-player game survives a force stop
 Steps:
@@ -978,7 +978,7 @@ Steps:
 Expected: The same numbers; a game finished before the stop is counted once.
 Core: yes
 Where: both
-Automated: test/data/stats_test.dart
+Automated: test/data/stats_test.dart; integration_test/e2e_game_test.dart
 
 ### T906 — A finished game is not offered
 Steps:

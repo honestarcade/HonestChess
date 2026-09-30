@@ -1360,3 +1360,21 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** #171's recorded re-measurement was added to `.n8/memory/engine-strength.md` (runs from a clean worktree at 2d75e03, `record.log` rc=0 2026-09-30T07:08:11Z). Retuned Casual (±100 noise, 20% blunders) measures ≈ 957 (880–1034) directly against Stockfish 1320 and ≈ 827 (726–928) chained through Club; both intervals contain the owner's ~900. Beginner, chained through the new Casual, measures ≈ 627 (522–732), also on its ~600 target. These supersede the 2026-09-30 Casual and Beginner sections above them.
   **Why:** #171's AC is to retune Casual toward ~900 and re-measure it.
   **Issue:** #171, #159
+- **Decision:** `integration_test/e2e_game_test.dart` imports `pumpUntilFound` from `test/support/app_harness.dart` for every wait on a widget. Waits on the game itself (the computer's reply, the rematch) use a small local `waitUntil` loop, because `pumpUntilFound` takes only a Finder. `app_smoke_test.dart`'s `waitFor` is a closure inside its test, so it cannot be imported. The setup screens are waited for by `csetup-back`/`psetup-back`, since their Start buttons are built lazily below the fold.
+  **Why:** The replan (2026-09-29) asks for the existing wait helpers to be reused rather than a new `integration_test/support/wait.dart`.
+  **Issue:** #107
+- **Decision:** Leaving is simulated as inactive → hidden, then `GameSaves.flush()`, then inactive → resumed before the app is disposed. Nothing is pumped while the app is hidden. Before leaving, the player waits 2 s on their own turn (`thinkBeforeLeaving`), so a game saved only at its last move would come back with the wrong clock.
+  **Why:** The live test binding schedules no frames while hidden, so a pump would hang. The 2 s wait is what lets the test catch a lost save-on-leave: see the next entry.
+  **Issue:** #107
+- **Decision:** The watched-failing-first run used a different patch from the one the plan names. Removing the root's `autoPause()` and `flush()` from `_left` in `lib/main.dart` left both cases green on sudoku-dev (2026-09-30). `GameScreen` has its own lifecycle listener that also pauses, the pause event saves, and the test awaits the flush itself. So the patch instead dropped `GamePaused` from the events `GameSaves` saves. With it, case 1 failed at `e2e: whiteMs reads as it was saved` (2122 ms off, limit 100), and the tree was restored.
+  **Why:** The planned patch changes nothing a player can see, because the save on leaving has two paths. Dropping the pause save removes both paths, so it is the faithful "no save on leave".
+  **Issue:** #107
+- **Decision:** From a finished game, the test goes back to the menu with two system backs: the first lowers the result card to View board. From a live board (after the rematch), back pauses the game and the pause card's Main menu leaves. Resign is tapped on the pause card of the resumed game, as the plan says.
+  **Why:** This is `GameScreen._back` as built (#86/#161).
+  **Issue:** #107
+- **Decision:** [Rule 1] `qa/test-plan.md` T308 expected the result title "You resigned". The app says "<your colour> resigned" (e.g. "White resigned"), `test/ui/game/result_text_test.dart` pins that wording, and the e2e run confirmed it on the emulator. The plan now says what the app says. The twelve `Core: yes` checks the script covers (T112, T306, T308, T310, T311, T403, T407, T541, T542, T602, T901, T905) now cite `integration_test/e2e_game_test.dart`.
+  **Why:** A plan check that expects different wording from the code would fail the owner's phone run on a non-bug.
+  **Issue:** #107, #106
+- **Decision:** `tools/e2e.sh` takes the package to uninstall from `app_identity.yaml`'s `package_id` rather than a literal. It finds adb on PATH or under `ANDROID_HOME`/`ANDROID_SDK_ROOT`/the default SDK paths. It requires `-d` when more than one device is attached, refuses a serial that is not attached, and on a phone uninstalls only after `--allow-wipe` and a typed `wipe`. The refusals were exercised with a stub adb that listed a phone serial.
+  **Why:** `tools/rename_app.py` owns the identity, and a second literal would escape its rewrite and the identity guard.
+  **Issue:** #107
