@@ -1210,3 +1210,16 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
   **Issue:** #106–#113, #127, #149, #151, #154–#167
 
 ## /n8-exec M6 — 2026-09-29
+
+- **Decision:** `tools/mutation_check.py` now runs mutations in parallel. It still refuses a dirty tree and still refuses to start while an in-flight marker exists. It still runs the baseline and marker audit in the checkout it was started in. It then makes N detached git worktrees of HEAD in a temp dir, runs `flutter pub get --offline --enforce-lockfile` in each, and hands mutations to a thread pool, with one worktree per worker at a time. Each mutation's apply, parse and compile checks, suite, verdict (caught, SURVIVED after a confirming re-run, WRONG-REASON, BROKEN) and `try/finally` restore moved unchanged into `judge()`, which runs against that worker's worktree. So the main checkout is never mutated. A run-level marker in the main checkout names the worktrees until a `finally` removes them. Output is one block per mutation in completion order, and the summary is in battery order. The CI `mutations` job keeps its name and its `tools/mutation_check.py` step, and the ruleset is unchanged. Only the timeout comment changed.
+  **Why:** #154: the owner chose "Run in parallel" (2026-09-29). Worktrees keep each mutation's defect away from the others and from the developer's checkout.
+  **Issue:** #154
+- **Decision:** Parallelism is `min(os.cpu_count(), JOBS_CAP)` with `JOBS_CAP = 8`, and `--jobs N` overrides it. Each suite's `flutter test --concurrency` is set to `cpu_count // jobs`, so N suites do not each claim every CPU. The cap bounds disk (one worktree per worker) and memory (one Dart compiler and its test processes per worker).
+  **Why:** #154 AC: the degree is set from the runner's CPU count, with a stated cap.
+  **Issue:** #154
+- **Decision:** Local wall time of the full battery (153 mutations, all caught both times), measured on 2026-09-30 on an Apple M3 Max with 16 CPUs and 128 GB (macOS 27.0) using `time`-style `date +%s` around `python3 tools/mutation_check.py`. Before, with the serial script at 9d52057 run from a clean worktree: 1220 s (20.3 min). After, with 7b263e0 at 8 jobs: 615 s (10.3 min). The CI measurement (run id, minutes, headroom under the job's 60-minute `timeout-minutes`) will be recorded from this milestone's PR run, which does not exist yet. That AC stays open until then.
+  **Why:** #154 AC 3 asks for a measured CI run. The local pair shows the change works and is faster without waiting for CI.
+  **Issue:** #154
+- **Decision:** I verified the unchanged semantics by hand on 7b263e0. With an untracked file present the run printed "refusing to run with uncommitted changes" (rc 2). A temporary commit that changed one `expect` to a marker no guard prints gave `WRONG-REASON` (rc 1), and I then reset it away. After every run, `git status --porcelain` and `git worktree list` showed only the main checkout.
+  **Why:** #154 AC 2: verdicts, WRONG-REASON and the dirty-tree refusal unchanged.
+  **Issue:** #154
