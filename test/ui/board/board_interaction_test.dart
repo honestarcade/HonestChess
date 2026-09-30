@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_interaction.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
+import 'package:honest_chess/ui/board/board_view.dart';
 import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
@@ -54,6 +55,24 @@ Future<void> dragTo(WidgetTester tester, String from, Offset to) async {
   await gesture.up();
   await tester.pump();
 }
+
+/// Every text style drawn under [under]: each [RichText]'s spans.
+List<TextStyle?> drawnStyles(WidgetTester tester, Finder under) {
+  final styles = <TextStyle?>[];
+  for (final text in tester.widgetList<RichText>(
+    find.descendant(of: under, matching: find.byType(RichText)),
+  )) {
+    text.text.visitChildren((span) {
+      styles.add(span.style);
+      return true;
+    });
+  }
+  return styles;
+}
+
+/// The style the board draws the piece on [square] in.
+TextStyle? boardStyle(WidgetTester tester, String square) =>
+    drawnStyles(tester, find.byKey(Key('piece-$square')).first).single;
 
 Set<String> keyed(WidgetTester tester, String prefix) => {
   for (final e in find.byWidgetPredicate((w) {
@@ -333,6 +352,102 @@ void main() {
       expect(c.state.pendingPromotion, (from: sq('a7'), to: sq('a8')));
       expect(find.byKey(const Key('piece-a7')), findsOneWidget);
       expect(find.byKey(const Key('spring-back')), findsNothing);
+    });
+  });
+
+  group('a piece off its square (#175)', () {
+    void expectBoardLook(WidgetTester tester, Finder under, String what) {
+      final styles = drawnStyles(tester, under);
+      expect(styles, isNotEmpty, reason: '$what: draws the piece');
+      for (final style in styles) {
+        expect(
+          style?.decoration ?? TextDecoration.none,
+          TextDecoration.none,
+          reason: '$what: no fallback underline under the piece',
+        );
+        // b1 holds the same piece as g1, untouched on the board.
+        expect(
+          style,
+          boardStyle(tester, 'b1'),
+          reason: '$what: the piece keeps the board piece\'s own style',
+        );
+      }
+    }
+
+    testWidgets('a lifted piece looks like the piece on the board', (
+      tester,
+    ) async {
+      await pumpPlayable(tester);
+      final start = centre(tester, 'g1');
+      final gesture = await tester.startGesture(start);
+      await gesture.moveTo(start + const Offset(0, -40));
+      await tester.pump();
+      await gesture.moveTo(start + const Offset(0, -60));
+      await tester.pump();
+      expectBoardLook(tester, find.byKey(const Key('drag-feedback')), 'drag');
+      await gesture.up();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('a piece flying back looks like the piece on the board', (
+      tester,
+    ) async {
+      await pumpPlayable(tester);
+      await dragTo(tester, 'g1', const Offset(195, 800));
+      await tester.pump(springBackDuration ~/ 2);
+      expectBoardLook(tester, find.byKey(const Key('spring-back')), 'spring');
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('a piece glyph ignores the text style around it', (
+      tester,
+    ) async {
+      // Each style a glyph could be drawn under: none but the app's
+      // fallback (the overlay), and a hostile one setting every inherited
+      // property a glyph could pick up.
+      const hostile = TextStyle(
+        color: Color(0xFFFF0000),
+        fontSize: 48,
+        fontWeight: FontWeight.w900,
+        fontStyle: FontStyle.italic,
+        letterSpacing: 7,
+        wordSpacing: 7,
+        height: 3,
+        fontFamily: 'monospace',
+        decoration: TextDecoration.underline,
+        decorationStyle: TextDecorationStyle.double,
+        decorationColor: Color(0xFFFFFF00),
+        backgroundColor: Color(0xFF00FF00),
+      );
+      Future<List<TextStyle?>> drawnUnder(TextStyle? around) async {
+        const glyph = PieceGlyph(
+          key: Key('glyph'),
+          piece: Piece.whiteKnight,
+          style: PieceStyle.classic,
+          fontSize: 40,
+        );
+        await tester.pumpWidget(
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: around == null
+                ? glyph
+                : DefaultTextStyle(style: around, child: glyph),
+          ),
+        );
+        return drawnStyles(tester, find.byKey(const Key('glyph')));
+      }
+
+      final bare = await drawnUnder(null);
+      expect(
+        await drawnUnder(hostile),
+        bare,
+        reason: 'glyph: the style around a piece never reaches it',
+      );
+      expect(
+        await drawnUnder(const TextStyle(letterSpacing: 0.25)),
+        bare,
+        reason: 'glyph: the style around a piece never reaches it',
+      );
     });
   });
 
