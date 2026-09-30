@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
+import '../theme/contrast.dart';
+
 /// The four square colour pairs of the design's `THEMES`, with the
 /// coordinate labels drawn on each: the design's rgba(0,0,0,.42) on a light
 /// square and rgba(255,255,255,.5) on a dark one, each made just opaque
@@ -46,6 +48,29 @@ enum BoardTheme {
   /// A coordinate label on a [light] square, and on a [dark] one.
   final Color labelOnLight;
   final Color labelOnDark;
+
+  /// The coordinate label drawn on a light square when [onLight], else on
+  /// a dark one, over the translucent [tint] a highlight lays there
+  /// (#149). On a plain square it is the theme's own ink for that square.
+  /// Over a tint it is whichever of the two inks, [labelOnLight]'s black or
+  /// [labelOnDark]'s white, reads better there when opaque, made just
+  /// opaque enough to reach [normalTextRatio]. Throws a [StateError] when
+  /// neither ink reaches it even opaque, the case the owner gave a backing.
+  Color labelInk({
+    required bool onLight,
+    Color tint = const Color(0x00000000),
+  }) {
+    final own = onLight ? labelOnLight : labelOnDark;
+    if (tint.a == 0) return own;
+    final ground = composite(tint, onLight ? light : dark);
+    double opaque(Color ink) => contrastRatio(ink.withValues(alpha: 1), ground);
+    final ink = opaque(labelOnLight) >= opaque(labelOnDark)
+        ? labelOnLight
+        : labelOnDark;
+    return raiseAlpha(ink, [
+      (background: ground, minRatio: normalTextRatio, opacity: 1),
+    ]);
+  }
 
   /// The name Settings shows: NAVY, CLASSIC, FELT….
   String get label => name.toUpperCase();

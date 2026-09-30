@@ -344,7 +344,8 @@ abstract final class Palette {
   /// translucent fills are composited over the one below; on the gradient
   /// screens (the menu, About Honest Arcade, the splash, the play screen)
   /// the bottom is the gradient's brightest stop, [gradientInner], the
-  /// worst case for light text. The coordinate labels follow, per theme.
+  /// worst case for light text. The coordinate labels follow, per theme,
+  /// on each square colour plain and under each of [squareTints].
   static final List<TextPair> textPairs = [
     const TextPair(
       'wordmark Chess',
@@ -661,7 +662,24 @@ abstract final class Palette {
       TextPair('${theme.name} label, dark square', theme.labelOnDark, [
         theme.dark,
       ]),
+      for (final (tintName, tint) in squareTints)
+        for (final (squareName, onLight, square) in [
+          ('light', true, theme.light),
+          ('dark', false, theme.dark),
+        ])
+          TextPair(
+            '${theme.name} label, $squareName square, $tintName tint',
+            theme.labelInk(onLight: onLight, tint: tint),
+            [square, tint],
+          ),
     ],
+  ];
+
+  /// The tints a highlighted square lays under its coordinates, by name.
+  static const List<(String, Color)> squareTints = [
+    ('selected', selectedTint),
+    ('last move', lastMoveTint),
+    ('check', checkTint),
   ];
 }
 

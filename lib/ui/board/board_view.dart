@@ -185,6 +185,7 @@ class BoardView extends StatelessWidget {
     this.wrapSquare,
     this.above,
     this.describe,
+    this.tintOf,
   });
 
   final Position position;
@@ -196,6 +197,11 @@ class BoardView extends StatelessWidget {
   final SquareWrapper? wrapSquare;
   final BoardLayer? above;
   final SquareDescriber? describe;
+
+  /// The translucent fill [decorate] lays over a square under its
+  /// coordinates, so a coordinate there takes an ink that reads over it
+  /// (#149); none for every square when null.
+  final Color Function(Square square)? tintOf;
 
   @override
   Widget build(BuildContext context) {
@@ -240,6 +246,7 @@ class BoardView extends StatelessWidget {
       final (column, row) = _viewCell(square);
       final isLight = square.isLight;
       final piece = position.pieceAt(square);
+      final tint = tintOf?.call(square) ?? const Color(0x00000000);
       final rect = Rect.fromLTWH(column * side, row * side, side, side);
       squares.add(
         Positioned.fromRect(
@@ -271,6 +278,7 @@ class BoardView extends StatelessWidget {
                 'rank-${square.name}',
                 '${square.rank + 1}',
                 isLight,
+                tint,
                 scale,
               ),
             ),
@@ -283,6 +291,7 @@ class BoardView extends StatelessWidget {
                 'file-${square.name}',
                 square.name[0],
                 isLight,
+                tint,
                 scale,
               ),
             ),
@@ -368,7 +377,13 @@ class BoardView extends StatelessWidget {
       ? (square.file, 7 - square.rank)
       : (7 - square.file, square.rank);
 
-  Widget _coordinate(String key, String text, bool onLight, double scale) {
+  Widget _coordinate(
+    String key,
+    String text,
+    bool onLight,
+    Color tint,
+    double scale,
+  ) {
     // The square's own label already names it.
     return ExcludeSemantics(
       child: Text(
@@ -380,9 +395,7 @@ class BoardView extends StatelessWidget {
           fontWeight: FontWeight.w600,
           fontSize: 8 * scale,
           height: 1,
-          color: onLight
-              ? options.theme.labelOnLight
-              : options.theme.labelOnDark,
+          color: options.theme.labelInk(onLight: onLight, tint: tint),
         ),
       ),
     );

@@ -104,13 +104,6 @@ class CheckedTextGuideline extends AccessibilityGuideline {
         for (final fill in drawn.under)
           if (fill.rect.contains(box.center)) fill,
       ];
-      // A board coordinate over a square's tint (selected, last move,
-      // check) is left to #149: no label alpha reaches 4.5:1 there on
-      // every theme, so it needs a design call. On a plain square the
-      // label is still checked here and by its textPairs row.
-      final tintedLabel =
-          _isCoordinate(element) &&
-          covering.any((f) => f.key?.startsWith('tint-') ?? false);
       final backgrounds = _backgrounds(covering);
 
       void check(InlineSpan span, TextStyle inherited) {
@@ -145,7 +138,7 @@ class CheckedTextGuideline extends AccessibilityGuideline {
                 '"$text" is drawn over no opaque fill this check can see\n',
               );
             }
-          } else if (shown.a > 0 && !tintedLabel) {
+          } else if (shown.a > 0) {
             final eye = colour.withValues(alpha: colour.a * drawn.opacity);
             for (final bg in backgrounds) {
               final ratio = contrastRatio(composite(eye, bg), bg);
@@ -269,20 +262,6 @@ class CheckedTextGuideline extends AccessibilityGuideline {
     if (root != null) visit(root, 1);
     return out;
   }
-}
-
-/// Whether [element] draws one of the board's rank or file labels.
-bool _isCoordinate(Element element) {
-  var coordinate = false;
-  element.visitAncestorElements((a) {
-    final key = a.widget.key;
-    if (key is ValueKey<String> &&
-        (key.value.startsWith('rank-') || key.value.startsWith('file-'))) {
-      coordinate = true;
-    }
-    return !coordinate && a.widget is! BoardView;
-  });
-  return coordinate;
 }
 
 String _hex(Color c) =>

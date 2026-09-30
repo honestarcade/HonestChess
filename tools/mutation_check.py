@@ -1149,6 +1149,12 @@ MUTATIONS: list[Mutation] = [
                  "static const inkHighlight = Color(0x40404040);"),
              "the ink buttons' pressed grey would drift further from the design than contrast needs",
              'contrast-shift: not the nearest pass'),
+    # ---- #149: coordinates over a tint ---------------------------------------
+    Mutation("contrast", "a tinted square's coordinate keeps the plain square's ink",
+             "lib/ui/board/board_options.dart",
+             sub(r"    if \(tint\.a == 0\) return own;", "    if (tint.a <= 1) return own;"),
+             "a selected, last-move or checked square's coordinate would fall under 4.5:1",
+             'contrast-text: below WCAG AA'),
 ]
 
 

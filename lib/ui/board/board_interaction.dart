@@ -237,6 +237,7 @@ class _BoardInteractionState extends State<BoardInteraction>
                 scale: scale,
               ),
               describe: describeSquares(_controller, widget.announcer),
+              tintOf: (square) => tintColour(state.tintAt(square)),
             ),
           ),
         );
