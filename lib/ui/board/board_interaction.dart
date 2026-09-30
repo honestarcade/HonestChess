@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import 'package:honest_chess/a11y/announcer.dart';
 import 'package:honest_chess/engine/engine.dart';
+import 'package:honest_chess/ui/board/board_options.dart';
 import 'package:honest_chess/ui/board/board_semantics.dart';
 import 'package:honest_chess/ui/board/board_view.dart';
 import 'package:honest_chess/ui/board/move_animation.dart';
@@ -59,16 +60,20 @@ Color tintColour(SquareTint tint) => switch (tint) {
   SquareTint.none => const Color(0x00000000),
 };
 
-/// The colour [shape] is drawn in on a light square when [onLight], else
-/// on a dark one. The check badge's is its circle; its "!" is
-/// [Palette.checkBadgeInk].
-Color shapeInk(BoardShape shape, {required bool onLight}) => switch (shape) {
+/// The colour [shape] is drawn in on [theme]'s light square when
+/// [onLight], else on its dark one. The check badge's is its circle; its
+/// "!" is [Palette.checkBadgeInk].
+Color shapeInk(
+  BoardShape shape, {
+  required bool onLight,
+  required BoardTheme theme,
+}) => switch (shape) {
   BoardShape.checkBadge => Palette.danger,
   _ when onLight => Palette.markInkOnLight,
-  BoardShape.selectedRing => Palette.selectedRing,
-  BoardShape.lastMoveMark => Palette.lastMoveMarkOnDark,
-  BoardShape.moveDot => Palette.moveDot,
-  BoardShape.captureRing => Palette.captureRing,
+  BoardShape.selectedRing => theme.marksOnDark.selectedRing,
+  BoardShape.lastMoveMark => theme.marksOnDark.lastMoveMark,
+  BoardShape.moveDot => theme.marksOnDark.moveDot,
+  BoardShape.captureRing => theme.marksOnDark.captureRing,
 };
 
 /// The last move's corner mark: a right triangle whose legs lie along the
@@ -161,6 +166,8 @@ class _BoardInteractionState extends State<BoardInteraction>
   int? _dragPointer;
 
   GameController get _controller => widget.controller;
+
+  BoardTheme get _theme => _controller.options.theme;
 
   /// The board's own slide, when none is given.
   MoveAnimation? _ownSlides;
@@ -274,7 +281,11 @@ class _BoardInteractionState extends State<BoardInteraction>
               key: Key('mark-last-$name'),
               size: Size.square(lastMoveMarkSize * scale),
               painter: CornerMarkPainter(
-                shapeInk(BoardShape.lastMoveMark, onLight: square.isLight),
+                shapeInk(
+                  BoardShape.lastMoveMark,
+                  onLight: square.isLight,
+                  theme: _theme,
+                ),
               ),
             ),
           ),
@@ -285,7 +296,11 @@ class _BoardInteractionState extends State<BoardInteraction>
           child: _shape(
             _ring(
               'ring-capture-$name',
-              shapeInk(BoardShape.captureRing, onLight: square.isLight),
+              shapeInk(
+                BoardShape.captureRing,
+                onLight: square.isLight,
+                theme: _theme,
+              ),
               captureRingWidth * scale,
             ),
           ),
@@ -299,7 +314,11 @@ class _BoardInteractionState extends State<BoardInteraction>
               dimension: dot,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: shapeInk(BoardShape.moveDot, onLight: square.isLight),
+                  color: shapeInk(
+                    BoardShape.moveDot,
+                    onLight: square.isLight,
+                    theme: _theme,
+                  ),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -311,7 +330,7 @@ class _BoardInteractionState extends State<BoardInteraction>
           key: const ValueKey(#checkBadge),
           top: 0,
           right: 0,
-          child: _shape(_checkBadge(square, side)),
+          child: _shape(_checkBadge(square, side, _theme)),
         ),
     ];
   }
@@ -328,7 +347,11 @@ class _BoardInteractionState extends State<BoardInteraction>
       _shape(
         _ring(
           'ring-selected-${square.name}',
-          shapeInk(BoardShape.selectedRing, onLight: square.isLight),
+          shapeInk(
+            BoardShape.selectedRing,
+            onLight: square.isLight,
+            theme: _theme,
+          ),
           selectedRingWidth * scale,
         ),
         key: const ValueKey(#selectedRing),
@@ -348,14 +371,18 @@ class _BoardInteractionState extends State<BoardInteraction>
     child: IgnorePointer(child: child),
   );
 
-  static Widget _checkBadge(Square square, double side) {
+  static Widget _checkBadge(Square square, double side, BoardTheme theme) {
     final diameter = side * checkBadgeDiameter;
     return SizedBox.square(
       key: Key('badge-check-${square.name}'),
       dimension: diameter,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: shapeInk(BoardShape.checkBadge, onLight: square.isLight),
+          color: shapeInk(
+            BoardShape.checkBadge,
+            onLight: square.isLight,
+            theme: theme,
+          ),
           shape: BoxShape.circle,
         ),
         child: Center(

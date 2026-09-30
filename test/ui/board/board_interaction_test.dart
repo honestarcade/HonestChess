@@ -168,7 +168,7 @@ void main() {
       final side = (ring.decoration as BoxDecoration).border!.top;
       expect(
         side.color,
-        shapeInk(BoardShape.captureRing, onLight: true),
+        shapeInk(BoardShape.captureRing, onLight: true, theme: BoardTheme.navy),
         reason: 'ring: f7 is light, so its ring is the light ink',
       );
       final dot = tester.getSize(find.byKey(const Key('dot-h6')));

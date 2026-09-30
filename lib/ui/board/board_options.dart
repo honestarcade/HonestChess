@@ -15,24 +15,48 @@ enum BoardTheme {
     dark: Color(0xFF0F3E86),
     labelOnLight: Color(0x8D000000),
     labelOnDark: Color(0x95FFFFFF),
+    marksOnDark: (
+      selectedRing: Color(0xFF35E9C6),
+      lastMoveMark: Color(0xB3FFFFFF),
+      moveDot: Color(0x9E4AF7D3),
+      captureRing: Color(0x9950FBD8),
+    ),
   ),
   teal(
     light: Color(0xFFD6F0EB),
     dark: Color(0xFF0B615A),
     labelOnLight: Color(0x8D000000),
     labelOnDark: Color(0xB6FFFFFF),
+    marksOnDark: (
+      selectedRing: Color(0xFF54FEDA),
+      lastMoveMark: Color(0xB3FFFFFF),
+      moveDot: Color(0x9EFDFFFE),
+      captureRing: Color(0x9EFDFFFE),
+    ),
   ),
   violet(
     light: Color(0xFFE4DAFB),
     dark: Color(0xFF3B2076),
     labelOnLight: Color(0x8F000000),
     labelOnDark: Color(0x86FFFFFF),
+    marksOnDark: (
+      selectedRing: Color(0xFF00D6B4),
+      lastMoveMark: Color(0xB3FFFFFF),
+      moveDot: Color(0x9E21DFBC),
+      captureRing: Color(0x992CE4C1),
+    ),
   ),
   bone(
     light: Color(0xFFF1EFE7),
     dark: Color(0xFF6A7586),
     labelOnLight: Color(0x8C000000),
     labelOnDark: Color(0xFBFFFFFF),
+    marksOnDark: (
+      selectedRing: Color(0xFFE7FFF8),
+      lastMoveMark: Color(0xC6FFFFFF),
+      moveDot: Color(0xC7FAFFFD),
+      captureRing: Color(0xC7FAFFFD),
+    ),
   );
 
   const BoardTheme({
@@ -40,6 +64,7 @@ enum BoardTheme {
     required this.dark,
     required this.labelOnLight,
     required this.labelOnDark,
+    required this.marksOnDark,
   });
 
   final Color light;
@@ -48,6 +73,13 @@ enum BoardTheme {
   /// A coordinate label on a [light] square, and on a [dark] one.
   final Color labelOnLight;
   final Color labelOnDark;
+
+  /// The inks of the board's marks on a [dark] square: each design ink
+  /// (`Palette.selectedRing`, `lastMoveMark`, `moveDot`, `captureRing`)
+  /// moved by `lightenMark` just far enough to show 3:1 on this theme's
+  /// dark square under the tints it sits on (#151).
+  /// test/ui/board_shapes_test.dart re-derives each one.
+  final MarkInks marksOnDark;
 
   /// The coordinate label drawn on a light square when [onLight], else on
   /// a dark one, over the translucent [tint] a highlight lays there
@@ -75,6 +107,14 @@ enum BoardTheme {
   /// The name Settings shows: NAVY, CLASSIC, FELT….
   String get label => name.toUpperCase();
 }
+
+/// A board theme's inks for the marks drawn on one square colour.
+typedef MarkInks = ({
+  Color selectedRing,
+  Color lastMoveMark,
+  Color moveDot,
+  Color captureRing,
+});
 
 /// The design's three piece styles (`GLYPH`).
 enum PieceStyle {

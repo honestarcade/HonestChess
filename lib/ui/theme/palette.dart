@@ -51,7 +51,9 @@ abstract final class Palette {
   /// Square highlights (`renderVals`' `hl`, `ring` and `dot`): the selected
   /// square's tint and ring, a king in check, the last move's two squares,
   /// a capture target's ring and a quiet target's dot. The rings and the
-  /// dot are these on a dark square and [markInkOnLight] on a light one.
+  /// dot are the design's here; a light square draws them in
+  /// [markInkOnLight] and a dark one in its theme's `marksOnDark`, moved
+  /// from these for contrast.
   static const selectedTint = Color(0x6B00D6B4); // rgba(0,214,180,.42)
   static const selectedRing = teal;
   static const checkTint = Color(0x80E05A4E); // rgba(224,90,78,.5)
@@ -60,16 +62,16 @@ abstract final class Palette {
   static const moveDot = Color(0x9E00D6B4); // rgba(0,214,180,.62)
 
   /// The shapes that carry each highlight without colour (#100): the last
-  /// move's corner mark on a light and on a dark square; a king in check's
-  /// badge is a white "!" on [danger].
+  /// move's corner mark on a light square, and the design's for a dark one
+  /// (drawn in its theme's `marksOnDark`); a king in check's badge is a
+  /// white "!" on [danger].
   static const lastMoveMarkOnLight = markInkOnLight;
-  static const lastMoveMarkOnDark = Color(0xB3FFFFFF); // white at .7
+  static const lastMoveMark = Color(0xB3FFFFFF); // white at .7
 
   /// Every ring, dot and corner mark on a light square (#144): [teal]
   /// darkened at its own hue to WCAG 1.4.11's 3:1 on each theme's light
   /// square under the tints those shapes sit on, so they show in
-  /// greyscale. test/ui/board_shapes_test.dart re-derives it. Dark squares
-  /// keep the design's inks above.
+  /// greyscale. test/ui/board_shapes_test.dart re-derives it.
   static const markInkOnLight = Color(0xFF007E69);
   static const checkBadgeInk = _white;
 

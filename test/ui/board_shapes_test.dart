@@ -195,7 +195,11 @@ void main() {
             .border!
             .top
             .color,
-        shapeInk(BoardShape.selectedRing, onLight: true),
+        shapeInk(
+          BoardShape.selectedRing,
+          onLight: true,
+          theme: BoardTheme.navy,
+        ),
         reason: 'board shapes: e4 is light, so its ring is the light ink',
       );
       expect(
@@ -246,7 +250,11 @@ void main() {
         expect(
           (tester.widget<CustomPaint>(mark).painter! as CornerMarkPainter)
               .colour,
-          shapeInk(BoardShape.lastMoveMark, onLight: light),
+          shapeInk(
+            BoardShape.lastMoveMark,
+            onLight: light,
+            theme: BoardTheme.navy,
+          ),
         );
         expect(
           shapeLayer(tester, 'mark-last-$name'),
@@ -402,9 +410,10 @@ void main() {
       BoardShape.checkBadge: [SquareTint.check, SquareTint.selected],
     };
 
-    // Dark squares keep the design's inks; these stay below 3:1 until
-    // #151 is decided. Each is "<theme> <shape> on <tint>".
-    const darkGaps = {
+    // The combinations #151 found below 3:1 with the design's inks on dark
+    // squares, before each theme's dark-square inks were moved. Each is
+    // "<theme> <shape> on <tint>".
+    const formerDarkGaps = {
       'navy selectedRing on selected',
       'navy moveDot on lastMove',
       'navy captureRing on none',
@@ -424,11 +433,18 @@ void main() {
       'bone captureRing on lastMove',
     };
 
-    /// [shape]'s ink over [square] under [tint], as a WCAG ratio.
-    double shown(BoardShape shape, Color square, SquareTint tint, bool light) {
+    /// [shape]'s ink over [theme]'s light square when [light], else its
+    /// dark one, under [tint], as a WCAG ratio.
+    double shown(
+      BoardShape shape,
+      BoardTheme theme,
+      SquareTint tint,
+      bool light,
+    ) {
+      final square = light ? theme.light : theme.dark;
       final background = composite(tintColour(tint), square);
       return contrastRatio(
-        composite(shapeInk(shape, onLight: light), background),
+        composite(shapeInk(shape, onLight: light, theme: theme), background),
         background,
       );
     }
@@ -451,25 +467,21 @@ void main() {
         Palette.danger,
       );
       final low = <String>[];
-      final gapsRead = <String>[];
       for (final theme in BoardTheme.values) {
         for (final light in [true, false]) {
-          final square = light ? theme.light : theme.dark;
           for (final MapEntry(key: shape, value: tints) in under.entries) {
             for (final tint in tints) {
-              final ratio = shown(shape, square, tint, light);
+              final ratio = shown(shape, theme, tint, light);
               final reads =
                   ratio >= nonTextRatio ||
                   (shape == BoardShape.checkBadge && glyph >= normalTextRatio);
-              final name = '${theme.name} ${shape.name} on ${tint.name}';
-              final gap = !light && darkGaps.contains(name);
-              if (!reads && !gap) {
+              if (!reads) {
                 low.add(
-                  '$name, ${light ? 'light' : 'dark'} square: '
+                  '${theme.name} ${shape.name} on ${tint.name}, '
+                  '${light ? 'light' : 'dark'} square: '
                   '${ratio.toStringAsFixed(2)}:1',
                 );
               }
-              if (reads && gap) gapsRead.add(name);
             }
           }
         }
@@ -481,11 +493,52 @@ void main() {
             'board shapes: a shape below 3:1 in greyscale\n  '
             '${low.join('\n  ')}',
       );
-      expect(
-        gapsRead,
-        isEmpty,
-        reason: 'board shapes: a listed dark-square gap now reads; unlist it',
-      );
+    });
+
+    test('#151\'s dark-square gaps each read 3:1 now', () {
+      for (final gap in formerDarkGaps) {
+        final [themeName, shapeName, _, tintName] = gap.split(' ');
+        final ratio = shown(
+          BoardShape.values.byName(shapeName),
+          BoardTheme.values.byName(themeName),
+          SquareTint.values.byName(tintName),
+          false,
+        );
+        expect(
+          ratio,
+          greaterThanOrEqualTo(nonTextRatio),
+          reason: 'board shapes: $gap on a dark square reads 3:1',
+        );
+      }
+    });
+
+    test('each theme\'s dark-square inks are the nearest passing shades of '
+        'the design\'s', () {
+      const design = {
+        BoardShape.selectedRing: Palette.selectedRing,
+        BoardShape.lastMoveMark: Palette.lastMoveMark,
+        BoardShape.moveDot: Palette.moveDot,
+        BoardShape.captureRing: Palette.captureRing,
+      };
+      for (final theme in BoardTheme.values) {
+        for (final MapEntry(key: shape, value: ink) in design.entries) {
+          final targets = <ContrastTarget>[
+            for (final tint in under[shape]!)
+              (
+                background: composite(tintColour(tint), theme.dark),
+                minRatio: nonTextRatio,
+                opacity: 1,
+              ),
+          ];
+          expect(
+            shapeInk(shape, onLight: false, theme: theme),
+            lightenMark(ink, targets),
+            reason:
+                'board shapes: ${theme.name}\'s dark-square ${shape.name} is '
+                'the design\'s moved just to 3:1',
+          );
+        }
+      }
     });
 
     test('the light-square ink is the nearest passing shade of teal', () {
