@@ -1,6 +1,8 @@
 // The board as the design draws it: squares, surfaces, pieces, coordinates
 // and orientation (#71). No golden images — CI and local renders differ —
 // so colours, glyphs, fonts and positions are asserted directly.
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -359,6 +361,14 @@ void main() {
             final ground = composite(tint, square);
             double ratio(Color c) =>
                 contrastRatio(composite(c, ground), ground);
+            // Every ground the label is drawn on: a backed label covers
+            // the stripes with its bare square.
+            final grounds = theme.labelBacked(onLight: onLight, tint: tint)
+                ? [ground]
+                : theme.labelGrounds(onLight: onLight, tint: tint);
+            double worst(Color c) => grounds
+                .map((g) => contrastRatio(composite(c, g), g))
+                .reduce(math.min);
             expect(
               sameRgb(ink, theme.labelOnLight) ||
                   sameRgb(ink, theme.labelOnDark),
@@ -381,14 +391,16 @@ void main() {
                   'better ($at)',
             );
             expect(
-              ratio(ink),
+              worst(ink),
               greaterThanOrEqualTo(normalTextRatio),
-              reason: 'coords: a tinted label reaches 4.5:1 ($at)',
+              reason:
+                  'coords: a tinted label reaches 4.5:1 bare and under '
+                  'every stripe it is drawn over ($at)',
             );
             final alpha = (ink.a * 255).round();
             if (alpha > (base.a * 255).round()) {
               expect(
-                ratio(ink.withAlpha(alpha - 1)),
+                worst(ink.withAlpha(alpha - 1)),
                 lessThan(normalTextRatio + shiftMargin),
                 reason:
                     'coords: a tinted label is made only just opaque '
@@ -397,6 +409,69 @@ void main() {
             }
           }
         }
+      }
+    });
+
+    test('a label is backed only where no alpha of its ink reads under '
+        'the stripes', () {
+      for (final theme in BoardTheme.values) {
+        for (final onLight in [true, false]) {
+          for (final (name, tint) in [
+            ('no', const Color(0x00000000)),
+            ...Palette.squareTints,
+          ]) {
+            if (!theme.labelBacked(onLight: onLight, tint: tint)) continue;
+            final opaque = theme
+                .labelInk(onLight: onLight, tint: tint)
+                .withAlpha(255);
+            final worst = theme
+                .labelGrounds(onLight: onLight, tint: tint)
+                .map((g) => contrastRatio(composite(opaque, g), g))
+                .reduce(math.min);
+            expect(
+              worst,
+              lessThan(normalTextRatio + shiftMargin),
+              reason:
+                  'coords: ${theme.name}\'s ${onLight ? 'light' : 'dark'} '
+                  'square with $name tint is backed, but its ink opaque '
+                  'reads under every stripe',
+            );
+          }
+        }
+      }
+    });
+
+    testWidgets('a backed label covers the stripes with its bare square', (
+      tester,
+    ) async {
+      const theme = BoardTheme.bone;
+      expect(theme.labelBacked(onLight: false), isTrue);
+      expect(theme.labelBacked(onLight: true), isFalse);
+      for (final surface in BoardSurface.values) {
+        await pumpBoard(
+          tester,
+          options: BoardOptions(theme: theme, surface: surface),
+        );
+        final backing = find.byKey(const Key('rank-a1-backing'));
+        if (surface.pattern == null) {
+          expect(
+            backing,
+            findsNothing,
+            reason: 'coords: a plain surface has no stripes to cover',
+          );
+        } else {
+          expect(
+            tester.widget<ColoredBox>(backing).color,
+            theme.dark,
+            reason:
+                'coords: bone\'s dark a1 label is backed on ${surface.name}',
+          );
+        }
+        expect(
+          find.byKey(const Key('rank-a2-backing')),
+          findsNothing,
+          reason: 'coords: a light square\'s label reads under the stripes',
+        );
       }
     });
 

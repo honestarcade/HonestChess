@@ -6,15 +6,17 @@ import '../theme/contrast.dart';
 /// The four square colour pairs of the design's `THEMES`, with the
 /// coordinate labels drawn on each: the design's rgba(0,0,0,.42) on a light
 /// square and rgba(255,255,255,.5) on a dark one, each made just opaque
-/// enough to read on its theme's square, and bone's dark square darkened
+/// enough to read on its theme's square, bare and under every band of the
+/// surfaces' stripes where any alpha reads there (#170), and bone's dark
+/// square darkened
 /// to hold the brand sheet's 4:1 (#99; `Palette.shifts` has the design
 /// values).
 enum BoardTheme {
   navy(
     light: Color(0xFFDCE9F8),
     dark: Color(0xFF0F3E86),
-    labelOnLight: Color(0x8D000000),
-    labelOnDark: Color(0x95FFFFFF),
+    labelOnLight: Color(0x91000000),
+    labelOnDark: Color(0xA0FFFFFF),
     marksOnDark: (
       selectedRing: Color(0xFF41F1CD),
       lastMoveMark: Color(0xB3FFFFFF),
@@ -25,8 +27,8 @@ enum BoardTheme {
   teal(
     light: Color(0xFFD6F0EB),
     dark: Color(0xFF0B615A),
-    labelOnLight: Color(0x8D000000),
-    labelOnDark: Color(0xB6FFFFFF),
+    labelOnLight: Color(0x91000000),
+    labelOnDark: Color(0xC4FFFFFF),
     marksOnDark: (
       selectedRing: Color(0xFF92FFE4),
       lastMoveMark: Color(0xB3FFFFFF),
@@ -37,8 +39,8 @@ enum BoardTheme {
   violet(
     light: Color(0xFFE4DAFB),
     dark: Color(0xFF3B2076),
-    labelOnLight: Color(0x8F000000),
-    labelOnDark: Color(0x86FFFFFF),
+    labelOnLight: Color(0x94000000),
+    labelOnDark: Color(0x8EFFFFFF),
     marksOnDark: (
       selectedRing: Color(0xFF1DDDBB),
       lastMoveMark: Color(0xB3FFFFFF),
@@ -49,7 +51,7 @@ enum BoardTheme {
   bone(
     light: Color(0xFFF1EFE7),
     dark: Color(0xFF6A7586),
-    labelOnLight: Color(0x8C000000),
+    labelOnLight: Color(0x90000000),
     labelOnDark: Color(0xFBFFFFFF),
     marksOnDark: (
       selectedRing: Color(0xFF00473B),
@@ -87,8 +89,11 @@ enum BoardTheme {
   /// (#149). On a plain square it is the theme's own ink for that square.
   /// Over a tint it is whichever of the two inks, [labelOnLight]'s black or
   /// [labelOnDark]'s white, reads better there when opaque, made just
-  /// opaque enough to reach [normalTextRatio]. Throws a [StateError] when
-  /// neither ink reaches it even opaque, the case the owner gave a backing.
+  /// opaque enough to reach [normalTextRatio] on the tinted square bare and
+  /// under every band of the surfaces' stripes (#170) — or, when no alpha
+  /// reaches that, on the bare tinted square alone, and the label is then
+  /// [labelBacked]. Throws a [StateError] when neither ink reaches it even
+  /// opaque on the bare square.
   Color labelInk({
     required bool onLight,
     Color tint = const Color(0x00000000),
@@ -100,9 +105,47 @@ enum BoardTheme {
     final ink = opaque(labelOnLight) >= opaque(labelOnDark)
         ? labelOnLight
         : labelOnDark;
-    return raiseAlpha(ink, [
-      (background: ground, minRatio: normalTextRatio, opacity: 1),
-    ]);
+    List<ContrastTarget> on(List<Color> grounds) => [
+      for (final g in grounds)
+        (background: g, minRatio: normalTextRatio, opacity: 1),
+    ];
+    try {
+      return raiseAlpha(ink, on(labelGrounds(onLight: onLight, tint: tint)));
+    } on StateError {
+      return raiseAlpha(ink, on([ground]));
+    }
+  }
+
+  /// Every opaque colour a coordinate label on a light square when
+  /// [onLight], else on a dark one, under [tint], may sit on: the square
+  /// bare, and under each band of each striped [BoardSurface], which is
+  /// painted over the squares and under the tints and labels.
+  List<Color> labelGrounds({
+    required bool onLight,
+    Color tint = const Color(0x00000000),
+  }) {
+    final square = onLight ? light : dark;
+    return [
+      composite(tint, square),
+      for (final surface in BoardSurface.values)
+        for (final band in surface.pattern?.bands ?? const <StripeBand>[])
+          composite(tint, composite(band.colour, square)),
+    ];
+  }
+
+  /// Whether the label [labelInk] gives falls short of [normalTextRatio]
+  /// under some band of the stripes, where no ink reaches it: on a striped
+  /// surface it is then drawn on a backing of its bare square, as the
+  /// owner allowed where no ink reads (#149).
+  bool labelBacked({
+    required bool onLight,
+    Color tint = const Color(0x00000000),
+  }) {
+    final ink = labelInk(onLight: onLight, tint: tint);
+    return labelGrounds(
+      onLight: onLight,
+      tint: tint,
+    ).any((g) => contrastRatio(composite(ink, g), g) < normalTextRatio);
   }
 
   /// The name Settings shows: NAVY, CLASSIC, FELT….

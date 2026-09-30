@@ -1155,6 +1155,13 @@ MUTATIONS: list[Mutation] = [
              sub(r"    if \(tint\.a == 0\) return own;", "    if (tint.a <= 1) return own;"),
              "a selected, last-move or checked square's coordinate would fall under 4.5:1",
              'contrast-text: below WCAG AA'),
+    # ---- #170: coordinates over the stripes ----------------------------------
+    Mutation("contrast", "a label's alpha is derived on the bare square alone",
+             "test/guards/contrast_test.dart",
+             sub(r" \|\| row\.name\.startsWith\('\$\{shift\.name\}, under '\)", ""),
+             "the guard would re-derive each label ink without the stripes, so an ink "
+             "that reads only on the bare square would pass as the nearest shade",
+             'contrast-shift: not the nearest pass'),
 ]
 
 

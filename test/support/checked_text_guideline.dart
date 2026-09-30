@@ -46,9 +46,10 @@ typedef _Drawn = ({
 /// Every text colour the screen draws reaches its WCAG ratio against the
 /// background it is actually drawn on: the fills painted under it (a
 /// `DecoratedBox`'s colour or gradient, a `ColoredBox`, a `Material`, a
-/// `ScreenBackground`'s gradient, and a held `InkWell`'s highlight and
-/// splash), composited from the nearest opaque one up, with every stop of
-/// a gradient tried. And every text colour is a [Palette.textPairs]
+/// `ScreenBackground`'s gradient, the board's stripes (a `SurfacePainter`),
+/// and a held `InkWell`'s highlight and splash), composited from the
+/// nearest opaque one up, with every stop of a gradient and every band of
+/// the stripes tried. And every text colour is a [Palette.textPairs]
 /// foreground of its size class (a colour proven only as large text must
 /// be drawn large). An ancestor [Opacity] is folded into the colour's
 /// alpha, as the eye sees it. Exempt: piece glyphs (the piece font, or a
@@ -296,6 +297,14 @@ List<Color>? _fillOf(Element element) {
           _ => null,
         };
     return colour == null ? null : [colour];
+  }
+  // The board's stripes are drawn over the squares and under the
+  // coordinates; every band is one of the colours a label may sit on.
+  if (widget is CustomPaint) {
+    final painter = widget.painter;
+    if (painter is SurfacePainter) {
+      return [for (final band in painter.pattern.bands) band.colour];
+    }
   }
   if (widget is ScreenBackground) {
     return [for (final (c, _) in widget.gradient.stops) c];

@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 
 import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
+import 'package:honest_chess/ui/theme/contrast.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 
 /// The width of the design's phone frame; sizes inside the board scale by
@@ -384,21 +385,29 @@ class BoardView extends StatelessWidget {
     Color tint,
     double scale,
   ) {
-    // The square's own label already names it.
-    return ExcludeSemantics(
-      child: Text(
-        text,
-        key: Key(key),
-        textScaler: TextScaler.noScaling,
-        style: TextStyle(
-          fontFamily: Fonts.plexMono,
-          fontWeight: FontWeight.w600,
-          fontSize: 8 * scale,
-          height: 1,
-          color: options.theme.labelInk(onLight: onLight, tint: tint),
-        ),
+    final theme = options.theme;
+    Widget label = Text(
+      text,
+      key: Key(key),
+      textScaler: TextScaler.noScaling,
+      style: TextStyle(
+        fontFamily: Fonts.plexMono,
+        fontWeight: FontWeight.w600,
+        fontSize: 8 * scale,
+        height: 1,
+        color: theme.labelInk(onLight: onLight, tint: tint),
       ),
     );
+    if (options.surface.pattern != null &&
+        theme.labelBacked(onLight: onLight, tint: tint)) {
+      label = ColoredBox(
+        key: Key('$key-backing'),
+        color: composite(tint, onLight ? theme.light : theme.dark),
+        child: label,
+      );
+    }
+    // The square's own label already names it.
+    return ExcludeSemantics(child: label);
   }
 
   Widget _piece(Square square, Piece piece, double side, double scale) =>

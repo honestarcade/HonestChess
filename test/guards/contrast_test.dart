@@ -28,10 +28,11 @@ List<ContrastTarget> _targets(ColourShift shift) {
   final value = shift.value;
   final targets = <ContrastTarget>[];
   for (final row in Palette.textPairs) {
-    // A translucent colour is moved for the one row it names; an opaque
-    // one for every row that draws it, at that row's opacity.
+    // A translucent colour is moved for the one row it names, and for that
+    // row under each band of the board's stripes; an opaque one for every
+    // row that draws it, at that row's opacity.
     final asText = shift.way == ShiftWay.alpha
-        ? row.name == shift.name
+        ? row.name == shift.name || row.name.startsWith('${shift.name}, under ')
         : _sameRgb(row.fg, value) && value.a == 1;
     if (asText) {
       targets.add((

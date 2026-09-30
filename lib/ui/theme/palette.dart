@@ -675,6 +675,28 @@ abstract final class Palette {
             theme.labelInk(onLight: onLight, tint: tint),
             [square, tint],
           ),
+      // Each label under each band of the stripes, which are painted over
+      // the square and under its tint; a backed label covers them with its
+      // bare square, so its rows above are the ones it is drawn on.
+      for (final (tintName, tint) in [
+        ('', const Color(0x00000000)),
+        ...squareTints,
+      ])
+        for (final (squareName, onLight, square) in [
+          ('light', true, theme.light),
+          ('dark', false, theme.dark),
+        ])
+          if (!theme.labelBacked(onLight: onLight, tint: tint))
+            for (final surface in BoardSurface.values)
+              for (final (i, band)
+                  in (surface.pattern?.bands ?? const <StripeBand>[]).indexed)
+                TextPair(
+                  '${theme.name} label, $squareName square, '
+                  '${tintName.isEmpty ? '' : '$tintName tint, '}'
+                  'under ${surface.name} band ${i + 1}',
+                  theme.labelInk(onLight: onLight, tint: tint),
+                  [square, band.colour, if (tint.a > 0) tint],
+                ),
     ],
   ];
 
