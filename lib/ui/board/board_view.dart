@@ -41,6 +41,59 @@ String pieceGlyph(Piece piece, PieceStyle style) => switch (style) {
 const _filled = ['♟', '♞', '♝', '♜', '♛', '♚'];
 const _hollow = ['♙', '♘', '♗', '♖', '♕', '♔'];
 
+/// A face's line metrics, in thousandths of an em.
+final class _Face {
+  const _Face({required this.ascent, required this.descent});
+
+  final int ascent;
+  final int descent;
+
+  /// Where the baseline falls in a `height: 1` line, from its top, in ems:
+  /// the line is one em and the face's ascent and descent share it.
+  double get baseline => ascent / (ascent + descent);
+}
+
+/// One glyph's advance and ink box, in thousandths of an em, y up from
+/// the baseline.
+typedef _Ink = ({int advance, int left, int bottom, int right, int top});
+
+// hhea ascent/descent and each glyph's outline bounds, read from
+// assets/fonts/pieces/HonestPieces.ttf and IBMPlexMono-SemiBold.ttf (the
+// flat style's w600) with fontTools' BoundsPen on 2026-09-30. The filled
+// and hollow symbols share their boxes. Indexed by PieceKind.
+const _pieceFace = _Face(ascent: 1069, descent: 630);
+const _symbolInk = <_Ink>[
+  (advance: 1000, left: 186, bottom: 0, right: 814, top: 755),
+  (advance: 1000, left: 160, bottom: 0, right: 840, top: 767),
+  (advance: 1000, left: 153, bottom: -49, right: 847, top: 741),
+  (advance: 1000, left: 176, bottom: 0, right: 825, top: 719),
+  (advance: 1000, left: 125, bottom: -34, right: 875, top: 767),
+  (advance: 1000, left: 203, bottom: -34, right: 797, top: 753),
+];
+const _letterFace = _Face(ascent: 1025, descent: 275);
+const _letterInk = <_Ink>[
+  (advance: 600, left: 80, bottom: 0, right: 555, top: 698),
+  (advance: 600, left: 67, bottom: 0, right: 533, top: 698),
+  (advance: 600, left: 80, bottom: 0, right: 552, top: 698),
+  (advance: 600, left: 80, bottom: 0, right: 567, top: 698),
+  (advance: 600, left: 36, bottom: -183, right: 564, top: 710),
+  (advance: 600, left: 73, bottom: 0, right: 596, top: 698),
+];
+
+/// How far [piece]'s glyph in [style] must move, in ems, for the centre of
+/// its ink to land on the centre of its one-line, `height: 1` text box —
+/// the box the board centres in the square. Each face's ascent is most of
+/// its line, so without it the baseline sits low in the box and the ink
+/// rides high (#163).
+Offset pieceInkShift(Piece piece, PieceStyle style) {
+  final flat = style == PieceStyle.flat;
+  final face = flat ? _letterFace : _pieceFace;
+  final ink = (flat ? _letterInk : _symbolInk)[piece.kind.index];
+  final inkCentreX = (ink.left + ink.right) / 2000;
+  final inkCentreY = face.baseline - (ink.bottom + ink.top) / 2000;
+  return Offset(ink.advance / 2000 - inkCentreX, 0.5 - inkCentreY);
+}
+
 /// Layers drawn on [square] under its coordinates and piece; [side] is the
 /// square's size and [scale] the board's scale from the design. Each layer
 /// needs a key of its own among the square's layers.
@@ -393,19 +446,23 @@ class PieceGlyph extends StatelessWidget {
     final flat = style == PieceStyle.flat;
     final white = piece.colour == Colour.white;
     return ExcludeSemantics(
-      child: Text(
-        pieceGlyph(piece, style),
-        key: textKey,
-        textScaler: TextScaler.noScaling,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontFamily: flat ? Fonts.plexMono : Fonts.pieces,
-          fontWeight: flat ? FontWeight.w600 : FontWeight.w400,
-          fontSize: fontSize,
-          height: 1,
-          color: colour ?? (white ? Palette.pieceWhite : Palette.pieceBlack),
-          shadows:
-              shadows ?? (white ? _whiteShadows(scale) : _blackShadows(scale)),
+      child: Transform.translate(
+        offset: pieceInkShift(piece, style) * fontSize,
+        child: Text(
+          pieceGlyph(piece, style),
+          key: textKey,
+          textScaler: TextScaler.noScaling,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: flat ? Fonts.plexMono : Fonts.pieces,
+            fontWeight: flat ? FontWeight.w600 : FontWeight.w400,
+            fontSize: fontSize,
+            height: 1,
+            color: colour ?? (white ? Palette.pieceWhite : Palette.pieceBlack),
+            shadows:
+                shadows ??
+                (white ? _whiteShadows(scale) : _blackShadows(scale)),
+          ),
         ),
       ),
     );

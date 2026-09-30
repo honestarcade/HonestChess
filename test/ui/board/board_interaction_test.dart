@@ -220,8 +220,9 @@ void main() {
         start + const Offset(0, -60 - dragLift),
         reason: 'drag: lifted above the finger',
       );
+      // The outermost: the glyph inside has a Transform of its own.
       final scale = tester.widget<Transform>(
-        find.descendant(of: feedback, matching: find.byType(Transform)),
+        find.descendant(of: feedback, matching: find.byType(Transform)).first,
       );
       expect(scale.transform.getMaxScaleOnAxis(), closeTo(dragScale, 1e-9));
       expect(

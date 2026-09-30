@@ -252,11 +252,19 @@ void main() {
       }
     });
 
-    testWidgets('pieces sit centred on their square', (tester) async {
+    testWidgets('a glyph\'s box sits on its square\'s centre, moved by its '
+        'ink shift', (tester) async {
       await pumpBoard(tester);
+      final knight = piece(tester, 'g1');
       expect(
         tester.getCenter(find.byKey(const Key('piece-g1'))),
-        squareRect(tester, 'g1').center,
+        squareRect(tester, 'g1').center +
+            pieceInkShift(
+                  Piece.of(Colour.white, PieceKind.knight),
+                  PieceStyle.classic,
+                ) *
+                knight.style!.fontSize!,
+        reason: 'pieces: the box moves by the ink shift, so the ink is centred',
       );
     });
   });
