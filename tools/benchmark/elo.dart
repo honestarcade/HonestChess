@@ -102,3 +102,32 @@ EloEstimate fitElo(List<LevelScore> scores) {
   final margin = 1.96 / sqrt(information);
   return Estimate(elo, elo - margin, elo + margin);
 }
+
+/// A rating reached through a match against an opponent whose own rating
+/// was measured: [anchor] plus the rating [difference] the match score
+/// implies (fitted against a level of 0), their 95% intervals combined in
+/// quadrature as two independent normal errors.
+Estimate chainElo(Estimate anchor, Estimate difference) {
+  const z = 1.96;
+  final a = (anchor.high - anchor.low) / (2 * z);
+  final d = (difference.high - difference.low) / (2 * z);
+  final elo = anchor.elo + difference.elo;
+  final margin = z * sqrt(a * a + d * d);
+  return Estimate(elo, elo - margin, elo + margin);
+}
+
+/// How an [estimate] stands against a [target] rating: met when the target
+/// lies within its interval, otherwise how far the estimate misses it.
+String targetVerdict(EloEstimate estimate, int target) => switch (estimate) {
+  Estimate(:final low, :final high) when low <= target && target <= high =>
+    'met: $target is within the interval.',
+  Estimate(:final elo) when elo < target =>
+    'missed: the estimate is ${(target - elo).round()} below $target, '
+        'outside its interval.',
+  Estimate(:final elo) =>
+    'missed: the estimate is ${(elo - target).round()} above $target, '
+        'outside its interval.',
+  EloBound(:final above, :final level) =>
+    'not measured: every game was ${above ? 'won' : 'lost'}, so the rating '
+        'is only ${above ? 'above' : 'below'} $level.',
+};

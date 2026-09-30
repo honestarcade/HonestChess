@@ -1,15 +1,19 @@
 ---
 name: engine-strength
-description: Master measured against Stockfish at fixed UCI_Elo levels — one dated section per run of tools/benchmark_stockfish.sh
+description: Each strength step measured against Stockfish at fixed UCI_Elo levels, or chained through a match against a measured step — one dated section per run of tools/benchmark_stockfish.sh
 metadata:
   type: project
 ---
 
 # Engine strength
 
-Each section below is one run of `tools/benchmark_stockfish.sh` (#69),
-written by the script and committed by hand. The target is Master at
-1800–2000 Elo.
+Each section below is one run of `tools/benchmark_stockfish.sh` (#69,
+#159), written by the script and committed by hand; each names the commit
+it measured. #69 set Master's target at 1800–2000 Elo. #159 replaced it
+with the owner's targets for every step (2026-09-29): Beginner ~600,
+Casual ~900, Club ~1200, Strong ~1600 and Master ~2200. The retune added
+blunders and changed Club and Strong, but left Master unchanged, so the
+2026-09-29 Master section still stands.
 
 ## 2026-09-29 — Master against Stockfish 19
 

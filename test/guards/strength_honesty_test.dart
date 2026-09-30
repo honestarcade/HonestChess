@@ -3,12 +3,16 @@ library;
 
 // Invariant 4 (CLAUDE.md): each strength step's handicap is exactly what its
 // description says, Master has none, and the same position, step and seed
-// always give the same move. Reasons start `strength-honest:` (the table and
-// the descriptions), `strength-master:` (Master unhandicapped) and
-// `strength-seed:` (determinism, and seeds that matter).
+// always give the same move. Reasons start `strength-honest:` (the table,
+// the descriptions, and the blunders happening as described),
+// `strength-master:` (Master unhandicapped) and `strength-seed:`
+// (determinism, and seeds that matter).
+
+import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:honest_chess/engine/engine.dart';
+import 'package:honest_chess/engine/splitmix.dart';
 
 import '../fixtures/fens.dart';
 
@@ -69,7 +73,10 @@ List<String> _disagreements(String name, String text, StrengthSettings s) {
     if (lower.contains('nothing held back'))
       (
         'nothing held back',
-        s.noiseCp == 0 && s.depthCap == null && s.seesMateInOne,
+        s.noiseCp == 0 &&
+            s.depthCap == null &&
+            s.seesMateInOne &&
+            s.blunderPercent == 0,
       ),
   ];
   claim(looseness.isNotEmpty, 'says nothing about how loosely it chooses');
@@ -82,6 +89,31 @@ List<String> _disagreements(String name, String text, StrengthSettings s) {
     'mentions missing mate in one: ${lower.contains('mate in one')}, '
     'but seesMateInOne is ${s.seesMateInOne}',
   );
+
+  final rate = RegExp(r'on (\d+)% of moves it blunders').firstMatch(lower);
+  if (rate != null) {
+    claim(
+      int.parse(rate.group(1)!) == s.blunderPercent,
+      '"${rate.group(0)}" but blunderPercent is ${s.blunderPercent}',
+    );
+  } else {
+    claim(
+      s.blunderPercent == 0 &&
+          (lower.contains('never blunders') ||
+              lower.contains('nothing held back')),
+      'states no blunder rate, and does not say it never blunders, but '
+      'blunderPercent is ${s.blunderPercent}',
+    );
+  }
+  final size = lower.contains("two pawns' worth");
+  claim(
+    size == (s.blunderPercent > 0),
+    'mentions "two pawns\' worth": $size, but blunderPercent is '
+    '${s.blunderPercent}',
+  );
+  if (size) {
+    claim(blunderCp == 200, '"two pawns\' worth" but blunderCp is $blunderCp');
+  }
 
   final time = RegExp(r'about (\w+) seconds').firstMatch(lower);
   if (time != null) {
@@ -117,11 +149,16 @@ void main() {
       "search's, whatever the seed", () {
     final master = Strength.master.settings;
     expect(
-      (master.noiseCp, master.depthCap, master.seesMateInOne),
-      (0, null, true),
+      (
+        master.noiseCp,
+        master.depthCap,
+        master.seesMateInOne,
+        master.blunderPercent,
+      ),
+      (0, null, true, 0),
       reason:
-          'strength-master: Master has noise, a depth cap or a mate '
-          'handicap',
+          'strength-master: Master has noise, a depth cap, a mate '
+          'handicap or blunders',
     );
     final offenders = <String>[];
     for (final position in _positions) {
@@ -201,6 +238,113 @@ void main() {
       silent,
       isEmpty,
       reason: 'strength-seed: the seed never changed the move at $silent',
+    );
+  });
+
+  final blundering = [
+    for (final step in Strength.values)
+      if (step.settings.blunderPercent > 0) step,
+  ];
+
+  /// The share, in percent, of [draws] on which [blundersNow] fires.
+  double share(Iterable<bool> draws) =>
+      100 * draws.where((b) => b).length / draws.length;
+
+  test('invariant 4: each step blunders on the share of moves its '
+      'description states, across positions', () {
+    expect(blundering, isNotEmpty);
+    final offenders = <String>[];
+    for (final step in blundering) {
+      final percent = step.settings.blunderPercent;
+      final measured = share([
+        for (var i = 0; i < 20000; i++)
+          blundersNow(0x5eed, splitMixFinalise(i), percent),
+      ]);
+      if ((measured - percent).abs() > 1) {
+        offenders.add('${step.name}: $measured% for $percent%');
+      }
+    }
+    expect(
+      offenders,
+      isEmpty,
+      reason:
+          'strength-honest: over 20000 positions the blunder rate was not '
+          'the stated one: $offenders',
+    );
+  });
+
+  test('invariant 4: the game\'s seed decides which moves are blunders', () {
+    final offenders = <String>[];
+    for (final step in blundering) {
+      final percent = step.settings.blunderPercent;
+      for (final position in _positions) {
+        final measured = share([
+          for (var seed = 0; seed < 20000; seed++)
+            blundersNow(seed, position.key, percent),
+        ]);
+        if ((measured - percent).abs() > 1) {
+          offenders.add('${step.name} ${position.toFen()}: $measured%');
+        }
+      }
+    }
+    expect(
+      offenders,
+      isEmpty,
+      reason:
+          'strength-seed: over 20000 seeds in one position the blunder rate '
+          'was not the stated one: $offenders',
+    );
+  });
+
+  test('invariant 4: a blunder gives away at least blunderCp by the '
+      "step's own search", () {
+    final offenders = <String>[];
+    var blunders = 0;
+    for (final step in blundering) {
+      final settings = step.settings;
+      int seen(RootScore root) =>
+          isMateScore(root.score) && !settings.seesMateInOne
+          ? root.score.sign * missedMateScore
+          : root.score;
+      for (final position in _positions) {
+        for (var seed = 0; seed < 40; seed++) {
+          if (!blundersNow(seed, position.key, settings.blunderPercent)) {
+            continue;
+          }
+          final choice = chooseMove(
+            position,
+            step,
+            seed,
+            nodeBudget: _budget,
+            table: TranspositionTable(megabytes: 1),
+          )!;
+          final roots = choice.search.rootScores;
+          final top = roots.map(seen).reduce(max);
+          if (isMateScore(top) && settings.seesMateInOne) continue;
+          final worse = roots.where(
+            (r) =>
+                seen(r) <= top - blunderCp &&
+                !(settings.seesMateInOne && isMateScore(r.score)),
+          );
+          if (worse.isEmpty) continue;
+          blunders++;
+          final chosen = roots.firstWhere((r) => r.move == choice.move);
+          if (seen(chosen) > top - blunderCp) {
+            offenders.add(
+              '${step.name} seed $seed ${position.toFen()}: '
+              '${choice.move} scored ${seen(chosen)}, best $top',
+            );
+          }
+        }
+      }
+    }
+    expect(blunders, greaterThan(0), reason: 'no blunder was rolled');
+    expect(
+      offenders,
+      isEmpty,
+      reason:
+          'strength-honest: a blunder gave away less than $blunderCp cp: '
+          '$offenders',
     );
   });
 }
