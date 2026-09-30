@@ -70,9 +70,10 @@ abstract final class Palette {
 
   /// Every ring, dot and corner mark on a light square (#144): [teal]
   /// darkened at its own hue to WCAG 1.4.11's 3:1 on each theme's light
-  /// square under the tints those shapes sit on, so they show in
-  /// greyscale. test/ui/board_shapes_test.dart re-derives it.
-  static const markInkOnLight = Color(0xFF007E69);
+  /// square under the tints those shapes sit on, bare or under a band of
+  /// either surface's stripes (#157), so they show in greyscale.
+  /// test/ui/board_shapes_test.dart re-derives it.
+  static const markInkOnLight = Color(0xFF007562);
   static const checkBadgeInk = _white;
 
   /// The overlays' scrim and card (the promotion sheet's, the pause

@@ -16,10 +16,10 @@ enum BoardTheme {
     labelOnLight: Color(0x8D000000),
     labelOnDark: Color(0x95FFFFFF),
     marksOnDark: (
-      selectedRing: Color(0xFF35E9C6),
+      selectedRing: Color(0xFF41F1CD),
       lastMoveMark: Color(0xB3FFFFFF),
-      moveDot: Color(0x9E4AF7D3),
-      captureRing: Color(0x9950FBD8),
+      moveDot: Color(0x9E76FFDF),
+      captureRing: Color(0x999FFFE6),
     ),
   ),
   teal(
@@ -28,10 +28,10 @@ enum BoardTheme {
     labelOnLight: Color(0x8D000000),
     labelOnDark: Color(0xB6FFFFFF),
     marksOnDark: (
-      selectedRing: Color(0xFF54FEDA),
+      selectedRing: Color(0xFF92FFE4),
       lastMoveMark: Color(0xB3FFFFFF),
-      moveDot: Color(0x9EFDFFFE),
-      captureRing: Color(0x9EFDFFFE),
+      moveDot: Color(0xAAFDFFFE),
+      captureRing: Color(0xAAFDFFFE),
     ),
   ),
   violet(
@@ -40,10 +40,10 @@ enum BoardTheme {
     labelOnLight: Color(0x8F000000),
     labelOnDark: Color(0x86FFFFFF),
     marksOnDark: (
-      selectedRing: Color(0xFF00D6B4),
+      selectedRing: Color(0xFF1DDDBB),
       lastMoveMark: Color(0xB3FFFFFF),
-      moveDot: Color(0x9E21DFBC),
-      captureRing: Color(0x992CE4C1),
+      moveDot: Color(0x9E39EBC8),
+      captureRing: Color(0x993FEFCC),
     ),
   ),
   bone(
@@ -52,10 +52,10 @@ enum BoardTheme {
     labelOnLight: Color(0x8C000000),
     labelOnDark: Color(0xFBFFFFFF),
     marksOnDark: (
-      selectedRing: Color(0xFFE7FFF8),
-      lastMoveMark: Color(0xC6FFFFFF),
-      moveDot: Color(0xC7FAFFFD),
-      captureRing: Color(0xC7FAFFFD),
+      selectedRing: Color(0xFF00473B),
+      lastMoveMark: Color(0xD5FFFFFF),
+      moveDot: Color(0xD6FBFFFE),
+      captureRing: Color(0xD6FBFFFE),
     ),
   );
 
@@ -77,7 +77,8 @@ enum BoardTheme {
   /// The inks of the board's marks on a [dark] square: each design ink
   /// (`Palette.selectedRing`, `lastMoveMark`, `moveDot`, `captureRing`)
   /// moved by `lightenMark` just far enough to show 3:1 on this theme's
-  /// dark square under the tints it sits on (#151).
+  /// dark square under the tints it sits on (#151), bare or under a band
+  /// of either surface's stripes (#157).
   /// test/ui/board_shapes_test.dart re-derives each one.
   final MarkInks marksOnDark;
 

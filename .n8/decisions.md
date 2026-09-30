@@ -1311,3 +1311,19 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
   - bone: selected ring 1.72 → #FFE7FFF8 3.06; last-move mark 2.80 → #C6FFFFFF 3.05 (alpha .70 → .78, since white cannot get lighter); dot 1.60 → #C7FAFFFD 3.05; capture ring 1.58 → #C7FAFFFD 3.05 (alpha → .78).
   **Why:** #151, owner: apply #144's method to dark squares. A single ink for every theme, like #144's `markInkOnLight`, would be set by bone, whose mid-grey dark square needs near-white marks, and it would move navy's and violet's marks much further than they need. The owner's method moves lightness only. The alpha step is the smallest addition that makes it reach 3:1 at all: at their design alphas (.60–.70), no lightness of the translucent inks clears teal's or bone's dark squares. The last-move mark is white and cannot get lighter, so for it the alpha step is #99's label method. `test/ui/board_shapes_test.dart` re-derives every ink. #151's known-gap list is now an assertion that each listed combination reads 3:1, and the greyscale check allows no exceptions.
   **Issue:** #151
+- **Decision:** A new widget test in `test/ui/board_shapes_test.dart` plays positions on every theme until each shape has been drawn on both square colours. It then requires each painted colour to be `shapeInk(shape, onLight:, theme:)`: the ring's border, the dot's and badge's fill, and the corner mark's painter. Each tint must be `tintColour(state.tintAt(sq))`. The test also fails if any shape × square-colour pair was never drawn. It is not guard-tagged, like the rest of that file, so it has no battery entry. Checked by hand on 2026-09-30: the dot set back to `Palette.moveDot` fails on four tests ("the moveDot on e1 is drawn in shapeInk's … dark ink"), and the badge set to `Palette.checkTint` fails on four ("the checkBadge on e8 …").
+  **Why:** #157's test gap. A raw `Palette.danger` on the badge is not a defect, because it is `shapeInk`'s badge ink. So the badge case is checked with a different raw red.
+  **Issue:** #157
+- **Decision:** The greyscale contrast test, and the derivation of every mark ink, now cover each square bare and under each band of the felt and wood stripes. The stripes are painted over the squares and under every shape. The inks below 3:1 there are fixed rather than scoped out. Old → new, worst ratio over every surface (`flutter test` over `shiftLightness`/`lightenMark`, 2026-09-30):
+  - `markInkOnLight`: #FF007E69 2.73 → #FF007562 3.08.
+  - navy dark: ring #FF35E9C6 → #FF41F1CD 3.05; dot #9E4AF7D3 → #9E76FFDF 3.05; capture #9950FBD8 → #999FFFE6 3.05.
+  - teal dark: ring #FF54FEDA → #FF92FFE4 3.05; dot and capture #9EFDFFFE → #AAFDFFFE 3.05.
+  - violet dark: ring #FF00D6B4 (2.84 on stripes) → #FF1DDDBB 3.05; dot #9E21DFBC → #9E39EBC8 3.07; capture #992CE4C1 → #993FEFCC 3.06.
+  - bone dark: ring #FFE7FFF8 → #FF00473B 3.06; last-move mark #C6FFFFFF → #D5FFFFFF 3.05; dot and capture #C7FAFFFD → #D6FBFFFE 3.05.
+  - The last-move mark on navy, teal and violet stays #B3FFFFFF.
+  Bone's selected ring is the one ink that goes darker. Under the selected tint and the stripes' light band, not even white reaches 3:1 on bone's mid-grey dark square, so `lightenMark` falls back to the nearest darker shade.
+  **Why:** #157: "extend the contrast test to the striped surfaces, or state that they are out of scope." Fixing the inks keeps WCAG 1.4.11 on the default surface (felt) and on wood. With the old light-square ink the extended test fails with the issue's own figures (violet ring on wood 2.73, violet last move 2.86, navy ring 2.90).
+  **Issue:** #157
+- **Decision:** The coordinate labels over the stripes (4.15–4.49:1 against 4.5) are filed as #170 (needs-triage), not fixed here.
+  **Why:** #157 covers the marks. The labels are text with their own rows and design call (#149), and the composited check does not see `SurfacePainter`.
+  **Issue:** #157, #170
