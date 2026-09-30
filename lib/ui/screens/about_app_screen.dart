@@ -569,18 +569,28 @@ class _MadeBy extends StatelessWidget {
         ),
       ),
     );
+    final gap = 8 * s;
     return Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 8 * s,
+      spacing: gap,
       children: [
         Text(
           madeByText,
           semanticsLabel: spokenCaps(madeByText),
           style: style(Palette.textFaint),
         ),
-        link('arcade', Links.site, arcadeLinkText),
-        ExcludeSemantics(child: Text('·', style: style(Palette.textFaint))),
-        link('source', appSourceUrl, githubLinkText),
+        // The links and their dot fold onto the next line as one unit, so
+        // the dot never dangles at the end of MADE BY's line (#177).
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            link('arcade', Links.site, arcadeLinkText),
+            SizedBox(width: gap),
+            ExcludeSemantics(child: Text('·', style: style(Palette.textFaint))),
+            SizedBox(width: gap),
+            link('source', appSourceUrl, githubLinkText),
+          ],
+        ),
       ],
     );
   }

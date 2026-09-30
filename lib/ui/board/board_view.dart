@@ -475,7 +475,11 @@ class PieceGlyph extends StatelessWidget {
           key: textKey,
           textScaler: TextScaler.noScaling,
           textAlign: TextAlign.center,
+          // Complete in itself: a lifted or flying piece is drawn in the
+          // overlay, above the screen's Material, where the inherited style
+          // is Flutter's underlined fallback (#175).
           style: TextStyle(
+            inherit: false,
             fontFamily: flat ? Fonts.plexMono : Fonts.pieces,
             fontWeight: flat ? FontWeight.w600 : FontWeight.w400,
             fontSize: fontSize,
