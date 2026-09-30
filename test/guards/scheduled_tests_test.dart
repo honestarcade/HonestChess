@@ -34,6 +34,9 @@ String _error(int id, String message) =>
     '{"testID":$id,"error":"$message","stackTrace":"test/x_test.dart 7:5  main",'
     '"isFailure":true,"type":"error","time":1}';
 
+String _print(int id, String message) =>
+    '{"testID":$id,"messageType":"print","message":"$message","type":"print","time":1}';
+
 ScriptRun _run(
   String script,
   String flutterStub, {
@@ -145,6 +148,45 @@ void main() {
           reason: 'scheduled-failures: the job summary does not name the failed test and why',
         );
         expect(r.output, isNot(contains('board passes')));
+      });
+
+      test('$script: a failed widget test shows the reason it printed', () {
+        // A failed testWidgets case prints the framework's failure report,
+        // and its error event says only to look above.
+        var summary = '';
+        final r = _run(
+          script,
+          _flutter([
+            _suite(0, 'test/x_test.dart'),
+            _start(1, 'board passes'),
+            _print(1, 'noise from a passing test'),
+            _done(1, 'success'),
+            _start(2, 'board draws the move'),
+            _print(
+              2,
+              r'EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK\nExpected: <2>\n  Actual: <1>\nwhy: the move was not drawn',
+            ),
+            _error(2, r'Test failed. See exception logs above.'),
+            _done(2, 'failure'),
+          ], exit: 1),
+          inspect: (dir) =>
+              summary = File('${dir.path}/summary.md').readAsStringSync(),
+        );
+        expect(r.exitCode, 1, reason: r.output);
+        expect(
+          r.output,
+          contains('why: the move was not drawn'),
+          reason: 'scheduled-printed: the log hides what a failed widget test printed',
+        );
+        expect(
+          summary,
+          contains('why: the move was not drawn'),
+          reason: 'scheduled-printed: the job summary hides what a failed widget test printed',
+        );
+        expect(
+          '${r.output}$summary',
+          isNot(contains('noise from a passing test')),
+        );
       });
 
       test('$script: a run with no test shows what the runner said', () {
