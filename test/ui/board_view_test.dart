@@ -218,7 +218,7 @@ void main() {
       });
     }
 
-    testWidgets('white pieces are outlined dark; black ones haloed light', (
+    testWidgets('white pieces are outlined dark; black ones edged light', (
       tester,
     ) async {
       await pumpBoard(tester);
@@ -230,9 +230,13 @@ void main() {
         hasLength(4),
         reason: 'pieces: the four 1 px outline offsets',
       );
-      expect(b, hasLength(2));
       expect(
-        b.every((s) => s.color.b == 1 && s.color.r == 1),
+        b.where((s) => s.color == Palette.pieceEdgeLight && s.blurRadius == 0),
+        hasLength(4),
+        reason: 'pieces: black pieces get a light outline all round too',
+      );
+      expect(
+        b.every((s) => s.color.b > .9 && s.color.r > .9),
         isTrue,
         reason: 'pieces: black pieces never get the dark outline',
       );

@@ -34,9 +34,12 @@ abstract final class Palette {
   static const textLabel = Color(0xFF88AADD);
 
   /// Piece ink: white pieces are [pieceWhite] outlined in [pieceBlack];
-  /// black pieces are [pieceBlack] with a faint light halo.
+  /// black pieces are [pieceBlack] edged in [pieceEdgeLight].
   static const pieceWhite = Color(0xFFFCFBF7);
   static const pieceBlack = Color(0xFF12181F);
+
+  /// Black pieces' light edge: [pieceWhite] at 90%.
+  static const pieceEdgeLight = Color(0xE6FCFBF7);
 
   /// The board frame: its drop shadow and its 1 px ring.
   static const boardShadow = Color(0x73000000); // rgba(0,0,0,.45)

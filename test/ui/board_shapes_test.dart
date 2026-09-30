@@ -108,7 +108,7 @@ void main() {
         final white = await glyph(Colour.white);
         final black = await glyph(Colour.black);
         // The edge each side is drawn with: white's dark outline, black's
-        // light halo, each at its own alpha.
+        // light edge, each at its own alpha.
         final whiteEdge = white.shadows!.first.color;
         final blackEdge = black.shadows!.first.color;
         for (final theme in BoardTheme.values) {
@@ -138,7 +138,26 @@ void main() {
                     'board shapes: a $side piece shows 3:1 on its square '
                     'by its ink or its edge ($at)',
               );
+              expect(
+                contrastRatio(composite(edge, square), ink),
+                greaterThanOrEqualTo(3),
+                reason:
+                    'board shapes: a $side piece\'s edge stands 3:1 off its '
+                    'own ink ($at)',
+              );
             }
+            // The edge alone carries each side where its ink is weakest:
+            // black on the dark squares, white on the light ones (#164).
+            final (weakSide, weakEdge) = name == 'dark'
+                ? ('black', blackEdge)
+                : ('white', whiteEdge);
+            expect(
+              contrastRatio(composite(weakEdge, square), square),
+              greaterThanOrEqualTo(3),
+              reason:
+                  'board shapes: a $weakSide piece\'s edge alone shows 3:1 '
+                  'on its square ($at)',
+            );
           }
         }
       });

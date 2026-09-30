@@ -417,7 +417,7 @@ PieceGlyph boardPiece(
 }
 
 /// One piece as the board draws it: [piece]'s glyph in [style] at
-/// [fontSize], in its side's colour with the design's outline or halo,
+/// [fontSize], in its side's colour with its side's outline,
 /// whose widths scale by [scale]. [textKey] keys the glyph's [Text].
 /// [colour] and [shadows] replace the side's ink and outline, for a sample
 /// drawn off the board (Settings' piece styles).
@@ -483,14 +483,14 @@ List<Shadow> _whiteShadows(double s) => [
   ),
 ];
 
-/// The design's faint light halo for black pieces.
+/// Black pieces' light edge: a near-opaque hairline all round and a soft
+/// light glow, so the dark ink stands off every theme's dark square. It
+/// replaces the design's faint halo, which the owner found too weak (#164).
 List<Shadow> _blackShadows(double s) => [
-  Shadow(color: const Color(0x80FFFFFF), blurRadius: 1 * s),
-  Shadow(
-    color: const Color(0x47FFFFFF),
-    offset: Offset(0, 1 * s),
-    blurRadius: 1 * s,
-  ),
+  Shadow(color: Palette.pieceEdgeLight, blurRadius: 1 * s),
+  for (final (dx, dy) in const [(1, 1), (-1, 1), (1, -1), (-1, -1)])
+    Shadow(color: Palette.pieceEdgeLight, offset: Offset(dx * s, dy * s)),
+  Shadow(color: const Color(0x73FFFFFF), blurRadius: 4 * s),
 ];
 
 /// Draws a surface's stripes once across the whole board, their widths
