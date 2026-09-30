@@ -70,3 +70,9 @@ what it produced for this app.
   set the package name and enrolled Play App Signing with a Google-generated
   app signing key (owner, /n8-plan M0 round two); from here the upload key can
   only be reset through the Console. #22.
+- 2026-09-29: `v0.2.0` (code 1021) — GitHub pre-release
+  https://github.com/honestarcade/HonestChess/releases/tag/v0.2.0, tag at
+  `main` 061869c (M2–M5) — uploaded to the internal track by release run
+  36652375606. The owner installed it from the internal track on their phone
+  and walked the M3–M5 UAT (17 of 17 checks passed; record on PR #153). The
+  upload step warned that the action's `track` input is deprecated (#158).

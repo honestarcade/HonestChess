@@ -580,7 +580,7 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 
 - **Change:** CLAUDE.md invariant 1 is amended for Android's own backup. "All player data stays on the device" becomes "the app itself sends player data nowhere", and the invariant now says that Android's system backup, when the player has it on, may include the app's data in their Google account backup. That is the player's choice, and the app does not opt out. Its enforcement line adds `test/guards/platform_surface_test.dart`, and the annotation reads `#80 (merged)`.
   **Why:** The owner approved it at /n8-plan M4 round one (2026-09-28): "all recs good", accepting the recommendation that Android's own backup stays allowed. The manifest keeps Android's default (no `allowBackup`, `fullBackupContent` or `dataExtractionRules`), and `docs/privacy.md` already says so. The old wording would have been false once the store writes real files that Android may back up.
-  **Affects:** M4: #80, and the texts reworded for backup in #84, #88, #89 and #90. M7: epic #11's "no data collected" data-safety answer and the store listing, to be checked against Android backup when M7 is planned.
+  **Affects:** M4: #80, and the texts reworded for backup in #84, #88, #89 and #90. M7: epic #11's "no data collected" data-safety answer and the store listing, to be checked against Android backup when M7 is planned. — reconciled by /n8-replan M6 2026-09-29 (M4 executed and verified; the M7 data-safety check stays with /n8-plan M7)
 
 ## /n8-exec M4 — 2026-09-29
 
@@ -1190,3 +1190,21 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision (Rule 1):** Each text that follows a heading is now its own semantics node (`Semantics(container: true)`), so a screen reader reads it after its heading instead of merged into the enclosing node that is read before the heading. This covers a `TitledSection`'s intro, the two-player House rules text, the `ScreenHeader` kicker, and a Settings section's caption. The new `test/a11y/reading_order_test.dart` checks two things: the setup screens' reading order (Back, title, kicker, each heading and then its text, and on the two-player screen through to Start game), and, on every `a11yCases` state at 390 × 844, that no heading sits under a node with a label of its own. On the unfixed code it failed on both setup screens and on the Settings case, which the bug did not name ("Four pairs from the Honest Arcade palette." read before "Board colour"). The failures were the kicker read before the title, each intro read before its heading, and the House rules text read before "House rules" (`flutter test test/a11y/reading_order_test.dart`, 2026-09-29).
   **Why:** #147: jumping by headings landed after the text a heading introduces. Settings' caption had the same cause, so the generic rule found it and it was fixed the same way, in scope. The kicker fix was cheap (the same wrapper), as the bug's low item asked.
   **Issue:** #147
+
+## /n8-release v0.2.0 — 2026-09-29
+
+- **Decision:** Tagged `v0.2.0` at 061869c (M2–M5 merged, M2 verified closed) so the owner could run UAT from the Play internal track, at the owner's request ("push it through internal testing track on play store"). Release run 36652375606 built version code 1021, gated, signed, scanned and uploaded it to the internal track. The GitHub pre-release carries generated notes from v0.1.0. `pubspec.yaml` still says 0.1.0 because release.yml takes the build name from the tag; #108 sets the version in source for rc.1.
+  **Why:** The owner chose to test on their own phone from the Play build rather than a local install.
+  **Issue:** #108
+
+## /n8-replan M6 — 2026-09-29
+
+- **Decision:** M6 was reconciled with M2–M5 as built and with the owner's v0.2.0 UAT, and the owner approved it ("go").
+  - #155, #156, #157 and #127 moved into M6, under the owner's bug-intake rule.
+  - #159 (the strength dial on a human scale, with seeded blunders) and #154 (the parallel mutation battery) became full stories.
+  - #108 now waits for every pre-rc fix, plus #154 and #158.
+  - #106, #107, #110, #111, #112 and #113 were rewritten for what now exists. The menu has no route name. The wait helpers are reused. #110 and #111 are reduced to what the UAT did not cover. #112 uses no `flutter_driver` dependency, and its targets come from the post-#159 table.
+  - #151 follows #144's lightness-shift method (owner). The six sounds are accepted from UAT check 12 (owner, approving the replan).
+  - The M6 milestone description gains outcomes 9–11 and the new order.
+  **Why:** M6 was planned on 2026-09-28, before M2–M5 were executed. The UAT raised nine findings, and the owner decided the dial targets (Beginner ~600 … Strong ~1600), real blunders, the label ink switch (#149), the parallel battery (#154), the declined-draw card's retry rule (#160) and #52's signing fingerprint.
+  **Issue:** #106–#113, #127, #149, #151, #154–#167
