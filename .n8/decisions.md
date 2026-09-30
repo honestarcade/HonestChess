@@ -1265,3 +1265,9 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** The #103/#104 View board case scrolls View board into view before tapping it. At 320×568 with text at 1.3×, the taller card pushes the button below the fold, and the card already scrolls there (#101).
   **Why:** This fixes the test helper only. The behaviour is the card's scrolling, which #78/#101 already specify.
   **Issue:** #161
+- **Decision:** The promotion card's four choices sit in two rows: queen and rook above, bishop and knight below. The order and the reading order stay #73's Q, R, B, N. Glyphs grow from 28 to `promotionGlyphSize` 44, and the names from 9 dp to `promotionLabelSize` 13, with letter-spacing .1 em. The gaps are 9 dp across and down. The "Promote to" heading and the PAWN TO line are unchanged.
+  **Why:** #162: larger labels and glyphs, 2×2. Keeping the order means the grid reads row by row in the same order TalkBack already used. The header was not named in the owner's note.
+  **Issue:** #162
+- **Decision:** The #73 test "a tap on the board under the scrim only cancels" now taps the first corner square clear of the card, not a1. The taller card covers a1 at 390×844.
+  **Why:** This fixes the test only. The rule it checks, that a tap on the board under the scrim only cancels, is unchanged.
+  **Issue:** #162

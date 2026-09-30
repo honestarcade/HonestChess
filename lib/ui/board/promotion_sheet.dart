@@ -16,13 +16,20 @@ const Duration promotionExitDuration = Duration(milliseconds: 150);
 /// How far below its place the card starts as it rises in.
 const double promotionRise = 8;
 
-/// The pieces offered, in the design's order.
+/// The pieces offered, in the design's order, laid out two by two: queen
+/// and rook above, bishop and knight below (#162).
 const List<PieceKind> promotionChoices = [
   PieceKind.queen,
   PieceKind.rook,
   PieceKind.bishop,
   PieceKind.knight,
 ];
+
+/// A choice's piece glyph size, and its name's.
+const double promotionGlyphSize = 44, promotionLabelSize = 13;
+
+/// The gap between two choices, across and down.
+const double _choiceGap = 9;
 
 /// The design's "Promote to" card over a scrim, shown while [controller]
 /// has a promotion pending. A choice completes the move; a tap on the
@@ -231,20 +238,24 @@ class _PromotionSheetState extends State<PromotionSheet>
                 ),
               ),
               const SizedBox(height: 18),
-              Row(
-                children: [
-                  for (final (i, kind) in promotionChoices.indexed) ...[
-                    if (i > 0) const SizedBox(width: 9),
-                    Expanded(
-                      child: _PromotionChoice(
-                        piece: Piece.of(pawn.colour, kind),
-                        style: _controller.options.pieceStyle,
-                        onPick: () => _controller.choosePromotion(kind),
+              for (var row = 0; row < promotionChoices.length; row += 2) ...[
+                if (row > 0) const SizedBox(height: _choiceGap),
+                Row(
+                  children: [
+                    for (final (i, kind)
+                        in promotionChoices.sublist(row, row + 2).indexed) ...[
+                      if (i > 0) const SizedBox(width: _choiceGap),
+                      Expanded(
+                        child: _PromotionChoice(
+                          piece: Piece.of(pawn.colour, kind),
+                          style: _controller.options.pieceStyle,
+                          onPick: () => _controller.choosePromotion(kind),
+                        ),
                       ),
-                    ),
+                    ],
                   ],
-                ],
-              ),
+                ),
+              ],
             ],
           ),
         ),
@@ -299,25 +310,28 @@ class _PromotionChoiceState extends State<_PromotionChoice> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 48),
             child: Padding(
-              padding: const EdgeInsets.only(top: 14, bottom: 11),
+              padding: const EdgeInsets.fromLTRB(6, 14, 6, 14),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   PieceGlyph(
                     piece: widget.piece,
                     style: widget.style,
-                    fontSize: 28,
+                    fontSize: promotionGlyphSize,
                     textKey: Key('promo-piece-${kind.letter}'),
                   ),
-                  const SizedBox(height: 9),
+                  const SizedBox(height: 10),
                   Text(
                     kind.name.toUpperCase(),
+                    key: Key('promo-label-${kind.letter}'),
+                    textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontFamily: Fonts.plexMono,
                       fontWeight: FontWeight.w500,
-                      fontSize: 9,
+                      fontSize: promotionLabelSize,
                       height: 1,
-                      letterSpacing: 0.9,
+                      letterSpacing: promotionLabelSize * .1,
                       color: Palette.textBody,
                     ),
                   ),
