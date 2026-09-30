@@ -92,10 +92,19 @@ List<String> releaseOrderViolations(YamlMap workflow) {
       violations.add('$name has no if: or continue-on-error');
     }
   }
-  if (steps
-      .where(_isPlayUpload)
-      .any((s) => (s['with'] as YamlMap?)?['track'] != 'internal')) {
+  final uploads = [
+    for (final s in steps.where(_isPlayUpload))
+      (s['with'] as YamlMap?) ?? YamlMap(),
+  ];
+  // `tracks` is a comma-separated list to the action, so only the exact value
+  // `internal` passes: `internal,production` would also publish to production.
+  if (uploads.any((w) => w['tracks'] != 'internal')) {
     violations.add('every Play upload targets internal');
+  }
+  // The action warns that `track` will be removed; a step still using it
+  // would start failing at the upload, after everything else has passed.
+  if (uploads.any((w) => w.containsKey('track'))) {
+    violations.add('no Play upload uses the deprecated track input');
   }
   if (!steps.any(
     (s) =>
@@ -127,7 +136,7 @@ jobs:
       - run: tools/attach_release_asset.sh
       - uses: r0adkll/upload-google-play@v1
         with:
-          track: internal
+          tracks: internal
       - if: always()
         run: rm -f "$RUNNER_TEMP/upload.keystore"
 ''';
@@ -146,7 +155,7 @@ jobs:
           .replaceFirst('    needs: gate\n', '')
           .replaceFirst('HS_RELEASE: "1"', 'HS_RELEASE: "0"')
           .replaceFirst('      - run: tools/verify_upload_cert.sh\n', '')
-          .replaceFirst('track: internal', 'track: production')
+          .replaceFirst('tracks: internal', 'tracks: internal,production')
           .replaceFirst('      - if: always()\n', '      - if: success()\n');
       expect(violations(broken), [
         'triggers only on v* tags',
@@ -156,6 +165,25 @@ jobs:
         'every Play upload targets internal',
         'an always() step removes the decoded keystore',
       ]);
+    });
+
+    test('the deprecated track input is caught, alone or beside tracks', () {
+      expect(
+        violations(good.replaceFirst('tracks: internal', 'track: internal')),
+        [
+          'every Play upload targets internal',
+          'no Play upload uses the deprecated track input',
+        ],
+      );
+      expect(
+        violations(
+          good.replaceFirst(
+            '          tracks: internal\n',
+            '          tracks: internal\n          track: internal\n',
+          ),
+        ),
+        ['no Play upload uses the deprecated track input'],
+      );
     });
 
     test('a check moved after a publish is caught', () {

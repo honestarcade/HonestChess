@@ -209,7 +209,7 @@ jobs:
           # Written by tools/rename_app.py.
           packageName: com.honestarcade.chess
           releaseFiles: build/app/outputs/bundle/release/app-release.aab
-          track: internal
+          tracks: internal
           status: completed
 
       - id: summary
