@@ -76,3 +76,9 @@ what it produced for this app.
   36652375606. The owner installed it from the internal track on their phone
   and walked the M3–M5 UAT (17 of 17 checks passed; record on PR #153). The
   upload step warned that the action's `track` input is deprecated (#158).
+- 2026-09-30: `v1.0.0-rc.1` (code 1031) — GitHub pre-release
+  https://github.com/honestarcade/HonestChess/releases/tag/v1.0.0-rc.1, tag at
+  `main` fa4ec7f — uploaded to the internal track by release run
+  36697175495 (Play edit 09828995351331398287). The upload log shows no
+  deprecated-`track` warning (#158 fixed). Settings on the installed build
+  should read "v1.0.0-rc.1 · BUILD 1031". The owner's install is pending (#108).
