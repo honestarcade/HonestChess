@@ -192,6 +192,9 @@ Future<void> _result(WidgetTester tester, {required bool viewBoard}) async {
   await tester.pump(const Duration(milliseconds: 1500));
   expect(_key('result-card'), findsOneWidget);
   if (viewBoard) {
+    // On the shortest screen at the largest text the card scrolls.
+    await tester.ensureVisible(_key('result-view-board'));
+    await tester.pump();
     await tester.tap(_key('result-view-board'));
     await settleCase(tester);
     expect(_key('result-bar'), findsOneWidget);

@@ -1259,3 +1259,9 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** TalkBack hears the card through a new `GameDrawDeclined` event. `announcementFor` speaks `declinedSpeech(mode)`, the card's own words, through the feedback hub. The old live-region line is gone. The event plays no clip, ticks nothing, and is not saved (`GameSaves` ignores it). `declineText` moves from pause_overlay.dart to labels.dart, so move_speech.dart can share it.
   **Why:** #160 AC: announce the card. Every other spoken game change goes through the event stream and the announcer (#102), and a live region on a newly inserted node is not reliably read.
   **Issue:** #160
+- **Decision:** The result card's tag is set at `resultTagSize` (24 dp, IBM Plex Mono w700, letter-spacing .12 em), centred across the top of the card, with 16 dp before the title. Its colour is unchanged: red when you lose, teal otherwise. It gets no chip or banner behind it. The title and body stay left-aligned, as #78 set them.
+  **Why:** #161: the tag must be larger and centred at the top for every ending. A fill behind it would be a new surface that needs its own contrast rows (#99). Size and weight were enough to make it stand out. `expectTagProminent` runs inside `shown()`, so every ending test in result_overlay_test checks the tag.
+  **Issue:** #161
+- **Decision:** The #103/#104 View board case scrolls View board into view before tapping it. At 320×568 with text at 1.3×, the taller card pushes the button below the fold, and the card already scrolls there (#101).
+  **Why:** This fixes the test helper only. The behaviour is the card's scrolling, which #78/#101 already specify.
+  **Issue:** #161

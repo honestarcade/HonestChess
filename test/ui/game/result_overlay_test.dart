@@ -5,7 +5,10 @@
 // it, and the frozen board takes no input. Where See statistics, Main
 // menu and back in view-board mode lead is tested in
 // test/ui/game_cards_navigation_test.dart (#92).
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:honest_chess/engine/engine.dart' hide play;
@@ -36,11 +39,64 @@ Future<void> cardIn(WidgetTester tester) async {
   await tester.pump(resultRiseDuration);
 }
 
-/// The card's tag, title, body and four stats as the screen shows them.
+/// The tag leads the card (#161): at [resultTagSize], bold, above the
+/// title, and centred across the card. The size it had before (10 dp,
+/// left-aligned) fails every one of these.
+void expectTagProminent(WidgetTester tester) {
+  final tag = find.byKey(const Key('result-tag'));
+  final style = tester.widget<Text>(tag).style!;
+  expect(
+    style.fontSize,
+    resultTagSize,
+    reason: 'result-tag: not drawn at resultTagSize',
+  );
+  expect(
+    style.fontSize,
+    greaterThanOrEqualTo(20),
+    reason: 'result-tag: smaller than 20 dp',
+  );
+  expect(style.fontWeight, FontWeight.w700, reason: 'result-tag: not bold');
+  final card = tester.getRect(_card);
+  final paragraph = tester.renderObject<RenderParagraph>(
+    find.descendant(of: tag, matching: find.byType(RichText)),
+  );
+  // Where the glyphs are drawn, not the width the Text was given.
+  final line = paragraph.getBoxesForSelection(
+    TextSelection(
+      baseOffset: 0,
+      extentOffset: text(tester, 'result-tag').length,
+    ),
+  );
+  final origin = paragraph.localToGlobal(Offset.zero);
+  final left = origin.dx + line.map((b) => b.left).reduce(math.min);
+  final right = origin.dx + line.map((b) => b.right).reduce(math.max);
+  expect(
+    (left + right) / 2,
+    moreOrLessEquals(card.center.dx, epsilon: 1),
+    reason: 'result-tag: not centred across the card',
+  );
+  final top = tester.getRect(tag).top;
+  expect(
+    top,
+    lessThan(tester.getRect(find.byKey(const Key('result-title'))).top),
+    reason: 'result-tag: not above the title',
+  );
+  expect(
+    top - card.top,
+    lessThanOrEqualTo(24 + 1),
+    reason: 'result-tag: not at the top of the card',
+  );
+}
+
+/// The card's tag, title, body and four stats as the screen shows them;
+/// the tag is checked with [expectTagProminent] on every call.
 ({String tag, String title, String body, List<String> stats}) shown(
   WidgetTester tester,
 ) => (
-  tag: text(tester, 'result-tag'),
+  tag: (() {
+    expectTagProminent(tester);
+    return text(tester, 'result-tag');
+  })(),
   title: text(tester, 'result-title'),
   body: text(tester, 'result-body'),
   stats: [
