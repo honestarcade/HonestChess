@@ -1327,3 +1327,6 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** The coordinate labels over the stripes (4.15–4.49:1 against 4.5) are filed as #170 (needs-triage), not fixed here.
   **Why:** #157 covers the marks. The labels are text with their own rows and design call (#149), and the composited check does not see `SurfacePainter`.
   **Issue:** #157, #170
+- **Decision:** #159's recorded measurements were added to `.n8/memory/engine-strength.md`: Strong ≈ 1610, Club ≈ 1209, Casual ≈ 1057 direct or ≈ 994 chained via Club, and Beginner ≈ 536 chained via Casual (its direct fit against 1320 is too thin to use). Casual misses the owner's ~900 by more than 150 on the direct fit, so it is filed as #171 (sev:medium) and not hidden; every other step meets its target.
+  **Why:** The runs finished on 2026-09-30 (`record.log` rc=0 05:50:12Z, run from a clean worktree at 7f01731). #159 AC 2 requires a miss to be reported and logged.
+  **Issue:** #159, #171
