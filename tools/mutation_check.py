@@ -414,7 +414,7 @@ MUTATIONS: list[Mutation] = [
              'scheduled-summary: the job summary does not say what ran'),
     Mutation("ci", "a red scheduled run stops naming its failed tests (#127)",
              "tools/counted_tests.sh",
-             sub(r'(  if \[ "\$failed" -ne 0 \] \|\| \[ "\$status" -ne 0 \]; then\n)  explain\n', r'\1'),
+             sub(r'(^if \[ "\$failed" -ne 0 \] \|\| \[ "\$status" -ne 0 \]; then\n)  explain\n', r'\1', flags=re.M),
              "a failed device or weekly run would show counts and no test name",
              'scheduled-failures: the log does not name the failed test and why'),
     Mutation("ci", "the failed-test listing drops the error text (#127)",
