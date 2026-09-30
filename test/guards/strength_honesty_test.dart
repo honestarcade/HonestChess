@@ -224,12 +224,18 @@ void main() {
     expect(noisy, isNotEmpty);
     final silent = <String>[];
     for (final step in noisy) {
+      // Only seeds on which the step does not blunder, so any difference
+      // is the noise's.
       bool varies(Position position) {
-        final first = _choose(position, step, 0);
-        for (var seed = 1; seed < 16; seed++) {
-          if (_choose(position, step, seed) != first) return true;
-        }
-        return false;
+        final seeds = [
+          for (var seed = 0; seed < 32; seed++)
+            if (!blundersNow(seed, position.key, step.settings.blunderPercent))
+              seed,
+        ].take(16);
+        final first = _choose(position, step, seeds.first);
+        return seeds
+            .skip(1)
+            .any((seed) => _choose(position, step, seed) != first);
       }
 
       if (!_positions.any(varies)) silent.add(step.name);
