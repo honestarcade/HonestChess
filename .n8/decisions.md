@@ -1208,3 +1208,5 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
   - The M6 milestone description gains outcomes 9–11 and the new order.
   **Why:** M6 was planned on 2026-09-28, before M2–M5 were executed. The UAT raised nine findings, and the owner decided the dial targets (Beginner ~600 … Strong ~1600), real blunders, the label ink switch (#149), the parallel battery (#154), the declined-draw card's retry rule (#160) and #52's signing fingerprint.
   **Issue:** #106–#113, #127, #149, #151, #154–#167
+
+## /n8-exec M6 — 2026-09-29
