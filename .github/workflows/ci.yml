@@ -110,8 +110,10 @@ jobs:
     runs-on: ubuntu-latest
     # The battery's runtime grows with every mutation, and a timeout cancels
     # the job mid-run — and with it any release waiting on this workflow.
-    # Measure a local run of tools/mutation_check.py as the battery grows, and
-    # raise this, or split the battery across jobs, before it bites.
+    # The script runs one mutation per runner CPU at once, each in its own
+    # worktree, inside this one job, so the required check keeps this name.
+    # Compare this job's minutes against the limit as the battery grows, and
+    # raise the limit before it bites.
     timeout-minutes: 60
     env:
       FLUTTER_SUPPRESS_ANALYTICS: "true"

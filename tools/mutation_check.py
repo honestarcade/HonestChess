@@ -14,7 +14,12 @@ Two rules:
     analyzable. One that breaks the syntax makes the suite fail for the wrong
     reason, so it is reported as BROKEN rather than caught.
 
-Usage:  tools/mutation_check.py [--list] [--only SUBSTRING] [--self-test]
+Mutations run several at once, each in its own git worktree of HEAD, so the
+checkout the battery was started in is never mutated. Each worktree belongs to
+one worker at a time, and each mutation is applied, judged and restored in it
+exactly as it would be alone.
+
+Usage:  tools/mutation_check.py [--list] [--only SUBSTRING] [--jobs N] [--self-test]
 Exit:   0 every mutation was caught
         1 at least one survived (the suite stayed green)
         2 the battery could not run (dirty tree, bad pattern, unparseable)
@@ -22,12 +27,18 @@ Exit:   0 every mutation was caught
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import json
 import dataclasses
+import os
 import pathlib
+import queue
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
+import threading
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 # The guard suite, minus any `slow`-tagged test.
@@ -1079,8 +1090,8 @@ MUTATIONS: list[Mutation] = [
 ]
 
 
-def run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, **kw)
+def run(cmd: list[str], cwd: pathlib.Path = ROOT, **kw) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, **kw)
 
 
 def parses_as_yaml(path: pathlib.Path) -> bool:
@@ -1110,7 +1121,7 @@ def parses_as_shell(path: pathlib.Path) -> bool:
     return run(["bash", "-n", str(path)]).returncode == 0
 
 
-def compiles_as_dart(paths: list[pathlib.Path]) -> bool:
+def compiles_as_dart(paths: list[pathlib.Path], root: pathlib.Path = ROOT) -> bool:
     """The Dart half of the rule `parses_as_yaml` states for YAML.
 
     A mutation that does not compile fails every test in the file at once,
@@ -1119,7 +1130,8 @@ def compiles_as_dart(paths: list[pathlib.Path]) -> bool:
     dart = [p for p in paths if p.suffix == ".dart"]
     if not dart:
         return True
-    probe = run(["dart", "analyze", "--no-fatal-warnings", *[str(p) for p in dart]])
+    probe = run(["dart", "analyze", "--no-fatal-warnings", *[str(p) for p in dart]],
+                cwd=root)
     return probe.returncode == 0
 
 
@@ -1185,12 +1197,145 @@ def self_test() -> int:
     return 0 if ok else 1
 
 
+# At most this many mutations run at once, whatever the CPU count: every
+# worker holds its own worktree on disk, its own Dart compiler and its own
+# test processes in memory, so the cap bounds both on a large machine.
+JOBS_CAP = 8
+
+
+def default_jobs() -> int:
+    """One mutation per CPU, up to JOBS_CAP."""
+    return max(1, min(os.cpu_count() or 1, JOBS_CAP))
+
+
+def judge(m: Mutation, label: str, root: pathlib.Path,
+          per_suite: int) -> tuple[str, str, str]:
+    """Applies `m` inside the checkout at `root`, runs the suite there and
+    puts every file back, whatever happens.
+
+    Returns `(kind, why, text)`: kind is caught, survived, wrong or broken;
+    why is a BROKEN mutation's reason; text is what to print for it. The
+    worktree is one worker's own, so nothing else touches `root` meanwhile.
+    """
+    out: list[str] = []
+    edits = [*([(m.path, m.apply)] if m.path else []), *m.also]
+    targets = [root / path for path, _ in edits]
+    originals = [target.read_text() for target in targets]
+    binary = [root / m.deletes] if m.deletes else []
+    binary += [root / target for target, _ in m.replaces_with]
+    try:
+        mutated = [apply(text) for (_, apply), text in zip(edits, originals)]
+    except LookupError as exc:
+        return "broken", str(exc), f"  BROKEN  {label}\n          {exc}"
+    new_files = [(root / path, text) for path, text in m.adds]
+    present = [p for p, _ in new_files if p.exists()]
+    if present:
+        shown = present[0].relative_to(root)
+        return ("broken", f"file to add already exists: {shown}",
+                f"  BROKEN  {label}\n          {shown} already exists")
+    missing = [p for p in binary if not p.exists()]
+    if missing:
+        shown = missing[0].relative_to(root)
+        return ("broken", f"binary target missing: {shown}",
+                f"  BROKEN  {label}\n          {shown} does not exist")
+    fixtures = {root / target: (root / fixture).read_bytes()
+                for target, fixture in m.replaces_with}
+    same = [p for p, data in fixtures.items() if p.read_bytes() == data]
+    if (mutated == originals and not binary and not new_files) or same:
+        return ("broken", "changed nothing",
+                f"  BROKEN  {label}\n          changed nothing")
+
+    # The third source of a vacuous marker, and the one no baseline run
+    # can show: the mutation's OWN inserted text. A guard that prints the
+    # offending line puts that text into the output, so a marker matching
+    # it is present because the mutation ran, not because the guard fired.
+    if m.expect:
+        added = "\n".join(
+            line
+            for new, old in zip(mutated, originals)
+            for line in new.splitlines()
+            if line not in old.splitlines()
+        ) + "\n" + "\n".join(text for _, text in new_files)
+        if m.expect in added:
+            return ("broken", "the marker is in the text this mutation "
+                              "inserts, so a guard that echoes the "
+                              "offending line satisfies it",
+                    f"  BROKEN  {label}\n          marker {m.expect!r} is in "
+                    f"this mutation's own inserted text")
+
+    # The per-mutation marker, inside the worktree: if the run is killed, it
+    # names what was left mutated there.
+    in_flight = root / IN_FLIGHT.name
+    in_flight.write_text(
+        f"{m.issue} {m.name}\n"
+        + "".join(f"  {path}\n" for path, _ in edits)
+        + "".join(f"  {p.relative_to(root)}\n" for p in binary)
+        + "".join(f"  {p.relative_to(root)} (added)\n" for p, _ in new_files)
+    )
+    snapshot = snapshot_bytes(binary)
+    for target, text in zip(targets, mutated):
+        target.write_text(text)
+    if m.deletes:
+        (root / m.deletes).unlink()
+    for target, data in fixtures.items():
+        target.write_bytes(data)
+    made = write_added(new_files)
+    try:
+        unparseable = [t for t in targets
+                       if not (parses_as_yaml(t) and parses_as_shell(t))]
+        if unparseable:
+            return ("broken", "left the file unparseable — it would fail for "
+                              "the wrong reason",
+                    f"  BROKEN  {label}\n          unparseable after mutation")
+        if not compiles_as_dart(targets, root):
+            return ("broken", "left the Dart unanalyzable — it would fail for "
+                              "the wrong reason",
+                    f"  BROKEN  {label}\n          does not compile after mutation")
+        suite = (SUITE_SLOW if m.slow else SUITE) + [
+            "--concurrency", str(per_suite)]
+        result = run(suite, cwd=root)
+        output = result.stdout + result.stderr
+        if result.returncode == 0:
+            # Re-run before reporting a survivor. A SURVIVED verdict says
+            # a guard has a hole, and one flaky green would announce a
+            # hole that is not there. A second green costs one suite run,
+            # on the rare path only.
+            confirm = run(suite, cwd=root)
+            if confirm.returncode != 0:
+                output = confirm.stdout + confirm.stderr
+                out.append(f"  (first run of {label} was green, second was not "
+                           f"— reporting the second)")
+            else:
+                out.append(f"  SURVIVED {label}\n           {m.why}")
+                return "survived", "", "\n".join(out)
+        # Red, on the first run or on the confirming one.
+        if m.expect and m.expect not in output:
+            # Red, but not for this reason. Counting it as caught is how a
+            # guard gets credit for an assertion it does not make.
+            out.append(f"  WRONG-REASON {label}\n               the suite "
+                       f"failed, but not with {m.expect!r}")
+            return "wrong", "", "\n".join(out)
+        out.append(f"  caught  {label}")
+        return "caught", "", "\n".join(out)
+    finally:
+        for target, text in zip(targets, originals):
+            target.write_text(text)
+        restore_bytes(snapshot)
+        remove_added(made)
+        for created in m.creates:
+            (root / created).unlink(missing_ok=True)
+        in_flight.unlink(missing_ok=True)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--audit", action="store_true",
                     help="run the marker preflight alone and exit")
     ap.add_argument("--only", default="")
+    ap.add_argument("--jobs", type=int, default=0,
+                    help=f"mutations run at once (default: one per CPU, "
+                         f"at most {JOBS_CAP})")
     ap.add_argument("--self-test", action="store_true",
                     help="prove the binary snapshot round trip and exit")
     args = ap.parse_args()
@@ -1380,130 +1525,79 @@ def main() -> int:
               f"runner itself emits; none of them matches")
         return 0
 
-    print(f"mutation_check: {len(selected)} mutations\n")
-    survived: list[Mutation] = []
-    wrong: list[Mutation] = []
-    broken: list[tuple[Mutation, str]] = []
+    jobs = max(1, min(args.jobs or default_jobs(), len(selected)))
+    # Split the CPUs between the suites running at once. `flutter test` on its
+    # own starts a test process per spare CPU, so N suites left at the default
+    # would each claim the whole machine.
+    per_suite = max(1, (os.cpu_count() or 1) // jobs)
+    print(f"mutation_check: {len(selected)} mutations, {jobs} at a time "
+          f"(cap {JOBS_CAP}), each in its own worktree\n", flush=True)
 
-    for i, m in enumerate(selected, 1):
-        edits = [*([(m.path, m.apply)] if m.path else []), *m.also]
-        targets = [ROOT / path for path, _ in edits]
-        originals = [target.read_text() for target in targets]
-        binary = [ROOT / m.deletes] if m.deletes else []
-        binary += [ROOT / target for target, _ in m.replaces_with]
-        label = f"[{i}/{len(selected)}] {m.issue} {m.name}"
-        try:
-            mutated = [apply(text) for (_, apply), text in zip(edits, originals)]
-        except LookupError as exc:
-            broken.append((m, str(exc)))
-            print(f"  BROKEN  {label}\n          {exc}")
-            continue
-        new_files = [(ROOT / path, text) for path, text in m.adds]
-        present = [p for p, _ in new_files if p.exists()]
-        if present:
-            broken.append((m, f"file to add already exists: {present[0]}"))
-            print(f"  BROKEN  {label}\n          {present[0]} already exists")
-            continue
-        missing = [p for p in binary if not p.exists()]
-        if missing:
-            broken.append((m, f"binary target missing: {missing[0]}"))
-            print(f"  BROKEN  {label}\n          {missing[0]} does not exist")
-            continue
-        fixtures = {ROOT / target: (ROOT / fixture).read_bytes()
-                    for target, fixture in m.replaces_with}
-        same = [p for p, data in fixtures.items() if p.read_bytes() == data]
-        if (mutated == originals and not binary and not new_files) or same:
-            broken.append((m, "changed nothing"))
-            print(f"  BROKEN  {label}\n          changed nothing")
-            continue
+    # The run-level marker: the main checkout is never mutated now, but a
+    # killed run leaves its worktrees registered with git and on disk, and
+    # the next run should say so rather than pile up more.
+    IN_FLIGHT.write_text("worktrees of an interrupted mutation_check run "
+                         "(remove each with `git worktree remove --force`):\n")
+    workers: "queue.Queue[pathlib.Path]" = queue.Queue()
+    made_trees: list[pathlib.Path] = []
+    parent = pathlib.Path(tempfile.mkdtemp(prefix="mutation_check."))
+    verdicts: dict[int, tuple[str, str]] = {}  # index -> (kind, why)
+    lock = threading.Lock()
+    pool = None
+    try:
+        for n in range(jobs):
+            tree = parent / f"w{n}"
+            add = run(["git", "worktree", "add", "--detach", str(tree), "HEAD"])
+            if add.returncode != 0:
+                print(f"mutation_check: could not create a worktree:\n"
+                      f"{add.stderr}", file=sys.stderr)
+                return 2
+            made_trees.append(tree)
+            with IN_FLIGHT.open("a") as marker:
+                marker.write(f"  {tree}\n")
+        with concurrent.futures.ThreadPoolExecutor(jobs) as setup:
+            fetched = list(setup.map(
+                lambda tree: run(["flutter", "pub", "get", "--offline",
+                                  "--enforce-lockfile"], cwd=tree),
+                made_trees))
+        for tree, got in zip(made_trees, fetched):
+            if got.returncode != 0:
+                print(f"mutation_check: `flutter pub get` failed in {tree}:\n"
+                      f"{got.stdout}{got.stderr}", file=sys.stderr)
+                return 2
+            workers.put(tree)
 
-        # The third source of a vacuous marker, and the one no baseline run
-        # can show: the mutation's OWN inserted text. A guard that prints the
-        # offending line puts that text into the output, so a marker matching
-        # it is present because the mutation ran, not because the guard fired.
-        if m.expect:
-            added = "\n".join(
-                line
-                for new, old in zip(mutated, originals)
-                for line in new.splitlines()
-                if line not in old.splitlines()
-            ) + "\n" + "\n".join(text for _, text in new_files)
-            if m.expect in added:
-                broken.append((m, "the marker is in the text this mutation "
-                                  "inserts, so a guard that echoes the "
-                                  "offending line satisfies it"))
-                print(f"  BROKEN  {label}\n          marker {m.expect!r} is in "
-                      f"this mutation's own inserted text")
-                continue
+        def one(i: int, m: Mutation) -> None:
+            tree = workers.get()
+            try:
+                label = f"[{i}/{len(selected)}] {m.issue} {m.name}"
+                kind, why, text = judge(m, label, tree, per_suite)
+            finally:
+                workers.put(tree)
+            with lock:
+                verdicts[i] = (kind, why)
+                print(text, flush=True)
 
-        IN_FLIGHT.write_text(
-            f"{m.issue} {m.name}\n"
-            + "".join(f"  {path}\n" for path, _ in edits)
-            + "".join(f"  {p.relative_to(ROOT)}\n" for p in binary)
-            + "".join(f"  {p.relative_to(ROOT)} (added)\n" for p, _ in new_files)
-        )
-        snapshot = snapshot_bytes(binary)
-        for target, text in zip(targets, mutated):
-            target.write_text(text)
-        if m.deletes:
-            (ROOT / m.deletes).unlink()
-        for target, data in fixtures.items():
-            target.write_bytes(data)
-        made = write_added(new_files)
-        try:
-            unparseable = [t for t in targets
-                           if not (parses_as_yaml(t) and parses_as_shell(t))]
-            if unparseable:
-                broken.append((m, "left the file unparseable — it would fail for the wrong reason"))
-                print(f"  BROKEN  {label}\n          unparseable after mutation")
-                continue
-            if not compiles_as_dart(targets):
-                broken.append((m, "left the Dart unanalyzable — it would fail for the wrong reason"))
-                print(f"  BROKEN  {label}\n          does not compile after mutation")
-                continue
-            suite = SUITE_SLOW if m.slow else SUITE
-            result = run(suite)
-            output = result.stdout + result.stderr
-            if result.returncode == 0:
-                # Re-run before reporting a survivor. A SURVIVED verdict says
-                # a guard has a hole, and one flaky green would announce a
-                # hole that is not there. A second green costs one suite run,
-                # on the rare path only.
-                confirm = run(suite)
-                if confirm.returncode != 0:
-                    output = confirm.stdout + confirm.stderr
-                    print(f"  (first run of {label} was green, second was not "
-                          f"— reporting the second)")
-                else:
-                    survived.append(m)
-                    print(f"  SURVIVED {label}\n           {m.why}")
-            if result.returncode == 0 and m not in survived:
-                # Fell through from the flaky branch above; judged on the
-                # confirming run's output.
-                if m.expect and m.expect not in output:
-                    wrong.append(m)
-                    print(f"  WRONG-REASON {label}\n               the suite "
-                          f"failed, but not with {m.expect!r}")
-                else:
-                    print(f"  caught  {label}")
-            elif result.returncode == 0:
-                pass
-            elif m.expect and m.expect not in output:
-                # Red, but not for this reason. Counting it as caught is how a
-                # guard gets credit for an assertion it does not make.
-                wrong.append(m)
-                print(f"  WRONG-REASON {label}\n               the suite failed, "
-                      f"but not with {m.expect!r}")
-            else:
-                print(f"  caught  {label}")
-        finally:
-            for target, text in zip(targets, originals):
-                target.write_text(text)
-            restore_bytes(snapshot)
-            remove_added(made)
-            for created in m.creates:
-                (ROOT / created).unlink(missing_ok=True)
-            IN_FLIGHT.unlink(missing_ok=True)
+        pool = concurrent.futures.ThreadPoolExecutor(jobs)
+        futures = [pool.submit(one, i, m) for i, m in enumerate(selected, 1)]
+        for f in futures:
+            f.result()
+    finally:
+        if pool is not None:
+            # Mutations already running finish, so each one's own restore
+            # runs; the rest are dropped.
+            pool.shutdown(wait=True, cancel_futures=True)
+        for tree in made_trees:
+            run(["git", "worktree", "remove", "--force", str(tree)])
+        run(["git", "worktree", "prune"])
+        shutil.rmtree(parent, ignore_errors=True)
+        IN_FLIGHT.unlink(missing_ok=True)
+
+    survived = [m for i, m in enumerate(selected, 1)
+                if verdicts[i][0] == "survived"]
+    wrong = [m for i, m in enumerate(selected, 1) if verdicts[i][0] == "wrong"]
+    broken = [(m, verdicts[i][1]) for i, m in enumerate(selected, 1)
+              if verdicts[i][0] == "broken"]
 
     print()
     if broken:
