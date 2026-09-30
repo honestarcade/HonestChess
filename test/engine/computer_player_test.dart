@@ -380,6 +380,33 @@ void main() {
       expect(after.isOver, isFalse);
       expect(after.remaining(black), greaterThan(0));
     });
+
+    test('inside the margin, plays the first legal move on the worker, '
+        'unsearched', () async {
+      final time = FakeTime();
+      for (final step in Strength.values) {
+        final player = ComputerPlayer(step, _seed);
+        addTearDown(player.dispose);
+        var game = Game.start(_vs(step), Timed.blitz, time: time.call);
+        game = _play(game, ['e2e4']);
+        time.ms = Timed.blitz.initialMs - minClockMarginMs;
+        expect(clockLimitMs(remainingMs: game.remaining(black)!), 0);
+        final moved = await _moved(player.chooseMove(game));
+        expect(
+          (moved.move, moved.depth, moved.nodes),
+          (legalMoves(game.position).first, 0, 0),
+          reason:
+              '${step.name} with its clock at the margin did not play the '
+              'first legal move unsearched',
+        );
+        expect(
+          moved.debugSearchIsolate,
+          isNot(anyOf(isNull, Isolate.current.controlPort)),
+          reason: '${step.name} did not answer from the worker',
+        );
+        time.ms = 0;
+      }
+    });
   });
 
   group('acceptsDraw', () {

@@ -10,6 +10,7 @@ import 'dart:math';
 import 'clock.dart';
 import 'game.dart';
 import 'move.dart';
+import 'movegen.dart';
 import 'position.dart';
 import 'search.dart';
 import 'strength.dart';
@@ -118,7 +119,8 @@ int clockCapMs({
 /// The most milliseconds any search may take with [remainingMs] on the
 /// computer's clock: all of it but the margin [clockCapMs] keeps, and 0
 /// once the clock is at or below that margin. At this limit the search
-/// stops whatever it is doing ([StopReason.outOfTime]).
+/// stops whatever it is doing ([StopReason.outOfTime]); at 0 none runs, and
+/// the computer plays the first legal move.
 int clockLimitMs({required int remainingMs}) =>
     max(0, remainingMs - _clockMarginMs(remainingMs));
 
@@ -516,15 +518,39 @@ TranspositionTable? _table;
 List<Object?>? _serve(List<Object?> request) {
   final id = request[1]! as int;
   try {
-    final table = _table ??= TranspositionTable();
+    SendPort? isolate;
+    assert(() {
+      isolate = Isolate.current.controlPort;
+      return true;
+    }());
     switch (request[0]) {
       case _clearRequest:
-        table.clear();
+        (_table ??= TranspositionTable()).clear();
         return null;
       case _drawRequest:
         final game = Game.fromJson(request[2]! as Map<String, Object?>);
-        return [_drawReply, id, acceptsDraw(game, table: table)];
+        return [
+          _drawReply,
+          id,
+          acceptsDraw(game, table: _table ??= TranspositionTable()),
+        ];
+      case _moveRequest when request[8] == 0:
+        // No time is left to search, so the move is the one a search out of
+        // time before its first root move plays: the first legal move. The
+        // table is neither allocated nor cleared: in a worker that had not
+        // yet run, that alone outlasted the clock's margin (#155's repro
+        // under `flutter test`, 2026-09-29).
+        final position = Position.fromFen(request[2]! as String);
+        return [
+          _movedReply,
+          id,
+          legalMoves(position).first.toUci(),
+          0,
+          0,
+          isolate,
+        ];
       default:
+        final table = _table ??= TranspositionTable();
         final deadlineMs = request[6] as int?;
         final limitMs = request[8] as int?;
         ShouldStop? shouldStop;
@@ -546,11 +572,6 @@ List<Object?>? _serve(List<Object?> request) {
           table: table,
           nodeBudget: request[7] as int?,
         )!;
-        SendPort? isolate;
-        assert(() {
-          isolate = Isolate.current.controlPort;
-          return true;
-        }());
         return [
           _movedReply,
           id,
