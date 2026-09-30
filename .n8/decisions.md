@@ -1357,3 +1357,6 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** No device check exists for the computer failing to move, insufficient material or the fifty-move rule. None can be caused on purpose by hand. Their wording is cited to `test/ui/game/computer_turns_test.dart` and `test/ui/game/result_text_test.dart` instead. The owner's v0.2.0 UAT (PR #153, 2026-09-29) is mapped journey by journey onto the new check IDs in the plan's History table, and every finding (#159–#167) is expected fixed in the check that covers it.
   **Why:** A check whose steps are "none" cannot be run. The History mapping lets a run say which UAT ground it re-walks.
   **Issue:** #106
+- **Decision:** #171's recorded re-measurement was added to `.n8/memory/engine-strength.md` (runs from a clean worktree at 2d75e03, `record.log` rc=0 2026-09-30T07:08:11Z). Retuned Casual (±100 noise, 20% blunders) measures ≈ 957 (880–1034) directly against Stockfish 1320 and ≈ 827 (726–928) chained through Club; both intervals contain the owner's ~900. Beginner, chained through the new Casual, measures ≈ 627 (522–732), also on its ~600 target. These supersede the 2026-09-30 Casual and Beginner sections above them.
+  **Why:** #171's AC is to retune Casual toward ~900 and re-measure it.
+  **Issue:** #171, #159
