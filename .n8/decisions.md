@@ -1420,3 +1420,21 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** A second release candidate, `v1.0.0-rc.2`, is cut from main after PR #179, and the owner's phone checks (#110–#112) run on it instead of rc.1. `pubspec.yaml` goes to `1.0.0-rc.2+1`.
   **Why:** #109's emulator run of rc.1 found #175 (sev:high). A dragged piece shows Flutter's yellow underline on every Android version, so the owner would see it on every drag. #113's plan re-checks "the final release candidate", which allows further candidates.
   **Issue:** #108, #113, #175
+
+## /n8-exec M6 part 3 — 2026-10-01
+
+- **Decision:** The timing run is built and launched as a profile-mode app: `flutter build apk --profile -t perf_test/think_time_test.dart`, then adb install, a launch with `monkey`, and the results read from logcat. It is not run by `flutter test -d`, and not by `flutter drive`. `pubspec.yaml` is unchanged, so no `flutter_driver` and no `test_driver/`.
+  **Why:** `flutter test` has no `--profile` and builds debug (JIT), whose search times say nothing about the release app (Flutter 3.47.5 `flutter test --help`, 2026-10-01). The replan (2026-09-29) drops `flutter_drive` to avoid a new dev dependency. A plain app entry point needs neither. `perf_test/think_time_test.dart` keeps the planned name, but it is a `main()` app, not a `package:test` file, and it sits outside `integration_test/`, so the nightly job never runs it.
+  **Issue:** #112
+- **Decision:** Each position gets a fresh `ComputerPlayer` with `seed = index`, and its isolate is started (`start()`) before the stopwatch. The timed `chooseMove` includes the worker's first-request table set-up. Each step first plays one untimed warm-up move. Positions 0–9 are searched again at Club in the same run, and any changed move fails it. Cross-device sameness is checked by `--compare <json>`, which diffs all 200 moves, not only the ten the plan named.
+  **Why:** Every move of a real game's first turn pays the table set-up, so excluding it would understate the worst case a player sees. The in-run repeat is the test plan's "complement" assertion, and comparing every move costs nothing extra.
+  **Issue:** #112
+- **Decision:** Targets are `thinkSeconds × 1.1` from the `Strength` table (0.33, 0.66, 1.1, 2.2, 5.5 s), and p95 is by nearest rank. A p95 past its target fails the run on a phone and is reported only on an emulator. A p95 under the stated time is shown as "ok, overstated" with its signed percentage, and never fails. The replan's `PERF_ASSERT` dart-define is replaced by the runner knowing the device kind from its serial.
+  **Why:** The replan (2026-09-29) asks for targets taken from the table and a report in both directions. The runner already tells a phone from an emulator by serial for the wipe check, so a second switch would be able to disagree with it.
+  **Issue:** #112
+- **Decision:** `tools/think_time.sh` copies `tools/e2e.sh`'s safety: a phone needs `--allow-wipe` and then a typed `wipe`. It always uninstalls the timing build at the end, and keeps the screen on with `svc power stayon true` for the run, restoring the old `stay_on_while_plugged_in` value on exit. The refusals are held by the guard `test/guards/think_time_script_test.dart`, with three mutations (the refusal removed, every device treated as an emulator, the typed check removed), all caught on 2026-10-01.
+  **Why:** Installing the profile build replaces the Play install and erases the player's data, and a phone asleep mid-run would time the wrong thing. The owner's phone should not be left holding a timing app.
+  **Issue:** #112
+- **Decision:** The emulator dry run is recorded as `qa/runs/2026-10-01-emu-api34-agent.md`, with its JSON in `qa/runs/2026-10-01-emu-api34-agent/think_time.json`, a folder, because the run-record guard allows only `.md` files at the top of `qa/runs/`. It is the reference for the phone run's `--compare`. #112's phone criteria are not ticked, and the line in `strength.dart`'s table comment and #67's calibration comment wait for the phone's numbers.
+  **Why:** The emulator is not the owner's S26 Ultra (#112: only the phone run closes the story). Every step was far under its stated time on the emulator (Master p95 2.49 s against 5 s, 2026-10-01), so recording those numbers as calibration would mislead.
+  **Issue:** #112
