@@ -36,14 +36,20 @@ class SquareStates {
   SquareStates._(this._states);
 
   /// The states of [game]'s squares with the piece on [selection] picked
-  /// up. A finished game has no targets.
-  factory SquareStates.of(Game game, Square? selection) {
+  /// up, its targets [moves] — by default its legal moves; on the
+  /// computer's turn the controller's `selectedMoves` (#182). A finished
+  /// game has no targets.
+  factory SquareStates.of(
+    Game game,
+    Square? selection, {
+    Iterable<Move>? moves,
+  }) {
     final states = List.generate(64, (_) => <SquareState>{});
     final position = game.position;
     if (selection != null) {
       states[selection.index].add(SquareState.selected);
       if (!game.isOver) {
-        for (final move in legalMoves(position)) {
+        for (final move in moves ?? legalMoves(position)) {
           if (move.from != selection) continue;
           states[move.to.index].add(
             move.isCapture ? SquareState.capture : SquareState.legalMove,
@@ -107,11 +113,22 @@ String? lockedSpeech(GameController controller) {
   return null;
 }
 
+/// The hint on one of your pieces during the computer's turn, when a
+/// double-tap selects it for your next move (#182).
+const selectAheadHint = 'select for your turn';
+
 /// What double-tapping [square] would do, as its hint: "move here",
-/// "select" or "put down"; null when it would do nothing but speak.
-/// [states] are the game's [SquareStates].
+/// "select" or "put down" — on the computer's turn, [selectAheadHint] or
+/// "put down", as nothing is played then; null when it would do nothing
+/// but speak. [states] are the game's [SquareStates].
 String? tapHint(GameController controller, SquareStates states, Square square) {
-  if (controller.inputLocked) return null;
+  if (controller.inputLocked) {
+    if (!controller.canSelectAhead) return null;
+    if (states.at(square).contains(SquareState.selected)) return putDownText;
+    final mode = controller.game.mode as VsComputer;
+    final piece = controller.state.position.pieceAt(square);
+    return piece?.colour == mode.playerColour ? selectAheadHint : null;
+  }
   final here = states.at(square);
   if (here.contains(SquareState.selected)) return putDownText;
   if (here.contains(SquareState.legalMove) ||
@@ -127,7 +144,9 @@ String? tapHint(GameController controller, SquareStates states, Square square) {
 
 /// A double-tap on [square]: exactly the board's tap, then what it did in
 /// words through [announcer] — "White knight selected", "put down", or,
-/// on a locked board, why nothing happened. A move, a refusal and a
+/// on a locked board, why nothing happened. On the computer's turn a
+/// double-tap selects or puts down one of your pieces as a tap does, and
+/// any other says why nothing was played. A move, a refusal and a
 /// promotion card are spoken elsewhere: the feedback hub speaks the move
 /// and the refusal, and the card reads itself.
 void screenReaderTap(
@@ -137,8 +156,19 @@ void screenReaderTap(
 ) {
   if (controller.isIdle) return;
   if (controller.inputLocked) {
-    final why = lockedSpeech(controller);
-    if (why != null) announcer.announce(why);
+    final before = controller.state.selection;
+    if (controller.canSelectAhead) controller.tapSquare(square);
+    final after = controller.state.selection;
+    if (after != null && after != before) {
+      announcer.announce(
+        selectedSpeech(controller.state.position.pieceAt(after)!),
+      );
+    } else if (after == null && before != null && square == before) {
+      announcer.announce(putDownText);
+    } else {
+      final why = lockedSpeech(controller);
+      if (why != null) announcer.announce(why);
+    }
     return;
   }
   final before = controller.state.selection;
@@ -162,7 +192,11 @@ SquareDescriber describeSquares(
   GameController controller,
   Announcer announcer,
 ) {
-  final states = SquareStates.of(controller.game, controller.state.selection);
+  final states = SquareStates.of(
+    controller.game,
+    controller.state.selection,
+    moves: controller.selectedMoves,
+  );
   return (square, piece) => SquareSemantics(
     label: squareSpeech(square, piece, states.at(square)),
     onTap: () => screenReaderTap(controller, square, announcer),

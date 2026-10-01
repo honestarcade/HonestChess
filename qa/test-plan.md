@@ -464,6 +464,18 @@ Core: no
 Where: phone
 Automated: test/engine/search_test.dart
 
+### T319 — Select a piece while the computer thinks
+Steps:
+- Against Strong, with Computer's minimum turn at 3 s so the reply takes a moment, play e2e4; while THINKING… shows, tap your bishop on f1.
+- Tap one of its dots before the reply lands.
+- Select it again; let the computer reply. If the piece can still move, tap one of its dots.
+- Select a piece the reply can capture or pin (a pawn the computer can take), and let it reply.
+- Try to drag a piece while the computer thinks.
+Expected: The bishop gets its ring and dots at once. A tap on a dot during the computer's turn plays nothing and puts the piece down. After a reply that leaves it free, the ring stays and the dots show the new position, and one tap on a dot plays that move. A piece captured, pinned or unable to answer check after the reply is put down quietly. A drag never starts on the computer's turn. With TalkBack, double-tapping your piece then says "<piece> selected" and its hint is "select for your turn".
+Core: no
+Where: both
+Automated: test/ui/game/select_ahead_test.dart; test/a11y/board_semantics_test.dart
+
 ## Two-player board
 
 route: board

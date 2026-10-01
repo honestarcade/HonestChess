@@ -6,6 +6,7 @@ import 'package:honest_chess/a11y/announcer.dart';
 import 'package:honest_chess/engine/engine.dart';
 import 'package:honest_chess/feedback/game_feedback.dart';
 import 'package:honest_chess/ui/board/board_options.dart';
+import 'package:honest_chess/ui/board/board_semantics.dart';
 import 'package:honest_chess/ui/board/move_animation.dart';
 import 'package:honest_chess/ui/board/promotion_sheet.dart';
 import 'package:honest_chess/ui/game/computer_turns.dart';
@@ -334,6 +335,66 @@ void main() {
         'Black knight to f6',
       ]);
       expect(_label(tester, 'f6'), 'f6, black knight, last move');
+      handle.dispose();
+    });
+  });
+
+  group('selecting on the computer\'s turn (#182)', () {
+    testWidgets('a double-tap selects your piece and reads its targets; a '
+        'target plays nothing and says why', (tester) async {
+      final handle = tester.ensureSemantics();
+      final rig = await _pump(tester, mode: _vsWhite);
+      await _doubleTap(tester, 'e2');
+      await _doubleTap(tester, 'e4');
+      expect(rig.controller.state.thinking, isTrue);
+      expect(
+        tester.getSemantics(_cell('g1')),
+        isSemantics(onTapHint: selectAheadHint),
+        reason: 'select ahead: your piece\'s hint on its turn',
+      );
+      expect(
+        tester.getSemantics(_cell('g8')).hintOverrides?.onTapHint,
+        isNull,
+        reason: 'select ahead: its pieces have no hint',
+      );
+      rig.spoken.clear();
+      await _doubleTap(tester, 'g1');
+      expect(rig.spoken, ['White knight selected']);
+      expect(rig.controller.state.selection, Square.parse('g1'));
+      expect(_label(tester, 'f3'), 'f3, empty, legal move');
+      expect(_label(tester, 'e2'), 'e2, empty, legal move, last move');
+      expect(
+        tester.getSemantics(_cell('g1')),
+        isSemantics(onTapHint: 'put down'),
+      );
+      expect(
+        tester.getSemantics(_cell('f3')).hintOverrides?.onTapHint,
+        isNull,
+        reason: 'select ahead: a target is no move on its turn',
+      );
+
+      final before = _fen(rig.controller);
+      rig.spoken.clear();
+      await _doubleTap(tester, 'f3');
+      expect(_fen(rig.controller), before, reason: 'select ahead: no move');
+      expect(rig.spoken, ['Club is thinking']);
+      expect(rig.controller.state.selection, isNull);
+
+      await _doubleTap(tester, 'g1');
+      rig.spoken.clear();
+      await _doubleTap(tester, 'g1');
+      expect(rig.spoken, ['put down']);
+
+      await _doubleTap(tester, 'g1');
+      rig.computers.current.last.move('e7e5');
+      await tester.pump(minThinkTime);
+      await tester.pump();
+      expect(rig.controller.state.selection, Square.parse('g1'));
+      expect(
+        tester.getSemantics(_cell('f3')),
+        isSemantics(onTapHint: 'move here'),
+        reason: 'select ahead: on your turn the target moves',
+      );
       handle.dispose();
     });
   });

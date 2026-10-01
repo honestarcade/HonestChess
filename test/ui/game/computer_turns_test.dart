@@ -1,8 +1,9 @@
 // Playing the computer (#75) with a scripted fake: it answers after your
-// move and never before its think-time floor, the board ignores you on its
-// turn, it opens as White when you are Black, and every way of ending its
-// turn early — takeback, restart, resign, pause, a flag, leaving — cancels
-// the search so its late move is never played.
+// move and never before its think-time floor, the board plays none of
+// your moves on its turn (#182 lets you select a piece), it opens as White
+// when you are Black, and every way of ending its turn early — takeback,
+// restart, resign, pause, a flag, leaving — cancels the search so its late
+// move is never played.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -100,7 +101,7 @@ void main() {
       expect(fakes.current.requests, hasLength(1));
     });
 
-    testWidgets('your taps and drags do nothing while it thinks', (
+    testWidgets('your taps and drags play nothing while it thinks', (
       tester,
     ) async {
       final (h, fakes) = await pumpVs(tester);
@@ -110,7 +111,7 @@ void main() {
       await tap(tester, 'd4');
       await tap(tester, 'e7');
       await tap(tester, 'e5');
-      expect(c.state.selection, isNull, reason: 'turns: nothing picked up');
+      expect(c.state.selection, isNull, reason: 'turns: put down again');
       expect(moves(c), ['e2e4'], reason: 'turns: no move for either side');
       expect(c.move(Square.parse('e7'), Square.parse('e5')), isFalse);
       expect(fakes.current.requests, hasLength(1));
@@ -131,7 +132,12 @@ void main() {
         reason: 'turns: the game\'s own step and seed',
       );
       await tap(tester, 'e7');
-      expect(c.state.selection, isNull);
+      expect(
+        c.state.selection,
+        Square.parse('e7'),
+        reason: 'turns: your piece may be selected on its turn (#182)',
+      );
+      expect(moves(c), isEmpty, reason: 'turns: but nothing is played');
       fakes.current.last.move('d2d4');
       await h.clock.advance(minThinkTime);
       expect(moves(c), ['d2d4']);
@@ -455,6 +461,8 @@ void main() {
       expect(text(tester, 'status-text'), computerFailedText);
       expect(c.inputLocked, isTrue, reason: 'failed: still its turn');
       await tap(tester, 'd2');
+      await tap(tester, 'd4');
+      expect(moves(c), ['e2e4'], reason: 'failed: a tap plays nothing');
       expect(c.state.selection, isNull);
 
       await tester.tap(find.byKey(const Key('status-chip')));
