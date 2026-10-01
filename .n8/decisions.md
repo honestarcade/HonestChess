@@ -1463,6 +1463,10 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
   **Why:** The AC asks for the double-tap to select during the computer's turn "with the hint wording adjusted". "Move here" on a target would be false until it is your turn. The changed #75 assertions are the behaviour this story replaces, and their "nothing is played" half is kept.
   **Issue:** #182
 
+- **Decision:** `pubspec.yaml` goes to `1.0.0-rc.3+1` in part 3's PR, so `v1.0.0-rc.3` can be tagged straight after the merge. It carries #181 and #182 for the owner's phone re-check.
+  **Why:** One CI cycle instead of two, since a version-only PR costs a full mutation run (about 50 min).
+  **Issue:** #113, #181, #182
+
 ## Ad-hoc — 2026-10-01
 
 - **Change:** Two features join M6 at the owner's request, ahead of the final release candidate.
