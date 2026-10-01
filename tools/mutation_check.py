@@ -901,6 +901,23 @@ MUTATIONS: list[Mutation] = [
              'benchmark-refuses: without Stockfish the benchmark did not exit 3',
              slow=True),
 
+    # thinking-time runner -- test/guards/think_time_script_test.dart (#112)
+    Mutation("ci", "the timing runner takes a phone without --allow-wipe (#112)",
+             "tools/think_time.sh",
+             sub(r'  if \[ "\$allow_wipe" -ne 1 \]; then\n(.*\n)*?  fi\n', ''),
+             "the timing build could replace the app on a phone, erasing its games, unasked",
+             'think-time-refuses-phone: without --allow-wipe the script did not exit 2'),
+    Mutation("ci", "the timing runner treats every device as an emulator (#112)",
+             "tools/think_time.sh",
+             sub(r'case "\$serial" in\n  emulator-\*\) phone=0 ;;\nesac\n', 'phone=0\n'),
+             "a phone would get no warning before its app data is erased",
+             'think-time-refuses-phone: without --allow-wipe the script did not exit 2'),
+    Mutation("ci", "the timing runner skips the typed wipe (#112)",
+             "tools/think_time.sh",
+             sub(r"  printf 'Type wipe to go ahead: '\n(.*\n)*?  fi\n", ''),
+             "--allow-wipe alone would erase a phone's app data with no last check",
+             'think-time-confirms-wipe: with --allow-wipe and no typed "wipe"'),
+
     # platform surface -- test/guards/platform_surface_test.dart (#80, invariant 1)
     Mutation("platform-surface", "the store names a socket",
              "lib/data/app_store.dart",
