@@ -57,6 +57,21 @@ final class ComputerPlayerOpponent implements ComputerOpponent {
 /// reply never arrives in the same frame as your move.
 const Duration minThinkTime = Duration(milliseconds: 400);
 
+/// How long after its request the computer's move in [game] may land at
+/// the soonest: [minThinkTime], or the player's [minTurn] when that is
+/// longer. In a timed game the wait runs on the computer's clock, so
+/// [minTurn] is skipped — [minThinkTime] alone holds — when it would reach
+/// past [clockLimitMs], the margin no search runs into (#132).
+Duration turnFloor(Duration minTurn, Game game) {
+  if (minTurn <= minThinkTime) return minThinkTime;
+  final remainingMs = game.remaining(game.sideToMove);
+  if (remainingMs != null &&
+      minTurn.inMilliseconds > clockLimitMs(remainingMs: remainingMs)) {
+    return minThinkTime;
+  }
+  return minTurn;
+}
+
 /// Asks the computer for its move whenever it is its turn, and hands the
 /// move back through [play].
 ///
@@ -66,7 +81,14 @@ const Duration minThinkTime = Duration(milliseconds: 400);
 /// and the ply count it was asked for. The computer thinks only while the
 /// game goes on, unpaused, with the computer to move.
 class ComputerTurns {
-  ComputerTurns(this.opponent, {required this.play, required this.changed});
+  ComputerTurns(
+    this.opponent, {
+    required this.play,
+    required this.changed,
+    this.minTurn = _off,
+  });
+
+  static Duration _off() => Duration.zero;
 
   final ComputerOpponent opponent;
 
@@ -77,6 +99,10 @@ class ComputerTurns {
   /// [thinking] or [failed] changed outside a [follow] call.
   final void Function() changed;
 
+  /// The player's minimum turn as it is set now, read at each request
+  /// ([turnFloor]).
+  final Duration Function() minTurn;
+
   Game? _game;
   var _paused = false;
 
@@ -86,13 +112,13 @@ class ComputerTurns {
   var _failed = false;
   var _retried = false;
 
-  /// Whether a request is waiting for its answer or its [minThinkTime].
+  /// Whether a request is waiting for its answer or its [turnFloor].
   var _pending = false;
   Timer? _floor;
   var _disposed = false;
 
   /// Whether it is the computer's turn: from the moment it begins, through
-  /// the request and its floor — and a failure — until the move lands or
+  /// the request and its floor (a minimum turn's wait included) — and a failure — until the move lands or
   /// the turn ends.
   bool get thinking => _due;
 
@@ -185,7 +211,7 @@ class ComputerTurns {
       changed();
     }
 
-    _floor = Timer(minThinkTime, () {
+    _floor = Timer(turnFloor(minTurn(), game), () {
       floorDone = true;
       settle();
     });

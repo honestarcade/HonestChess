@@ -225,6 +225,10 @@ class GameController extends ChangeNotifier {
   bool _lastMoveWasDrop = false;
   List<Move> _legal = const [];
 
+  /// Your moves in the position as if it were your turn, while it is the
+  /// computer's ([canSelectAhead]); computed on the first selection.
+  List<Move>? _ahead;
+
   Game get _game =>
       _current ?? (throw StateError('No game: the controller is idle.'));
   set _game(Game game) => _current = game;
@@ -298,6 +302,31 @@ class GameController extends ChangeNotifier {
       _state.over ||
       !_playersTurn;
 
+  /// Whether a tap may select one of your pieces although it is the
+  /// computer's turn (#182): against the computer, on its turn, with the
+  /// game on, unpaused, and no promotion card or new game in the way. Only
+  /// selection is allowed; nothing is played until it is your turn.
+  bool get canSelectAhead =>
+      !isIdle &&
+      !_replacing &&
+      !_paused &&
+      _pendingPromotion == null &&
+      _computersTurn;
+
+  bool get _computersTurn => switch (_game.mode) {
+    VsComputer(:final computerColour) =>
+      !_game.isOver && _game.sideToMove == computerColour,
+    TwoPlayer() => false,
+  };
+
+  /// The moves of the selected piece the board marks: on your turn its
+  /// legal moves; on the computer's, the moves it would have were it yours.
+  /// Empty with nothing selected.
+  List<Move> get selectedMoves {
+    final selected = _selection;
+    return selected == null ? const [] : _movesFrom(selected).toList();
+  }
+
   bool get _playersTurn => switch (_game.mode) {
     VsComputer(:final playerColour) => _game.sideToMove == playerColour,
     TwoPlayer() => true,
@@ -306,7 +335,31 @@ class GameController extends ChangeNotifier {
   bool _isMovable(Square square) =>
       _game.position.pieceAt(square)?.colour == _game.sideToMove;
 
-  Iterable<Move> _movesFrom(Square from) => _legal.where((m) => m.from == from);
+  Iterable<Move> _movesFrom(Square from) =>
+      (_computersTurn ? _aheadMoves() : _legal).where((m) => m.from == from);
+
+  /// [_ahead], computed from the position with you to move: the en passant
+  /// square is the computer's to use, so it is dropped, and a capture of
+  /// its king — possible when you have just given check — is never shown.
+  List<Move> _aheadMoves() {
+    final known = _ahead;
+    if (known != null) return known;
+    final position = _game.position;
+    final yours = position.sideToMove.opponent;
+    final theirKing = position.kingSquare(position.sideToMove);
+    final asIfYours = Position.unchecked(
+      bitboards: [for (final p in Piece.values) position.bitboard(p)],
+      sideToMove: yours,
+      castlingRights: position.castlingRights,
+      enPassant: null,
+      halfmoveClock: position.halfmoveClock,
+      fullmoveNumber: position.fullmoveNumber,
+    );
+    return _ahead = [
+      for (final m in legalMoves(asIfYours))
+        if (m.to != theirKing) m,
+    ];
+  }
 
   bool _isTarget(Square from, Square to) =>
       _movesFrom(from).any((m) => m.to == to);
@@ -316,8 +369,13 @@ class GameController extends ChangeNotifier {
   /// piece of the side to move switches to it; anywhere else clears the
   /// selection. With nothing selected, a tap on a piece of the side to move
   /// picks it up. Returns whether anything changed.
+  ///
+  /// On the computer's turn ([canSelectAhead]) a tap on one of your pieces
+  /// selects it, or puts it down when it is the one selected, and any other
+  /// tap puts the selection down: no move is played and nothing is
+  /// refused.
   bool tapSquare(Square square) {
-    if (inputLocked) return false;
+    if (inputLocked) return canSelectAhead && _tapAhead(square);
     final selected = _selection;
     if (selected != null && _isTarget(selected, square)) {
       return move(selected, square);
@@ -327,6 +385,15 @@ class GameController extends ChangeNotifier {
     }
     final next = _isMovable(square) && square != selected ? square : null;
     if (next == selected) return false;
+    _select(next);
+    return true;
+  }
+
+  bool _tapAhead(Square square) {
+    final mode = _game.mode as VsComputer;
+    final yours = _game.position.pieceAt(square)?.colour == mode.playerColour;
+    final next = yours && square != _selection ? square : null;
+    if (next == _selection) return false;
     _select(next);
     return true;
   }
@@ -811,6 +878,7 @@ class GameController extends ChangeNotifier {
     return ComputerTurns(
       factory(mode.step, mode.seed),
       play: _playComputer,
+      minTurn: () => _options.minTurn,
       changed: () {
         if (_disposed) return;
         _state = _viewState();
@@ -850,8 +918,9 @@ class GameController extends ChangeNotifier {
         isQualifyingMove(next.mode, before.sideToMove)) {
       _recordedState = state.copyWith(started: true);
     }
+    final kept = byComputer ? _selection : null;
     _game = next;
-    _refresh();
+    _refresh(keep: kept);
     notifyListeners();
     _announce(before, played ? GameMoved.new : null);
     return played;
@@ -871,16 +940,25 @@ class GameController extends ChangeNotifier {
   }
 
   /// Re-derives everything after the game changed: any position change
-  /// drops the selection and a pending promotion.
-  void _refresh() {
+  /// drops the selection and a pending promotion — except [keep], a piece
+  /// you selected during the computer's turn, which stays selected when its
+  /// move lands while that piece still has a legal move (#182).
+  void _refresh({Square? keep}) {
     _selection = null;
     _pendingPromotion = null;
+    _ahead = null;
     // A finished game opens on its card; a re-opened one drops the result.
     _resultView = _game.isOver ? (_resultView ?? ResultView.card) : null;
     _legal = _game.isOver ? const [] : legalMoves(_game.position);
     final declined = _declinedAtPly;
     // A takeback to before the declined offer's move frees the offer.
     if (declined != null && _ply < declined) _declinedAtPly = null;
+    if (keep != null &&
+        !_paused &&
+        _isMovable(keep) &&
+        _legal.any((m) => m.from == keep)) {
+      _selection = keep;
+    }
     _turns?.follow(_game, paused: _paused);
     _state = _viewState();
   }

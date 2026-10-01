@@ -113,6 +113,11 @@ bool _bool(Object? raw, bool fallback) => raw is bool ? raw : fallback;
 int _int(Object? raw, int fallback, int min, int max) =>
     raw is int ? raw.clamp(min, max) : fallback;
 
+/// [raw] when it is one of [choices] exactly; anything else, an
+/// out-of-range number included, is [fallback].
+int _choice(List<int> choices, Object? raw, int fallback) =>
+    raw is int && choices.contains(raw) ? raw : fallback;
+
 /// The board options in [raw], field by field over the defaults.
 BoardOptions decodeBoard(Object? raw) {
   final json = _object(raw);
@@ -131,6 +136,11 @@ BoardOptions decodeBoard(Object? raw) {
     music: _bool(json['music'], d.music),
     haptics: _bool(json['haptics'], d.haptics),
     flagCheck: _bool(json['flagCheck'], d.flagCheck),
+    minTurnSeconds: _choice(
+      minTurnChoices,
+      json['minTurnSeconds'],
+      d.minTurnSeconds,
+    ),
   );
 }
 
@@ -150,6 +160,7 @@ Map<String, Object?> encodeBoard(BoardOptions options, [Object? raw]) =>
       'music': options.music,
       'haptics': options.haptics,
       'flagCheck': options.flagCheck,
+      'minTurnSeconds': options.minTurnSeconds,
     }, raw);
 
 /// The setup choices in [raw], field by field over [SetupChoices.initial].

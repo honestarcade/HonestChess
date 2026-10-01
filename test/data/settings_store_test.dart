@@ -20,6 +20,7 @@ const _board = BoardOptions(
   rotateEachTurn: true,
   animations: false,
   flagCheck: false,
+  minTurnSeconds: 3,
 );
 
 final _setup = SetupChoices(
@@ -381,6 +382,49 @@ void main() {
           'settings-store: an unrecognised value is replaced by the '
           'default the app shows',
     );
+  });
+
+  test("the computer's minimum turn round-trips; a damaged or missing value "
+      'is Off', () async {
+    for (final seconds in minTurnChoices) {
+      expect(
+        decodeBoard(
+          encodeBoard(const BoardOptions().copyWith(minTurnSeconds: seconds)),
+        ).minTurnSeconds,
+        seconds,
+        reason: 'settings-store: min turn $seconds round-trips',
+      );
+    }
+    for (final damaged in <Object?>[
+      null,
+      '3',
+      3.0,
+      -1,
+      6,
+      60,
+      true,
+      [3],
+    ]) {
+      expect(
+        decodeBoard({...encodeBoard(_board), 'minTurnSeconds': damaged})
+            .minTurnSeconds,
+        0,
+        reason: 'settings-store: min turn ${jsonEncode(damaged)} reads as Off',
+      );
+    }
+    final missing = Map.of(encodeBoard(_board))..remove('minTurnSeconds');
+    expect(
+      decodeBoard(missing),
+      _board.copyWith(minTurnSeconds: 0),
+      reason: 'settings-store: a document from before #181 reads as Off',
+    );
+
+    final store = AppStore.memory();
+    final first = await _loaded(store);
+    first.updateBoard((o) => o.copyWith(minTurnSeconds: 5));
+    await store.flush();
+    expect((_saved(store)['board']! as Map)['minTurnSeconds'], 5);
+    expect((await _loaded(store)).board.value.minTurnSeconds, 5);
   });
 
   test('TimeChoice.of and ColourChoice.of map setups to choices', () {

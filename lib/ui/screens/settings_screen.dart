@@ -15,6 +15,7 @@ import '../widgets/option_button.dart';
 import '../widgets/screen_header.dart';
 import '../widgets/section_card.dart';
 import '../widgets/setting_row.dart';
+import '../widgets/setting_slider.dart';
 
 /// The design's caption under Board colour.
 const boardColourCaption = 'Four pairs from the Honest Arcade palette.';
@@ -155,6 +156,24 @@ final List<_Toggle> _toggles = [
     write: (o, v) => o.copyWith(haptics: v),
   ),
 ];
+
+/// The computer's minimum turn: PLAY's one row that is not a switch
+/// (#181), a slider over [minTurnChoices].
+const minTurnRowLabel = "Computer's minimum turn";
+const minTurnDescription =
+    "The least time before the computer's move appears. Its moves stay the "
+    'same.';
+
+/// A minimum turn as its row shows it: "Off", "3 s".
+String minTurnShown(int seconds) => seconds == 0 ? 'Off' : '$seconds s';
+
+/// A minimum turn as a screen reader says it: "Off", "1 second",
+/// "3 seconds".
+String minTurnSpoken(int seconds) => switch (seconds) {
+  0 => 'Off',
+  1 => '1 second',
+  _ => '$seconds seconds',
+};
 
 /// Sound effects' description, reworded from the design's to name what
 /// plays: there is no separate piece tap or mate chime (#96).
@@ -309,6 +328,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               unawaited(scope.haptics.tick());
                             }
                           },
+                        ),
+                      if (group == 'PLAY')
+                        SettingSlider(
+                          key: const Key('settings-min-turn'),
+                          id: 'settings-min-turn',
+                          label: minTurnRowLabel,
+                          description: minTurnDescription,
+                          steps: minTurnChoices,
+                          value: options.minTurnSeconds,
+                          shown: minTurnShown,
+                          spoken: minTurnSpoken,
+                          onChanged: (seconds) => update(
+                            (o) => o.copyWith(minTurnSeconds: seconds),
+                          ),
                         ),
                     ],
                   ),

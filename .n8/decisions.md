@@ -1420,3 +1420,57 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** A second release candidate, `v1.0.0-rc.2`, is cut from main after PR #179, and the owner's phone checks (#110–#112) run on it instead of rc.1. `pubspec.yaml` goes to `1.0.0-rc.2+1`.
   **Why:** #109's emulator run of rc.1 found #175 (sev:high). A dragged piece shows Flutter's yellow underline on every Android version, so the owner would see it on every drag. #113's plan re-checks "the final release candidate", which allows further candidates.
   **Issue:** #108, #113, #175
+
+## /n8-exec M6 part 3 — 2026-10-01
+
+- **Decision:** The timing run is built and launched as a profile-mode app: `flutter build apk --profile -t perf_test/think_time_test.dart`, then adb install, a launch with `monkey`, and the results read from logcat. It is not run by `flutter test -d`, and not by `flutter drive`. `pubspec.yaml` is unchanged, so no `flutter_driver` and no `test_driver/`.
+  **Why:** `flutter test` has no `--profile` and builds debug (JIT), whose search times say nothing about the release app (Flutter 3.47.5 `flutter test --help`, 2026-10-01). The replan (2026-09-29) drops `flutter_drive` to avoid a new dev dependency. A plain app entry point needs neither. `perf_test/think_time_test.dart` keeps the planned name, but it is a `main()` app, not a `package:test` file, and it sits outside `integration_test/`, so the nightly job never runs it.
+  **Issue:** #112
+- **Decision:** Each position gets a fresh `ComputerPlayer` with `seed = index`, and its isolate is started (`start()`) before the stopwatch. The timed `chooseMove` includes the worker's first-request table set-up. Each step first plays one untimed warm-up move. Positions 0–9 are searched again at Club in the same run, and any changed move fails it. Cross-device sameness is checked by `--compare <json>`, which diffs all 200 moves, not only the ten the plan named.
+  **Why:** Every move of a real game's first turn pays the table set-up, so excluding it would understate the worst case a player sees. The in-run repeat is the test plan's "complement" assertion, and comparing every move costs nothing extra.
+  **Issue:** #112
+- **Decision:** Targets are `thinkSeconds × 1.1` from the `Strength` table (0.33, 0.66, 1.1, 2.2, 5.5 s), and p95 is by nearest rank. A p95 past its target fails the run on a phone and is reported only on an emulator. A p95 under the stated time is shown as "ok, overstated" with its signed percentage, and never fails. The replan's `PERF_ASSERT` dart-define is replaced by the runner knowing the device kind from its serial.
+  **Why:** The replan (2026-09-29) asks for targets taken from the table and a report in both directions. The runner already tells a phone from an emulator by serial for the wipe check, so a second switch would be able to disagree with it.
+  **Issue:** #112
+- **Decision:** `tools/think_time.sh` copies `tools/e2e.sh`'s safety: a phone needs `--allow-wipe` and then a typed `wipe`. It always uninstalls the timing build at the end, and keeps the screen on with `svc power stayon true` for the run, restoring the old `stay_on_while_plugged_in` value on exit. The refusals are held by the guard `test/guards/think_time_script_test.dart`, with three mutations (the refusal removed, every device treated as an emulator, the typed check removed), all caught on 2026-10-01.
+  **Why:** Installing the profile build replaces the Play install and erases the player's data, and a phone asleep mid-run would time the wrong thing. The owner's phone should not be left holding a timing app.
+  **Issue:** #112
+- **Decision:** The emulator dry run is recorded as `qa/runs/2026-10-01-emu-api34-agent.md`, with its JSON in `qa/runs/2026-10-01-emu-api34-agent/think_time.json`, a folder, because the run-record guard allows only `.md` files at the top of `qa/runs/`. It is the reference for the phone run's `--compare`. #112's phone criteria are not ticked, and the line in `strength.dart`'s table comment and #67's calibration comment wait for the phone's numbers.
+  **Why:** The emulator is not the owner's S26 Ultra (#112: only the phone run closes the story). Every step was far under its stated time on the emulator (Master p95 2.49 s against 5 s, 2026-10-01), so recording those numbers as calibration would mislead.
+  **Issue:** #112
+- **Decision:** #112's phone timing run was not run. The owner's observation on the S26 Ultra with rc.2 stands as its measurement: "the computer moves happen insanely fast, like immediately. Even on master it's maybe two second for the computer to move." The tool (`tools/think_time.sh`) and its emulator dry run stay committed for a slower phone later.
+  **Why:** The run replaces the Play install and wipes the app's data. Determinism is already proven on the emulator (200/200 identical moves), and the owner's flagship phone can only show the step times as overstated, never too slow.
+  **Issue:** #112
+- **Decision:** The computer's minimum turn is `BoardOptions.minTurnSeconds` (0 = Off, else 1–5), stored as `board.minTurnSeconds` in the settings document. A value that is not exactly one of `minTurnChoices` (a string, a fraction, -1, 6, missing) reads as Off rather than being clamped, unlike the custom clock's steppers.
+  **Why:** #181's AC: "a damaged or missing value falls back to Off". Clamping 60 to 5 would turn a damaged value into the slowest setting.
+  **Issue:** #181
+- **Decision:** `turnFloor(minTurn, game)` replaces the fixed 400 ms timer in `ComputerTurns._request`: the move lands no sooner than the longer of `minThinkTime` and the minimum, measured from the request as the 400 ms floor already was. In a timed game the minimum is skipped whole (only the 400 ms floor holds) when it is longer than `clockLimitMs` of the computer's clock at the request, rather than shortened to fit. The setting is read at each request, so a change applies from the next request, and a retry after a failure waits its own floor.
+  **Why:** The AC says the minimum "is skipped when it would push the clock past its margin" and that #132's hard limit stays in force. `clockLimitMs` is that hard limit's margin, so one rule bounds both the search and the wait.
+  **Issue:** #181
+- **Decision:** The slider is Flutter's Material `Slider` in a new `SettingSlider` row (lib/ui/widgets/setting_slider.dart), the last row under PLAY, on the switches' card with the switches' label and description styles and the value drawn as "Off" / "3 s". Its `label` carries the row's words for TalkBack ("Computer's minimum turn, <description>"), the value indicator is never drawn, and the value is read as "Off" / "1 second" / "3 seconds".
+  **Why:** `MergeSemantics` around a labelled `Semantics` left the slider as a merged-up child node, which #103's label audit counted as an unlabelled control. `Slider.label` gives the slider's own node its label. A custom drawn slider would have meant re-doing keyboard, focus and TalkBack's swipe up and down.
+  **Issue:** #181
+- **Decision:** #103's label audit (`test/a11y/labels_test.dart`) learns the slider role, and its self-test now includes an unlabelled `Slider`, which must be reported as "a slider with no label". The test-plan guard now also requires every `const <x>RowLabel` in settings_screen.dart to be named in the plan's Settings section, with one new `test-plan` mutation. The sampling table gets no column for the slider, because its columns are on/off switches. T717 covers it.
+  **Why:** Without the role the audit failed the slider as "a tappable with no role", though TalkBack announces it as a slider. Without the guard change, the AC's "the plan's guard requires it" would not be true, because the guard read only the `_toggles` table.
+  **Issue:** #181
+- **Decision:** Selecting during the computer's turn is `GameController.canSelectAhead`: against the computer, on its turn, with the game live, unpaused, and no promotion card or new game going in. That includes the turn after the computer has failed (the retry chip), because it is still the computer's turn and nothing is played. `inputLocked` is unchanged, so `move`, drags, drops and promotion stay refused. A tap on a target, an empty square or the computer's piece puts the piece down silently (no refusal tick).
+  **Why:** The AC allows only selection ("not a pre-move"), keeps drags refused, and says a target tap "plays nothing". A refusal tick would sound like an illegal move. Keeping the lock means every existing guard against acting on the computer's turn still holds.
+  **Issue:** #182
+- **Decision:** The dots on the computer's turn come from the position with your side to move, with castling rights kept, the en passant square dropped (only the computer could use it), and any capture of the computer's king left out (possible when you have just given check). When the computer's move lands, the selection is kept only if the square still holds your piece and it has a move in the real legal list. Otherwise it clears without a sound.
+  **Why:** The AC: "computed as if it were your turn in the current position" and "kept if the piece still has legal moves". A king capture is never a chess move, and showing one would invite a tap that can never play.
+  **Issue:** #182
+- **Decision:** For TalkBack, `SquareStates.of` takes the controller's `selectedMoves`, so a piece selected on the computer's turn reads its targets. Your pieces' hint on its turn is "select for your turn" (`selectAheadHint`), the selected piece's hint is "put down", and targets have no hint because they play nothing. A double-tap that selects nothing still says "<step> is thinking". #75's tests that tapped your piece on the computer's turn and expected no selection (playing Black, and under the failure chip) now expect a selection and no move.
+  **Why:** The AC asks for the double-tap to select during the computer's turn "with the hint wording adjusted". "Move here" on a target would be false until it is your turn. The changed #75 assertions are the behaviour this story replaces, and their "nothing is played" half is kept.
+  **Issue:** #182
+
+- **Decision:** `pubspec.yaml` goes to `1.0.0-rc.3+1` in part 3's PR, so `v1.0.0-rc.3` can be tagged straight after the merge. It carries #181 and #182 for the owner's phone re-check.
+  **Why:** One CI cycle instead of two, since a version-only PR costs a full mutation run (about 50 min).
+  **Issue:** #113, #181, #182
+
+## Ad-hoc — 2026-10-01
+
+- **Change:** Two features join M6 at the owner's request, ahead of the final release candidate.
+  - #181: a Settings slider for the computer's minimum turn length (Off, 1–5 s, default Off).
+  - #182: select a piece during the computer's turn. Dots show, only selection is allowed (no pre-move), and the selection is kept after the reply if the piece is still movable.
+  **Why:** Owner, 2026-10-01, after seeing replies arrive almost instantly on the S26 Ultra: "What I'm going to want is a setting in settings for a minimum turn length for the computer", and "the ability to select a piece before it's my turn". Placement ("In M6, before the final RC"), the slider and its default, and the keep-if-movable rule are the owner's answers the same day.
+  **Affects:** M6: #181 and #182 are added under epic #10, and #113 (the final re-check) waits on both. No other milestone. — reconciled at the source 2026-10-01 (issues filed with full acceptance criteria)

@@ -394,6 +394,18 @@ final a11yCases = <A11yCase>[
     await settleCase(tester);
     expect(_key('ring-selected-e2'), findsOneWidget);
   }, controls: 4),
+  A11yCase('the board, a piece selected while the computer thinks', (
+    tester,
+  ) async {
+    final c = await _board(tester, _vsComputer(computers: FakeComputers()));
+    c.move(Square.parse('e2'), Square.parse('e4'));
+    await tester.pump();
+    await tester.tap(_key('cell-g1'));
+    await settleCase(tester);
+    expect(c.state.thinking, isTrue);
+    expect(_key('ring-selected-g1'), findsOneWidget);
+    expect(_key('dot-f3'), findsOneWidget);
+  }, controls: 4),
   A11yCase('the board, two players', (tester) async {
     await _board(
       tester,
