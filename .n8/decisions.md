@@ -1438,3 +1438,14 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** The emulator dry run is recorded as `qa/runs/2026-10-01-emu-api34-agent.md`, with its JSON in `qa/runs/2026-10-01-emu-api34-agent/think_time.json`, a folder, because the run-record guard allows only `.md` files at the top of `qa/runs/`. It is the reference for the phone run's `--compare`. #112's phone criteria are not ticked, and the line in `strength.dart`'s table comment and #67's calibration comment wait for the phone's numbers.
   **Why:** The emulator is not the owner's S26 Ultra (#112: only the phone run closes the story). Every step was far under its stated time on the emulator (Master p95 2.49 s against 5 s, 2026-10-01), so recording those numbers as calibration would mislead.
   **Issue:** #112
+- **Decision:** #112's phone timing run was not run. The owner's observation on the S26 Ultra with rc.2 stands as its measurement: "the computer moves happen insanely fast, like immediately. Even on master it's maybe two second for the computer to move." The tool (`tools/think_time.sh`) and its emulator dry run stay committed for a slower phone later.
+  **Why:** The run replaces the Play install and wipes the app's data. Determinism is already proven on the emulator (200/200 identical moves), and the owner's flagship phone can only show the step times as overstated, never too slow.
+  **Issue:** #112
+
+## Ad-hoc — 2026-10-01
+
+- **Change:** Two features join M6 at the owner's request, ahead of the final release candidate.
+  - #181: a Settings slider for the computer's minimum turn length (Off, 1–5 s, default Off).
+  - #182: select a piece during the computer's turn. Dots show, only selection is allowed (no pre-move), and the selection is kept after the reply if the piece is still movable.
+  **Why:** Owner, 2026-10-01, after seeing replies arrive almost instantly on the S26 Ultra: "What I'm going to want is a setting in settings for a minimum turn length for the computer", and "the ability to select a piece before it's my turn". Placement ("In M6, before the final RC"), the slider and its default, and the keep-if-movable rule are the owner's answers the same day.
+  **Affects:** M6: #181 and #182 are added under epic #10, and #113 (the final re-check) waits on both. No other milestone. — reconciled at the source 2026-10-01 (issues filed with full acceptance criteria)
