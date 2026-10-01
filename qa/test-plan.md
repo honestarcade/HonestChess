@@ -768,7 +768,7 @@ route: settings
 ### T701 — The Settings screen
 Steps:
 - Open Settings from the menu and scroll to the end.
-Expected: Board colour (NAVY, TEAL, VIOLET, BONE), Piece style (CLASSIC, OUTLINE, FLAT) and Board surface (PLAIN, FELT, WOOD), then the PLAY, DISPLAY and SOUND switches, the note STORED ON THIS PHONE, and the version line `v<name> · BUILD <code>`.
+Expected: Board colour (NAVY, TEAL, VIOLET, BONE), Piece style (CLASSIC, OUTLINE, FLAT) and Board surface (PLAIN, FELT, WOOD), then the PLAY switches and the Computer's minimum turn slider, the DISPLAY and SOUND switches, the note STORED ON THIS PHONE, and the version line `v<name> · BUILD <code>`.
 Core: no
 Where: both
 Automated: test/ui/settings_look_test.dart; test/ui/settings_options_test.dart
@@ -844,6 +844,17 @@ Expected: As T316.
 Core: no
 Where: both
 Automated: test/ui/board_shapes_test.dart
+
+### T717 — Computer's minimum turn
+Steps:
+- In Settings, read the Computer's minimum turn slider under PLAY; slide it to 3 s.
+- Start an untimed game against Beginner and play a few moves.
+- Set it to 5 s; start a Custom 1+0 game and play quickly until the computer's clock is under 5 s.
+- With TalkBack on, swipe to the slider and swipe up and down on it.
+Expected: It reads Off by default, steps Off, 1 s … 5 s, and keeps its value after Force stop. At 3 s every reply shows THINKING… for at least 3 s; the moves are no weaker or different in kind. In a timed game the wait runs on the computer's clock, and once its clock is too low for the wait it replies within the usual moment rather than lose on time. TalkBack reads "Computer's minimum turn", its description and "Off" or "3 seconds", and changes it a step at a time.
+Core: no
+Where: both
+Automated: test/ui/settings_options_test.dart; test/ui/game/computer_turns_test.dart — at 3 s no move appears before 3 s, thinking all the while; test/data/settings_store_test.dart
 
 ### T720 — Sound effects
 Steps:

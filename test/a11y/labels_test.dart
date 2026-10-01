@@ -70,7 +70,7 @@ bool _tappable(SemanticsData data) =>
     (data.customSemanticsActionIds?.isNotEmpty ?? false);
 
 /// The role a screen reader names: button, link, toggle, a choice in a
-/// group, or a tab.
+/// group, a tab, or a slider.
 String? _role(SemanticsData data) {
   final f = data.flagsCollection;
   if (data.role == SemanticsRole.tab) return 'tab';
@@ -78,6 +78,7 @@ String? _role(SemanticsData data) {
   if (f.isLink) return 'link';
   if (f.isToggled != Tristate.none) return 'toggle';
   if (f.isChecked != CheckedState.none) return 'checkbox';
+  if (f.isSlider) return 'slider';
   if (f.isSelected != Tristate.none && f.isInMutuallyExclusiveGroup) {
     return 'choice';
   }
@@ -183,6 +184,7 @@ void main() {
                 enabled: false,
                 child: const SizedBox.square(dimension: 48),
               ),
+              SizedBox(width: 200, child: Slider(value: 0, onChanged: (_) {})),
               Semantics(
                 button: true,
                 label: 'Inert',
@@ -211,6 +213,11 @@ void main() {
         reason: 'labels: a disabled button still needs its label',
       );
       expect(problems, contains('"Inert": a button nothing can activate'));
+      expect(
+        problems.where((p) => p.endsWith('a slider with no label')),
+        hasLength(1),
+        reason: 'labels: an unlabelled slider is reported',
+      );
       handle.dispose();
     });
   });

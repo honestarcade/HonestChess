@@ -1441,6 +1441,18 @@ The owner asked for M2–M5 to run in one shot without questions. A readiness au
 - **Decision:** #112's phone timing run was not run. The owner's observation on the S26 Ultra with rc.2 stands as its measurement: "the computer moves happen insanely fast, like immediately. Even on master it's maybe two second for the computer to move." The tool (`tools/think_time.sh`) and its emulator dry run stay committed for a slower phone later.
   **Why:** The run replaces the Play install and wipes the app's data. Determinism is already proven on the emulator (200/200 identical moves), and the owner's flagship phone can only show the step times as overstated, never too slow.
   **Issue:** #112
+- **Decision:** The computer's minimum turn is `BoardOptions.minTurnSeconds` (0 = Off, else 1–5), stored as `board.minTurnSeconds` in the settings document. A value that is not exactly one of `minTurnChoices` (a string, a fraction, -1, 6, missing) reads as Off rather than being clamped, unlike the custom clock's steppers.
+  **Why:** #181's AC: "a damaged or missing value falls back to Off". Clamping 60 to 5 would turn a damaged value into the slowest setting.
+  **Issue:** #181
+- **Decision:** `turnFloor(minTurn, game)` replaces the fixed 400 ms timer in `ComputerTurns._request`: the move lands no sooner than the longer of `minThinkTime` and the minimum, measured from the request as the 400 ms floor already was. In a timed game the minimum is skipped whole (only the 400 ms floor holds) when it is longer than `clockLimitMs` of the computer's clock at the request, rather than shortened to fit. The setting is read at each request, so a change applies from the next request, and a retry after a failure waits its own floor.
+  **Why:** The AC says the minimum "is skipped when it would push the clock past its margin" and that #132's hard limit stays in force. `clockLimitMs` is that hard limit's margin, so one rule bounds both the search and the wait.
+  **Issue:** #181
+- **Decision:** The slider is Flutter's Material `Slider` in a new `SettingSlider` row (lib/ui/widgets/setting_slider.dart), the last row under PLAY, on the switches' card with the switches' label and description styles and the value drawn as "Off" / "3 s". Its `label` carries the row's words for TalkBack ("Computer's minimum turn, <description>"), the value indicator is never drawn, and the value is read as "Off" / "1 second" / "3 seconds".
+  **Why:** `MergeSemantics` around a labelled `Semantics` left the slider as a merged-up child node, which #103's label audit counted as an unlabelled control. `Slider.label` gives the slider's own node its label. A custom drawn slider would have meant re-doing keyboard, focus and TalkBack's swipe up and down.
+  **Issue:** #181
+- **Decision:** #103's label audit (`test/a11y/labels_test.dart`) learns the slider role, and its self-test now includes an unlabelled `Slider`, which must be reported as "a slider with no label". The test-plan guard now also requires every `const <x>RowLabel` in settings_screen.dart to be named in the plan's Settings section, with one new `test-plan` mutation. The sampling table gets no column for the slider, because its columns are on/off switches. T717 covers it.
+  **Why:** Without the role the audit failed the slider as "a tappable with no role", though TalkBack announces it as a slider. Without the guard change, the AC's "the plan's guard requires it" would not be true, because the guard read only the `_toggles` table.
+  **Issue:** #181
 
 ## Ad-hoc — 2026-10-01
 

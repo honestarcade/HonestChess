@@ -15,6 +15,7 @@ import 'package:honest_chess/ui/game/game_controller.dart';
 import 'package:honest_chess/ui/screens/settings_screen.dart';
 import 'package:honest_chess/ui/theme/palette.dart';
 import 'package:honest_chess/ui/widgets/setting_row.dart';
+import 'package:honest_chess/ui/widgets/setting_slider.dart';
 import 'package:honest_chess/ui/widgets/toggle_switch.dart';
 
 import '../support/app_harness.dart';
@@ -288,6 +289,86 @@ void main() {
       ),
       reason: 'settings-options: the toggles touch nothing else',
     );
+  });
+
+  group("the computer's minimum turn (#181)", () {
+    const slider = Key('settings-min-turn-slider');
+    Finder node() =>
+        find.bySemanticsLabel('$minTurnRowLabel, $minTurnDescription');
+
+    String shown(WidgetTester tester) => tester
+        .widget<Text>(find.byKey(const Key('settings-min-turn-value')))
+        .data!;
+
+    /// Taps the slider's track at step [i] of [minTurnChoices].
+    Future<void> tapStep(WidgetTester tester, int i) async {
+      await tester.ensureVisible(find.byKey(slider));
+      final box = tester.getRect(find.byKey(slider));
+      const inset = SettingSlider.height / 2;
+      final x =
+          box.left +
+          inset +
+          (box.width - 2 * inset) * i / (minTurnChoices.length - 1);
+      await tester.tapAt(Offset(x, box.center.dy));
+      await tester.pump();
+    }
+
+    testWidgets('a slider under PLAY, Off by default, Off to 5 s, read with '
+        'its value, kept at once', (tester) async {
+      final store = AppStore.memory();
+      final harness = await _pumpSettings(tester, store: store);
+      final handle = tester.ensureSemantics();
+      final row = find.byKey(const Key('settings-min-turn'));
+      expect(
+        tester.getTopLeft(row).dy,
+        allOf(
+          greaterThan(tester.getTopLeft(find.text('PLAY')).dy),
+          lessThan(tester.getTopLeft(find.text('DISPLAY')).dy),
+        ),
+        reason: 'settings-options: the minimum turn sits under PLAY',
+      );
+      expect(find.text(minTurnRowLabel), findsOneWidget);
+      expect(find.text(minTurnDescription), findsOneWidget);
+      expect(shown(tester), 'Off', reason: 'settings-options: Off by default');
+      expect(
+        tester.getSize(find.byKey(slider)).height,
+        greaterThanOrEqualTo(48),
+        reason: 'settings-options: the slider is a 48 dp target',
+      );
+      expect(
+        tester.getSemantics(node()),
+        isSemantics(
+          label: '$minTurnRowLabel, $minTurnDescription',
+          value: 'Off',
+          isSlider: true,
+          hasIncreaseAction: true,
+        ),
+        reason: 'settings-options: one slider node, labelled, valued Off',
+      );
+
+      for (final (i, seconds) in minTurnChoices.indexed.toList().reversed) {
+        await tapStep(tester, i);
+        expect(
+          harness.settings.board.value.minTurnSeconds,
+          seconds,
+          reason: 'settings-options: step $i sets $seconds s',
+        );
+        expect((await _saved(store)).minTurnSeconds, seconds);
+        expect(shown(tester), seconds == 0 ? 'Off' : '$seconds s');
+        expect(
+          tester.getSemantics(node()),
+          isSemantics(value: minTurnSpoken(seconds), isSlider: true),
+        );
+      }
+      expect(minTurnSpoken(1), '1 second');
+      expect(minTurnSpoken(3), '3 seconds');
+      expect(
+        harness.settings.board.value,
+        const BoardOptions(),
+        reason: 'settings-options: the slider touches nothing else',
+      );
+      handle.dispose();
+    });
   });
 
   testWidgets('turning Sound effects on plays one sample move; nothing else '

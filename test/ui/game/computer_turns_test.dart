@@ -39,12 +39,14 @@ Future<(Harness, FakeComputers)> pumpVs(
   WidgetTester tester, {
   GameMode mode = asWhite,
   TimeControl timeControl = Timed.rapid,
+  BoardOptions options = const BoardOptions(),
 }) async {
   final fakes = FakeComputers();
   final h = await pumpGame(
     tester,
     mode: mode,
     timeControl: timeControl,
+    options: options,
     computer: fakes,
   );
   return (h, fakes);
@@ -278,6 +280,160 @@ void main() {
       request.move('e7e5');
       await tester.pump(const Duration(seconds: 2));
       expect(tester.takeException(), isNull, reason: 'cancel: no late move');
+    });
+  });
+
+  group('the minimum turn (#181)', () {
+    const threeSeconds = BoardOptions(minTurnSeconds: 3);
+    const ms = Duration(milliseconds: 1);
+
+    testWidgets('Off: the 400 ms floor alone holds', (tester) async {
+      final (h, fakes) = await pumpVs(tester);
+      final c = h.controller;
+      expect(c.options.minTurnSeconds, 0, reason: 'min turn: Off by default');
+      await play(tester, c, 'e2e4');
+      fakes.current.last.move('e7e5');
+      await h.clock.advance(minThinkTime - ms);
+      expect(moves(c), ['e2e4'], reason: 'min turn: Off keeps the floor');
+      await h.clock.advance(ms);
+      expect(moves(c), [
+        'e2e4',
+        'e7e5',
+      ], reason: 'min turn: Off waits no longer than the floor');
+    });
+
+    testWidgets('at 3 s no move appears before 3 s, thinking all the while', (
+      tester,
+    ) async {
+      final (h, fakes) = await pumpVs(tester, options: threeSeconds);
+      final c = h.controller;
+      await play(tester, c, 'e2e4');
+      fakes.current.last.move('e7e5');
+      await h.clock.advance(minThinkTime);
+      expect(moves(c), ['e2e4'], reason: 'min turn: not at the 400 ms floor');
+      await h.clock.advance(const Duration(seconds: 3) - minThinkTime - ms);
+      expect(moves(c), ['e2e4'], reason: 'min turn: no move before 3 s');
+      expect(c.state.thinking, isTrue, reason: 'min turn: thinking throughout');
+      expect(text(tester, 'status-text'), 'THINKING…');
+      expect(text(tester, 'name-black'), 'Club is thinking');
+      await h.clock.advance(ms);
+      expect(moves(c), ['e2e4', 'e7e5'], reason: 'min turn: lands at 3 s');
+      expect(c.state.thinking, isFalse);
+      expect(
+        c.remaining(Colour.black),
+        const Duration(minutes: 10, seconds: 5) - const Duration(seconds: 3),
+        reason: 'min turn: the wait ran on the computer\'s clock',
+      );
+    });
+
+    testWidgets('a longer think is not lengthened', (tester) async {
+      final (h, fakes) = await pumpVs(tester, options: threeSeconds);
+      final c = h.controller;
+      await play(tester, c, 'e2e4');
+      await h.clock.advance(const Duration(seconds: 4));
+      expect(moves(c), ['e2e4']);
+      fakes.current.last.move('e7e5');
+      await tester.pump();
+      expect(moves(c), [
+        'e2e4',
+        'e7e5',
+      ], reason: 'min turn: an answer past the minimum lands at once');
+    });
+
+    final cancels = <String, Future<Object?> Function(GameController)>{
+      'takeback': (c) async => c.takeBack(),
+      'restart': (c) => c.restart(),
+      'resign': (c) async => c.resign(),
+      'pause': (c) async => c.pause(),
+      'leaving': (c) async => c.leave(),
+      'new game': (c) => c.newGame(vsComputerDefault),
+    };
+    for (final MapEntry(key: what, value: act) in cancels.entries) {
+      testWidgets('$what during the wait plays nothing, late or not', (
+        tester,
+      ) async {
+        final (h, fakes) = await pumpVs(tester, options: threeSeconds);
+        final c = h.controller;
+        await play(tester, c, 'e2e4');
+        final asked = fakes.current;
+        asked.last.move('e7e5');
+        await h.clock.advance(const Duration(milliseconds: 1500));
+        expect(c.state.thinking, isTrue, reason: 'min turn: in the wait');
+        await act(c);
+        await h.clock.advance(const Duration(seconds: 5));
+        expect(
+          c.game.moves.map((m) => m.toUci()),
+          isNot(contains('e7e5')),
+          reason: 'min turn: $what during the wait plays no move',
+        );
+        expect(asked.requests, hasLength(1), reason: 'no re-request');
+        // A paused game's computer asks again on resume: answer and finish.
+        if (what == 'pause') {
+          expect(c.resume(), isTrue);
+          await tester.pump();
+          fakes.current.last.move('c7c5');
+          await h.clock.advance(const Duration(seconds: 3));
+          expect(moves(c), ['e2e4', 'c7c5']);
+        }
+      });
+    }
+
+    testWidgets('with less on its clock than the minimum, it moves before '
+        'its flag', (tester) async {
+      final (h, fakes) = await pumpVs(
+        tester,
+        timeControl: Timed(1, 0),
+        options: threeSeconds,
+      );
+      final c = h.controller;
+      await play(tester, c, 'e2e4');
+      // A long first think leaves the computer 2.5 s.
+      await h.clock.advance(const Duration(milliseconds: 57500));
+      fakes.current.last.move('e7e5');
+      await tester.pump();
+      expect(moves(c), ['e2e4', 'e7e5']);
+      expect(c.remaining(Colour.black), const Duration(milliseconds: 2500));
+      await play(tester, c, 'd2d4');
+      fakes.current.last.move('d7d5');
+      await h.clock.advance(minThinkTime);
+      expect(
+        moves(c),
+        ['e2e4', 'e7e5', 'd2d4', 'd7d5'],
+        reason: 'min turn: skipped when it would run the clock past its margin',
+      );
+      expect(c.game.isOver, isFalse, reason: 'min turn: no flag');
+      expect(
+        c.remaining(Colour.black),
+        const Duration(milliseconds: 2100),
+        reason: 'min turn: only the floor ran on its clock',
+      );
+    });
+
+    test('turnFloor: Off keeps the floor; a timed clock too low for the '
+        'minimum skips it', () {
+      final untimed = Game.start(asWhite, const Untimed());
+      expect(turnFloor(Duration.zero, untimed), minThinkTime);
+      expect(
+        turnFloor(const Duration(seconds: 5), untimed),
+        const Duration(seconds: 5),
+      );
+      var now = 0;
+      final timed = Game.start(
+        asWhite,
+        Timed(1, 0),
+        time: () => now,
+      ).play(Move.fromUci(Position.initial(), 'e2e4'));
+      const three = Duration(seconds: 3);
+      // 3100 ms left keeps a 62 ms margin: 3 s still fits.
+      now = 56900;
+      expect(turnFloor(three, timed), three, reason: 'min turn: it fits');
+      // 3000 ms left keeps 60 ms: 3 s would run into it.
+      now = 57000;
+      expect(
+        turnFloor(three, timed),
+        minThinkTime,
+        reason: 'min turn: skipped when it would run the clock past its margin',
+      );
     });
   });
 

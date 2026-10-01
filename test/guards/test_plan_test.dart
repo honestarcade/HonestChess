@@ -173,6 +173,16 @@ Map<String, String> settingRows() {
   };
 }
 
+/// The Settings rows that are not switches (#181's slider), read from
+/// every `const <x>RowLabel = '<label>';` in the Settings screen.
+List<String> otherSettingRows() => [
+  for (final m in RegExp(
+    r'''^const \w+RowLabel = (?:'([^']+)'|"([^"]+)");''',
+    multiLine: true,
+  ).allMatches(readFile(settingsPath)))
+    m[1] ?? m[2]!,
+];
+
 /// [name] compared the way the table writes an enum value: any case, any
 /// spacing ("vs computer" for `vsComputer`).
 String squash(String name) => name.replaceAll(' ', '').toLowerCase();
@@ -260,6 +270,9 @@ void main() {
         if (!text.contains(label))
           'test-plan: Settings row "$label" ($id) is not in the Settings '
               'section',
+      for (final label in otherSettingRows())
+        if (!text.contains(label))
+          'test-plan: Settings row "$label" is not in the Settings section',
     ];
     expect(missing, isEmpty, reason: missing.join('\n'));
   });

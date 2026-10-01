@@ -811,6 +811,7 @@ class GameController extends ChangeNotifier {
     return ComputerTurns(
       factory(mode.step, mode.seed),
       play: _playComputer,
+      minTurn: () => _options.minTurn,
       changed: () {
         if (_disposed) return;
         _state = _viewState();

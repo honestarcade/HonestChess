@@ -246,6 +246,7 @@ final class BoardOptions {
     this.music = false,
     this.haptics = true,
     this.flagCheck = true,
+    this.minTurnSeconds = 0,
   });
 
   final BoardTheme theme;
@@ -282,6 +283,13 @@ final class BoardOptions {
   /// Redden the king's square whenever it is in check.
   final bool flagCheck;
 
+  /// The least time, in whole seconds, from the computer's turn beginning
+  /// to its move landing; 0 is Off, and one of [minTurnChoices].
+  final int minTurnSeconds;
+
+  /// The computer's minimum turn as a duration; zero when Off.
+  Duration get minTurn => Duration(seconds: minTurnSeconds);
+
   BoardOptions copyWith({
     BoardTheme? theme,
     PieceStyle? pieceStyle,
@@ -296,6 +304,7 @@ final class BoardOptions {
     bool? music,
     bool? haptics,
     bool? flagCheck,
+    int? minTurnSeconds,
   }) => BoardOptions(
     theme: theme ?? this.theme,
     pieceStyle: pieceStyle ?? this.pieceStyle,
@@ -310,6 +319,7 @@ final class BoardOptions {
     music: music ?? this.music,
     haptics: haptics ?? this.haptics,
     flagCheck: flagCheck ?? this.flagCheck,
+    minTurnSeconds: minTurnSeconds ?? this.minTurnSeconds,
   );
 
   @override
@@ -327,7 +337,8 @@ final class BoardOptions {
       other.sfx == sfx &&
       other.music == music &&
       other.haptics == haptics &&
-      other.flagCheck == flagCheck;
+      other.flagCheck == flagCheck &&
+      other.minTurnSeconds == minTurnSeconds;
 
   @override
   int get hashCode => Object.hash(
@@ -344,5 +355,10 @@ final class BoardOptions {
     music,
     haptics,
     flagCheck,
+    minTurnSeconds,
   );
 }
+
+/// The settings' steps for the computer's minimum turn, in seconds: Off,
+/// then 1 to 5.
+const minTurnChoices = [0, 1, 2, 3, 4, 5];
